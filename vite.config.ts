@@ -14,6 +14,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // Force re-download of all assets on update
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Don't cache API routes - let them go to the server
+        navigateFallbackDenylist: [/^\/api/],
       },
       devOptions: {
         enabled: false,
