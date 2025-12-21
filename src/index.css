@@ -2354,6 +2354,20 @@ body.modal-open {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-black);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.onboarding-label-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.onboarding-input--nested {
+  margin-top: 12px;
 }
 
 .onboarding-input,
@@ -2483,9 +2497,14 @@ body.modal-open {
   flex-shrink: 0;
 }
 
-.onboarding-checkbox:has(input:checked) {
+.onboarding-checkbox:has(input:checked),
+.onboarding-checkbox--selected {
   border-color: var(--color-red);
   background: var(--color-red-light);
+}
+
+.onboarding-checkbox input:disabled + .onboarding-checkbox-content {
+  opacity: 0.5;
 }
 
 .onboarding-checkbox-content {

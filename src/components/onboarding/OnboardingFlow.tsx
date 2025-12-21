@@ -26,7 +26,9 @@ type OnboardingFlowProps = {
 export type OnboardingData = {
   name: string;
   lifeSeason: string;
-  primaryChallenge: string;
+  majorTransition: string;
+  transitionDescription?: string; // For "other" transition
+  primaryChallenges: string[]; // Now multi-select
   traits: UserTraits;
   selectedValueIds: string[];
   selectedInspirationIds: string[];
@@ -37,9 +39,19 @@ export type OnboardingData = {
 const LIFE_SEASONS = [
   { id: "single", label: "Single", description: "Independent, focused on self" },
   { id: "partnered", label: "Partnered", description: "In a relationship, sharing life" },
+  { id: "divorced", label: "Divorced/Separated", description: "Navigating life after a relationship" },
   { id: "parent", label: "Parent", description: "Raising children" },
   { id: "caregiver", label: "Caregiver", description: "Caring for others" },
-  { id: "transition", label: "Transition", description: "Major life change" },
+];
+
+const MAJOR_TRANSITIONS = [
+  { id: "none", label: "None right now", description: "Life is relatively stable" },
+  { id: "death", label: "Loss of loved one", description: "Grieving or processing loss" },
+  { id: "divorce", label: "Divorce/Separation", description: "Ending a significant relationship" },
+  { id: "health", label: "Health concern", description: "Dealing with illness or injury" },
+  { id: "job", label: "Job change", description: "New job, layoff, or career shift" },
+  { id: "move", label: "Relocation", description: "Moving to a new place" },
+  { id: "other", label: "Other", description: "Something else significant" },
 ];
 
 const PRIMARY_CHALLENGES = [
@@ -48,6 +60,9 @@ const PRIMARY_CHALLENGES = [
   { id: "focus", label: "Focus", description: "Too many distractions" },
   { id: "balance", label: "Balance", description: "Life feels lopsided" },
   { id: "direction", label: "Direction", description: "Unsure where to go" },
+  { id: "motivation", label: "Motivation", description: "Hard to get started" },
+  { id: "consistency", label: "Consistency", description: "Trouble sticking with things" },
+  { id: "overwhelm", label: "Overwhelm", description: "Too much on my plate" },
 ];
 
 // Icons for theme toggle
@@ -78,7 +93,9 @@ export function OnboardingFlow({ onComplete, onClose, onSkip, theme, onToggleThe
   // Step 1: Basics
   const [name, setName] = useState("");
   const [lifeSeason, setLifeSeason] = useState("");
-  const [primaryChallenge, setPrimaryChallenge] = useState("");
+  const [majorTransition, setMajorTransition] = useState("");
+  const [transitionDescription, setTransitionDescription] = useState("");
+  const [primaryChallenges, setPrimaryChallenges] = useState<string[]>([]);
 
   // Step 2: Prototype (Traits + Values + Inspirations)
   const [traits, setTraits] = useState<UserTraits>(DEFAULT_TRAITS);
@@ -110,10 +127,22 @@ export function OnboardingFlow({ onComplete, onClose, onSkip, theme, onToggleThe
     setInitialLoopStates((prev) => ({ ...prev, [loopId]: state }));
   };
 
+  const handleChallengeToggle = (challengeId: string) => {
+    setPrimaryChallenges(prev => {
+      if (prev.includes(challengeId)) {
+        return prev.filter(id => id !== challengeId);
+      }
+      // Max 3 challenges
+      if (prev.length >= 3) return prev;
+      return [...prev, challengeId];
+    });
+  };
+
   const canProceed = () => {
     switch (step) {
       case 1:
-        return name.trim().length > 0 && lifeSeason && primaryChallenge;
+        const transitionValid = majorTransition !== "other" || transitionDescription.trim().length > 0;
+        return name.trim().length > 0 && lifeSeason && majorTransition && transitionValid && primaryChallenges.length > 0;
       case 2:
         return traitsCompleted && selectedValueIds.length === 5 && selectedInspirationIds.length >= 5;
       case 3:
@@ -148,7 +177,9 @@ export function OnboardingFlow({ onComplete, onClose, onSkip, theme, onToggleThe
     onComplete({
       name,
       lifeSeason,
-      primaryChallenge,
+      majorTransition,
+      transitionDescription: majorTransition === "other" ? transitionDescription : undefined,
+      primaryChallenges,
       traits,
       selectedValueIds,
       selectedInspirationIds,
@@ -200,18 +231,54 @@ export function OnboardingFlow({ onComplete, onClose, onSkip, theme, onToggleThe
             </div>
 
             <div className="onboarding-field">
-              <label className="onboarding-label">What's your primary challenge right now?</label>
+              <label className="onboarding-label">Are you going through a major life transition?</label>
               <div className="onboarding-radio-group">
-                {PRIMARY_CHALLENGES.map((challenge) => (
-                  <label key={challenge.id} className="onboarding-radio">
+                {MAJOR_TRANSITIONS.map((transition) => (
+                  <label key={transition.id} className="onboarding-radio">
                     <input
                       type="radio"
-                      name="challenge"
-                      value={challenge.id}
-                      checked={primaryChallenge === challenge.id}
-                      onChange={(e) => setPrimaryChallenge(e.target.value)}
+                      name="majorTransition"
+                      value={transition.id}
+                      checked={majorTransition === transition.id}
+                      onChange={(e) => setMajorTransition(e.target.value)}
                     />
                     <div className="onboarding-radio-content">
+                      <strong>{transition.label}</strong>
+                      <span>{transition.description}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {majorTransition === "other" && (
+                <input
+                  type="text"
+                  className="onboarding-input onboarding-input--nested"
+                  value={transitionDescription}
+                  onChange={(e) => setTransitionDescription(e.target.value)}
+                  placeholder="Describe your transition..."
+                />
+              )}
+            </div>
+
+            <div className="onboarding-field">
+              <label className="onboarding-label">
+                What are your biggest challenges right now?
+                <span className="onboarding-label-hint">(Select up to 3)</span>
+              </label>
+              <div className="onboarding-checkbox-group">
+                {PRIMARY_CHALLENGES.map((challenge) => (
+                  <label
+                    key={challenge.id}
+                    className={`onboarding-checkbox ${primaryChallenges.includes(challenge.id) ? "onboarding-checkbox--selected" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      value={challenge.id}
+                      checked={primaryChallenges.includes(challenge.id)}
+                      onChange={() => handleChallengeToggle(challenge.id)}
+                      disabled={!primaryChallenges.includes(challenge.id) && primaryChallenges.length >= 3}
+                    />
+                    <div className="onboarding-checkbox-content">
                       <strong>{challenge.label}</strong>
                       <span>{challenge.description}</span>
                     </div>

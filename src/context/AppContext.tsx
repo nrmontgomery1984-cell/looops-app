@@ -68,7 +68,9 @@ export type UserProfile = {
   email?: string;
   timezone?: string;
   lifeSeason?: string;
-  primaryChallenge?: string;
+  majorTransition?: string;
+  transitionDescription?: string;
+  primaryChallenges?: string[];
   createdAt: string;
 };
 

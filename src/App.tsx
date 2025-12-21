@@ -215,8 +215,9 @@ function AppContent() {
       const defaultProfile = {
         id: `user_${Date.now()}`,
         name: "Dev User",
-        lifeSeason: "Building Career",
-        primaryChallenge: "Testing",
+        lifeSeason: "partnered",
+        majorTransition: "none",
+        primaryChallenges: ["focus"],
         createdAt: new Date().toISOString(),
       };
       // Create a default prototype so Goals wizard works
@@ -323,7 +324,9 @@ function AppContent() {
       id: `user_${Date.now()}`,
       name: data.name,
       lifeSeason: data.lifeSeason,
-      primaryChallenge: data.primaryChallenge,
+      majorTransition: data.majorTransition,
+      transitionDescription: data.transitionDescription,
+      primaryChallenges: data.primaryChallenges,
       createdAt: new Date().toISOString(),
     };
 
@@ -1342,12 +1345,24 @@ function AppContent() {
                       {user.profile.lifeSeason}
                     </span>
                   </div>
-                  <div className="profile-field">
-                    <span className="profile-label">Primary Challenge</span>
-                    <span className="profile-value">
-                      {user.profile.primaryChallenge}
-                    </span>
-                  </div>
+                  {user.profile.majorTransition && user.profile.majorTransition !== "none" && (
+                    <div className="profile-field">
+                      <span className="profile-label">Life Transition</span>
+                      <span className="profile-value">
+                        {user.profile.majorTransition === "other"
+                          ? user.profile.transitionDescription
+                          : user.profile.majorTransition}
+                      </span>
+                    </div>
+                  )}
+                  {user.profile.primaryChallenges && user.profile.primaryChallenges.length > 0 && (
+                    <div className="profile-field">
+                      <span className="profile-label">Challenges</span>
+                      <span className="profile-value">
+                        {user.profile.primaryChallenges.join(", ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1544,8 +1559,9 @@ function AppContent() {
             const defaultProfile = {
               id: `user_${Date.now()}`,
               name: "Demo User",
-              lifeSeason: "Exploring",
-              primaryChallenge: "Getting Started",
+              lifeSeason: "single",
+              majorTransition: "none",
+              primaryChallenges: ["direction"],
               createdAt: new Date().toISOString(),
             };
             const defaultPrototype = generatePrototype(
