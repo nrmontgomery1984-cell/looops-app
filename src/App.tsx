@@ -1576,6 +1576,8 @@ function AppContent() {
             dispatch({ type: "COMPLETE_ONBOARDING" });
             setShowOnboarding(false);
           } : undefined}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
       )}
 

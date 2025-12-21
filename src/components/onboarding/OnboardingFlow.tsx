@@ -9,10 +9,9 @@ import {
   ALL_LOOPS,
   LOOP_DEFINITIONS,
 } from "../../types";
-import { TRAIT_DEFINITIONS } from "../../data/traits";
 import { generatePrototype } from "../../engines/identityEngine";
 import { getStateDisplayName, getStateColor } from "../../engines/stateEngine";
-import TraitSlider from "./TraitSlider";
+import TraitAssessmentSection from "./TraitAssessmentSection";
 import ValueSelector from "./ValueSelector";
 import InspirationPicker from "./InspirationPicker";
 
@@ -20,6 +19,8 @@ type OnboardingFlowProps = {
   onComplete: (data: OnboardingData) => void;
   onClose: () => void;
   onSkip?: () => void;
+  theme?: "light" | "dark";
+  onToggleTheme?: () => void;
 };
 
 export type OnboardingData = {
@@ -49,7 +50,28 @@ const PRIMARY_CHALLENGES = [
   { id: "direction", label: "Direction", description: "Unsure where to go" },
 ];
 
-export function OnboardingFlow({ onComplete, onClose, onSkip }: OnboardingFlowProps) {
+// Icons for theme toggle
+const SunIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="5" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+);
+
+const MoonIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+
+export function OnboardingFlow({ onComplete, onClose, onSkip, theme, onToggleTheme }: OnboardingFlowProps) {
   const [step, setStep] = useState(1);
   const totalSteps = 4;
 
@@ -60,6 +82,7 @@ export function OnboardingFlow({ onComplete, onClose, onSkip }: OnboardingFlowPr
 
   // Step 2: Prototype (Traits + Values + Inspirations)
   const [traits, setTraits] = useState<UserTraits>(DEFAULT_TRAITS);
+  const [traitsCompleted, setTraitsCompleted] = useState(false);
   const [selectedValueIds, setSelectedValueIds] = useState<string[]>([]);
   const [selectedInspirationIds, setSelectedInspirationIds] = useState<string[]>([]);
   const [futureSelf, setFutureSelf] = useState("");
@@ -78,8 +101,9 @@ export function OnboardingFlow({ onComplete, onClose, onSkip }: OnboardingFlowPr
   // Step 4: Results (generated)
   const [generatedPrototype, setGeneratedPrototype] = useState<ReturnType<typeof generatePrototype> | null>(null);
 
-  const handleTraitChange = (key: string, value: number) => {
-    setTraits((prev) => ({ ...prev, [key]: value }));
+  const handleTraitsComplete = (completedTraits: UserTraits) => {
+    setTraits(completedTraits);
+    setTraitsCompleted(true);
   };
 
   const handleLoopStateChange = (loopId: LoopId, state: LoopStateType) => {
@@ -91,7 +115,7 @@ export function OnboardingFlow({ onComplete, onClose, onSkip }: OnboardingFlowPr
       case 1:
         return name.trim().length > 0 && lifeSeason && primaryChallenge;
       case 2:
-        return selectedValueIds.length === 5 && selectedInspirationIds.length >= 5;
+        return traitsCompleted && selectedValueIds.length === 5 && selectedInspirationIds.length >= 5;
       case 3:
         return true;
       case 4:
@@ -206,60 +230,74 @@ export function OnboardingFlow({ onComplete, onClose, onSkip }: OnboardingFlowPr
               Your Prototype is your identity blueprint. It drives how Looops understands you.
             </p>
 
-            <div className="onboarding-section">
-              <h3 className="onboarding-section-title">Your Traits</h3>
-              <p className="onboarding-section-desc">
-                Move each slider toward the pole that describes you better. There are no wrong answers.
-              </p>
-              <div className="traits-list">
-                {TRAIT_DEFINITIONS.map((trait) => (
-                  <TraitSlider
-                    key={trait.id}
-                    trait={trait}
-                    value={traits[trait.id]}
-                    onChange={handleTraitChange}
-                  />
-                ))}
+            {/* Trait Assessment - multi-screen flow */}
+            {!traitsCompleted ? (
+              <div className="onboarding-section onboarding-section--traits">
+                <h3 className="onboarding-section-title">Your Traits</h3>
+                <p className="onboarding-section-desc">
+                  Rate how much you agree with each statement. Be honest about who you are today.
+                </p>
+                <TraitAssessmentSection
+                  initialTraits={traits}
+                  onComplete={handleTraitsComplete}
+                />
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Traits completed - show values and inspirations */}
+                <div className="onboarding-section onboarding-section--completed">
+                  <div className="traits-completed-banner">
+                    <span className="traits-completed-icon">✓</span>
+                    <span>Traits assessed</span>
+                    <button
+                      type="button"
+                      className="traits-edit-btn"
+                      onClick={() => setTraitsCompleted(false)}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
 
-            <div className="onboarding-section">
-              <h3 className="onboarding-section-title">Your Core Values</h3>
-              <p className="onboarding-section-desc">
-                Select exactly 5 values that matter most to you.
-              </p>
-              <ValueSelector
-                selectedIds={selectedValueIds}
-                onChange={setSelectedValueIds}
-                maxSelections={5}
-              />
-            </div>
+                <div className="onboarding-section">
+                  <h3 className="onboarding-section-title">Your Core Values</h3>
+                  <p className="onboarding-section-desc">
+                    Select exactly 5 values that matter most to you.
+                  </p>
+                  <ValueSelector
+                    selectedIds={selectedValueIds}
+                    onChange={setSelectedValueIds}
+                    maxSelections={5}
+                  />
+                </div>
 
-            <div className="onboarding-section">
-              <h3 className="onboarding-section-title">Your Inspirations</h3>
-              <p className="onboarding-section-desc">
-                Select 5-10 people you admire and want to emulate.
-              </p>
-              <InspirationPicker
-                selectedIds={selectedInspirationIds}
-                onChange={setSelectedInspirationIds}
-                minSelections={5}
-                maxSelections={10}
-              />
-            </div>
+                <div className="onboarding-section">
+                  <h3 className="onboarding-section-title">Your Inspirations</h3>
+                  <p className="onboarding-section-desc">
+                    Select 5-10 people you admire and want to emulate.
+                  </p>
+                  <InspirationPicker
+                    selectedIds={selectedInspirationIds}
+                    onChange={setSelectedInspirationIds}
+                    minSelections={5}
+                    maxSelections={10}
+                  />
+                </div>
 
-            <div className="onboarding-field">
-              <label className="onboarding-label">
-                In 5 years, who do you want to be? (Optional)
-              </label>
-              <textarea
-                className="onboarding-textarea"
-                value={futureSelf}
-                onChange={(e) => setFutureSelf(e.target.value)}
-                placeholder="Describe your future self..."
-                rows={3}
-              />
-            </div>
+                <div className="onboarding-field">
+                  <label className="onboarding-label">
+                    In 5 years, who do you want to be? (Optional)
+                  </label>
+                  <textarea
+                    className="onboarding-textarea"
+                    value={futureSelf}
+                    onChange={(e) => setFutureSelf(e.target.value)}
+                    placeholder="Describe your future self..."
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
           </div>
         );
 
@@ -375,9 +413,21 @@ export function OnboardingFlow({ onComplete, onClose, onSkip }: OnboardingFlowPr
       <div className="modal modal-onboarding">
         <div className="modal__header">
           <h2>Setup Your Looops</h2>
-          <button className="modal__close" onClick={onClose}>
-            ×
-          </button>
+          <div className="modal__header-actions">
+            {onToggleTheme && (
+              <button
+                className="theme-toggle-btn"
+                onClick={onToggleTheme}
+                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              >
+                {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+              </button>
+            )}
+            <button className="modal__close" onClick={onClose}>
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="modal__body">

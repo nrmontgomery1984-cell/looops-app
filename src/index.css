@@ -1915,6 +1915,37 @@ body.modal-open {
   letter-spacing: -0.01em;
 }
 
+.modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+  border-color: var(--color-gray-500);
+}
+
+.theme-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .modal__close {
   background: transparent;
   border: none;
@@ -2474,6 +2505,269 @@ body.modal-open {
   font-size: 12px;
   color: var(--color-gray-600);
   line-height: 1.4;
+}
+
+/* ========== Trait Assessment Section ========== */
+.trait-assessment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.trait-assessment-section__progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trait-assessment-section__progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.trait-assessment-section__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--looops-coral), var(--looops-sage));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.trait-assessment-section__progress-text {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.trait-assessment-section__framing {
+  padding: 12px 16px;
+  background: var(--looops-amber-subtle);
+  border: 1px solid var(--looops-amber);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.trait-assessment-section__framing strong {
+  color: var(--looops-amber);
+}
+
+.trait-assessment-section__header {
+  text-align: center;
+}
+
+.trait-assessment-section__header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.trait-assessment-section__subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.trait-assessment-section__dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.trait-assessment-section__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trait-assessment-section__dot:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.trait-assessment-section__dot--active {
+  background: var(--looops-coral);
+  transform: scale(1.2);
+}
+
+.trait-assessment-section__dot--completed {
+  background: var(--looops-sage);
+}
+
+.trait-assessment-section__statements {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.trait-assessment-section__clarifications {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.trait-assessment-section__nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ========== Trait Statement Pair ========== */
+.trait-statement-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.trait-statement-pair__divider {
+  height: 1px;
+  background: var(--color-border);
+}
+
+.trait-statement {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trait-statement__text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.trait-statement__ratings {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.trait-rating-btn {
+  flex: 1;
+  height: 48px;
+  min-width: 48px;
+  max-width: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trait-rating-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-gray-500);
+  color: var(--color-text);
+}
+
+.trait-rating-btn--selected {
+  background: var(--looops-coral);
+  border-color: var(--looops-coral);
+  color: white;
+}
+
+.trait-rating-btn--selected:hover {
+  background: var(--looops-coral-light);
+  border-color: var(--looops-coral-light);
+}
+
+.trait-statement__scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ========== Traits Completed Banner ========== */
+.traits-completed-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--looops-sage-subtle);
+  border: 1px solid var(--looops-sage);
+  border-radius: var(--radius);
+}
+
+.traits-completed-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--looops-sage);
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.traits-completed-banner span:not(.traits-completed-icon) {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.traits-edit-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--looops-sage);
+  background: transparent;
+  border: 1px solid var(--looops-sage);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.traits-edit-btn:hover {
+  background: var(--looops-sage);
+  color: white;
+}
+
+/* Light theme overrides for trait assessment */
+[data-theme="light"] .trait-assessment-section__framing {
+  background: rgba(244, 185, 66, 0.1);
+  border-color: var(--looops-amber);
+}
+
+[data-theme="light"] .trait-statement-pair {
+  background: var(--color-white);
+}
+
+[data-theme="light"] .trait-rating-btn {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .trait-rating-btn:hover {
+  background: var(--color-gray-200);
+  border-color: var(--color-gray-400);
+  color: var(--color-gray-800);
 }
 
 /* ========== Responsive ========== */
