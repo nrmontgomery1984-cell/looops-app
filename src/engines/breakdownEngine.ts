@@ -1,6 +1,20 @@
-// Goal Breakdown Engine - Intelligent goal decomposition
+// Goal Breakdown Engine - Intelligent goal decomposition with archetype personalization
 
 import { Goal, GoalTimeframe, LoopId, Task } from "../types";
+import { ArchetypeId, UserPrototype } from "../types/identity";
+import {
+  PersonalizedGoalBreakdown,
+  PersonalizedMilestone,
+  PersonalizedAction,
+} from "../types/personalization";
+import {
+  BREAKDOWN_STRATEGIES,
+  ARCHETYPE_VERBS,
+  getRandomMotivation,
+  phraseAction,
+  applyVoice,
+} from "./voiceEngine";
+import { suggestGoalTimeline, generateMilestoneDates, getSchedulingProfile } from "./schedulingEngine";
 
 // Breakdown suggestion with context
 export type BreakdownSuggestion = {
@@ -481,4 +495,316 @@ export function getBreakdownHints(goal: Goal): string[] {
     `Each quarter has specific focus: ${pattern.quarterlySteps.map((s, i) => `Q${i+1}: ${s.split(" - ")[0]}`).join(", ")}`,
     "Create tasks for immediate actions",
   ];
+}
+
+// ============================================================================
+// ARCHETYPE-AWARE BREAKDOWN
+// ============================================================================
+
+/**
+ * Archetype-specific step transformations
+ * Maps generic steps to archetype-flavored versions
+ */
+const ARCHETYPE_STEP_TRANSFORMS: Record<ArchetypeId, Record<string, string>> = {
+  Machine: {
+    "foundation": "Install the foundation system",
+    "build": "Systematize the core process",
+    "practice": "Execute the routine",
+    "complete": "Finalize and automate",
+    "research": "Analyze and document",
+    "consistent": "Maintain systematic execution",
+    "increase": "Optimize and scale",
+    "establish": "Configure the system",
+  },
+  Warrior: {
+    "foundation": "Basic training complete",
+    "build": "Battle-ready development",
+    "practice": "Combat training",
+    "complete": "Victory achieved",
+    "research": "Study the enemy",
+    "consistent": "Maintain the assault",
+    "increase": "Intensify the attack",
+    "establish": "Fortify your position",
+  },
+  Artist: {
+    "foundation": "Explore the canvas",
+    "build": "Craft your expression",
+    "practice": "Flow with the work",
+    "complete": "The masterpiece emerges",
+    "research": "Discover inspiration",
+    "consistent": "Honor the practice",
+    "increase": "Deepen the craft",
+    "establish": "Create your space",
+  },
+  Scientist: {
+    "foundation": "Establish baseline hypothesis",
+    "build": "Test and iterate",
+    "practice": "Run the experiment",
+    "complete": "Validate results",
+    "research": "Gather data",
+    "consistent": "Maintain observation protocol",
+    "increase": "Scale the experiment",
+    "establish": "Set up the lab",
+  },
+  Stoic: {
+    "foundation": "Accept the beginning",
+    "build": "Persist through difficulty",
+    "practice": "Practice the virtue",
+    "complete": "Embody the lesson",
+    "research": "Contemplate wisely",
+    "consistent": "Maintain equanimity",
+    "increase": "Embrace greater challenge",
+    "establish": "Root in principle",
+  },
+  Visionary: {
+    "foundation": "Envision the destination",
+    "build": "Build toward the future",
+    "practice": "Live as your future self",
+    "complete": "The vision manifests",
+    "research": "See what others can't",
+    "consistent": "Stay true to the vision",
+    "increase": "Scale the impact",
+    "establish": "Plant the seed of change",
+  },
+};
+
+/**
+ * Transform a generic step into archetype-specific language
+ */
+function transformStepForArchetype(step: string, archetype: ArchetypeId): string {
+  const transforms = ARCHETYPE_STEP_TRANSFORMS[archetype];
+  const stepLower = step.toLowerCase();
+
+  // Find matching transform
+  for (const [keyword, replacement] of Object.entries(transforms)) {
+    if (stepLower.includes(keyword)) {
+      // Replace the first sentence/clause containing the keyword
+      const parts = step.split(" - ");
+      if (parts.length > 1) {
+        return `${replacement} - ${parts.slice(1).join(" - ")}`;
+      }
+      return replacement;
+    }
+  }
+
+  // If no match, prefix with archetype verb
+  const verbs = ARCHETYPE_VERBS[archetype];
+  return `${verbs.primary[0]}: ${step}`;
+}
+
+/**
+ * Generate archetype-specific key actions for a step
+ */
+function generateArchetypeKeyActions(
+  step: string,
+  goalTitle: string,
+  archetype: ArchetypeId,
+  timeframe: GoalTimeframe
+): PersonalizedAction[] {
+  const verbs = ARCHETYPE_VERBS[archetype];
+  const baseActions = generateKeyActions(step, goalTitle, timeframe);
+
+  return baseActions.map((action, idx) => {
+    const verb = verbs.primary[idx % verbs.primary.length];
+    return {
+      action: `${verb}: ${action.replace(/^[A-Z][a-z]+:\s*/, "")}`,
+      verb,
+      isArchetypeStrength: idx < 2, // First two actions are typically strengths
+    };
+  });
+}
+
+/**
+ * Generate a fully personalized goal breakdown based on archetype
+ */
+export function generatePersonalizedBreakdown(
+  goal: Goal,
+  prototype: UserPrototype,
+  targetTimeframe: GoalTimeframe
+): PersonalizedGoalBreakdown {
+  const archetype = prototype.archetypeBlend.primary;
+  const strategy = BREAKDOWN_STRATEGIES[archetype];
+  const schedulingProfile = getSchedulingProfile(prototype);
+
+  // Get base breakdown suggestions
+  const baseSuggestions = generateSmartBreakdown(goal, targetTimeframe);
+
+  // Get timeline recommendation
+  const timeline = suggestGoalTimeline(goal, schedulingProfile);
+
+  // Transform each suggestion into a personalized milestone
+  const milestones: PersonalizedMilestone[] = baseSuggestions.map((suggestion, idx) => {
+    const phase = idx === 0 ? "start" : idx === baseSuggestions.length - 1 ? "end" : "middle";
+    const transformedTitle = transformStepForArchetype(suggestion.title, archetype);
+
+    return {
+      title: transformedTitle,
+      description: applyVoice(suggestion.description, prototype.voiceProfile, archetype),
+      actionVerb: ARCHETYPE_VERBS[archetype].primary[idx % ARCHETYPE_VERBS[archetype].primary.length],
+      keyActions: generateArchetypeKeyActions(suggestion.title, goal.title, archetype, targetTimeframe),
+      effort: suggestion.estimatedEffort,
+      motivationalNote: getRandomMotivation(archetype),
+      targetDate: suggestion.targetDate,
+    };
+  });
+
+  // Generate journey narrative
+  const journeyNarrative = generateJourneyNarrative(goal, archetype, milestones.length);
+
+  // Generate success vision
+  const successVision = generateSuccessVision(goal, archetype);
+
+  // Suggest key metrics based on archetype tracking style
+  const keyMetrics = generateArchetypeMetrics(goal, archetype);
+
+  return {
+    goalId: goal.id,
+    archetypeId: archetype,
+    strategy,
+    milestones,
+    journeyNarrative,
+    successVision,
+    keyMetrics,
+  };
+}
+
+/**
+ * Generate a narrative for the goal journey based on archetype
+ */
+function generateJourneyNarrative(goal: Goal, archetype: ArchetypeId, milestoneCount: number): string {
+  const narratives: Record<ArchetypeId, (g: Goal, n: number) => string> = {
+    Machine: (g, n) =>
+      `This is a ${n}-phase systematic process to ${g.title.toLowerCase()}. Each phase builds on the last, creating an optimized system for success.`,
+    Warrior: (g, n) =>
+      `This is a ${n}-battle campaign to ${g.title.toLowerCase()}. Each victory strengthens you for the next. No retreat, no surrender.`,
+    Artist: (g, n) =>
+      `This is a ${n}-chapter creative journey to ${g.title.toLowerCase()}. Let each phase flow naturally into the next as your masterpiece emerges.`,
+    Scientist: (g, n) =>
+      `This is a ${n}-experiment process to ${g.title.toLowerCase()}. Each phase tests a hypothesis, and the data guides the next iteration.`,
+    Stoic: (g, n) =>
+      `This is a ${n}-phase practice in ${g.title.toLowerCase()}. Each step builds character and resilience. Focus on what you control.`,
+    Visionary: (g, n) =>
+      `This is a ${n}-stage transformation toward ${g.title.toLowerCase()}. Each phase brings you closer to the future you're building.`,
+  };
+
+  return narratives[archetype](goal, milestoneCount);
+}
+
+/**
+ * Generate success vision based on archetype
+ */
+function generateSuccessVision(goal: Goal, archetype: ArchetypeId): string {
+  const visions: Record<ArchetypeId, (g: Goal) => string> = {
+    Machine: (g) =>
+      `When complete, you'll have a fully optimized system for ${g.title.toLowerCase()} that runs automatically and efficiently.`,
+    Warrior: (g) =>
+      `Victory looks like total domination of ${g.title.toLowerCase()}. You'll stand as proof that determination conquers all.`,
+    Artist: (g) =>
+      `The masterpiece is ${g.title.toLowerCase()} expressed through your unique vision. Others will see your art in the result.`,
+    Scientist: (g) =>
+      `Success is validated data proving ${g.title.toLowerCase()} is achieved. The evidence will be undeniable.`,
+    Stoic: (g) =>
+      `Completion means embodying ${g.title.toLowerCase()} as part of who you are. It becomes natural, not forced.`,
+    Visionary: (g) =>
+      `The future you're building includes ${g.title.toLowerCase()} as a foundation for even greater impact.`,
+  };
+
+  return visions[archetype](goal);
+}
+
+/**
+ * Suggest metrics based on archetype tracking preferences
+ */
+function generateArchetypeMetrics(goal: Goal, archetype: ArchetypeId): string[] {
+  const metricStyles: Record<ArchetypeId, string[]> = {
+    Machine: [
+      "Completion percentage (0-100%)",
+      "Daily/weekly execution rate",
+      "Process efficiency score",
+      "Streak days maintained",
+    ],
+    Warrior: [
+      "Battles won (milestones completed)",
+      "Personal records broken",
+      "Consecutive victory days",
+      "Challenge difficulty level",
+    ],
+    Artist: [
+      "Quality satisfaction (1-10)",
+      "Flow state frequency",
+      "Creative output volume",
+      "Inspiration moments captured",
+    ],
+    Scientist: [
+      "Data points collected",
+      "Experiments completed",
+      "Correlation strength",
+      "Variance from baseline",
+    ],
+    Stoic: [
+      "Virtue practice days",
+      "Challenges accepted",
+      "Equanimity maintained (Y/N)",
+      "Progress regardless of feeling",
+    ],
+    Visionary: [
+      "Impact created",
+      "% toward vision",
+      "People influenced",
+      "Future-state alignment score",
+    ],
+  };
+
+  return metricStyles[archetype];
+}
+
+/**
+ * Get archetype-specific breakdown hints for UI
+ */
+export function getArchetypeBreakdownHints(goal: Goal, archetype: ArchetypeId): string[] {
+  const strategy = BREAKDOWN_STRATEGIES[archetype];
+  const pattern = findMatchingPattern(goal.title, goal.description);
+
+  return [
+    `As a ${archetype}, your approach: "${strategy.approachName}"`,
+    `Phase style: ${strategy.phaseFraming.start} → ${strategy.phaseFraming.middle} → ${strategy.phaseFraming.end}`,
+    `Motivation: ${strategy.motivationPhrases[0]}`,
+    `Pattern detected: ${pattern.quarterlySteps.length} natural phases`,
+  ];
+}
+
+/**
+ * Convert personalized breakdown to standard breakdown suggestions
+ * (for compatibility with existing goal creation functions)
+ */
+export function personalizedToStandardBreakdown(
+  personalized: PersonalizedGoalBreakdown
+): BreakdownSuggestion[] {
+  return personalized.milestones.map((milestone, idx) => ({
+    id: `breakdown_${idx}_${Date.now()}`,
+    title: milestone.title,
+    description: milestone.description,
+    actionVerb: milestone.actionVerb,
+    targetDate: milestone.targetDate || new Date().toISOString().split("T")[0],
+    estimatedEffort: milestone.effort,
+    keyActions: milestone.keyActions.map(a => a.action),
+  }));
+}
+
+/**
+ * Generate a complete archetype-aware breakdown with both personalized
+ * and standard formats
+ */
+export function generateCompleteBreakdown(
+  goal: Goal,
+  prototype: UserPrototype,
+  targetTimeframe: GoalTimeframe
+): {
+  personalized: PersonalizedGoalBreakdown;
+  standard: BreakdownSuggestion[];
+} {
+  const personalized = generatePersonalizedBreakdown(goal, prototype, targetTimeframe);
+  const standard = personalizedToStandardBreakdown(personalized);
+
+  return { personalized, standard };
 }

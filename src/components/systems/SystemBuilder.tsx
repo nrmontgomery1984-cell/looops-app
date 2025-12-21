@@ -1,5 +1,6 @@
 // System Builder - Guided wizard for creating behavior change systems
 // Transforms goals into identity + habits + environment design
+// Enhanced with archetype-aware personalization
 
 import React, { useState } from "react";
 import {
@@ -11,12 +12,14 @@ import {
   HabitFrequency,
   Identity,
   EnvironmentTweak,
-  SystemMetric,
   LoopId,
   LOOP_DEFINITIONS,
   LOOP_COLORS,
   ALL_LOOPS,
 } from "../../types";
+import { useApp } from "../../context";
+import { ARCHETYPE_OBSTACLES } from "../../engines/habitEngine";
+import { ARCHETYPE_IDENTITY_TEMPLATES } from "../../engines/voiceEngine";
 
 type WizardStep =
   | "select_template"
@@ -34,6 +37,10 @@ interface SystemBuilderProps {
 }
 
 export function SystemBuilder({ onComplete, onCancel, initialLoop }: SystemBuilderProps) {
+  const { state } = useApp();
+  const prototype = state.user.prototype;
+  const archetype = prototype?.archetypeBlend?.primary;
+
   const [step, setStep] = useState<WizardStep>("select_template");
   const [selectedTemplate, setSelectedTemplate] = useState<SystemTemplate | null>(null);
   const [selectedLoop, setSelectedLoop] = useState<LoopId>(initialLoop || "Health");
@@ -347,25 +354,62 @@ export function SystemBuilder({ onComplete, onCancel, initialLoop }: SystemBuild
               Define the identity that makes your goal inevitable.
             </p>
 
+            {/* Archetype context banner */}
+            {archetype && (
+              <div className="archetype-context-banner">
+                <span className="archetype-badge">As a {archetype}</span>
+                <span className="archetype-hint">
+                  {ARCHETYPE_IDENTITY_TEMPLATES[archetype].style}
+                </span>
+              </div>
+            )}
+
             <div className="identity-section">
               <div className="identity-prompt">
-                <span className="identity-prefix">I am a person who</span>
+                <span className="identity-prefix">
+                  {archetype ? ARCHETYPE_IDENTITY_TEMPLATES[archetype].prefix : "I am a person who"}
+                </span>
                 <textarea
                   className="identity-input"
-                  value={identityStatement.replace("I am a person who ", "")}
-                  onChange={(e) => setIdentityStatement(`I am a person who ${e.target.value}`)}
+                  value={identityStatement.replace(/^I am (a person|someone) who /, "")}
+                  onChange={(e) => {
+                    const prefix = archetype
+                      ? ARCHETYPE_IDENTITY_TEMPLATES[archetype].prefix
+                      : "I am a person who";
+                    setIdentityStatement(`${prefix} ${e.target.value}`);
+                  }}
                   placeholder="prioritizes their health..."
                   rows={2}
                 />
               </div>
 
               <div className="identity-examples">
-                <h4>Identity examples:</h4>
+                <h4>
+                  {archetype ? `Identity examples for ${archetype}s:` : "Identity examples:"}
+                </h4>
                 <ul>
-                  <li>"...shows up every day, even when it's hard"</li>
-                  <li>"...makes healthy choices for my future self"</li>
-                  <li>"...invests in relationships that matter"</li>
-                  <li>"...does the work before feeling motivated"</li>
+                  {archetype ? (
+                    ARCHETYPE_IDENTITY_TEMPLATES[archetype].examples.slice(0, 4).map((ex, i) => (
+                      <li key={i}>
+                        <button
+                          className="identity-example-btn"
+                          onClick={() => {
+                            const prefix = ARCHETYPE_IDENTITY_TEMPLATES[archetype].prefix;
+                            setIdentityStatement(`${prefix} ${ex}`);
+                          }}
+                        >
+                          "...{ex}"
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <>
+                      <li>"...shows up every day, even when it's hard"</li>
+                      <li>"...makes healthy choices for my future self"</li>
+                      <li>"...invests in relationships that matter"</li>
+                      <li>"...does the work before feeling motivated"</li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
@@ -540,6 +584,37 @@ export function SystemBuilder({ onComplete, onCancel, initialLoop }: SystemBuild
               "If [obstacle], then [solution]" - Having a plan for when things go wrong
               dramatically increases your chances of following through.
             </p>
+
+            {/* Archetype-specific obstacle suggestions */}
+            {archetype && ARCHETYPE_OBSTACLES[archetype] && (
+              <div className="archetype-obstacles-suggestions">
+                <h4>Common obstacles for {archetype}s:</h4>
+                <div className="obstacle-suggestion-list">
+                  {ARCHETYPE_OBSTACLES[archetype].slice(0, 3).map((suggestion, i) => (
+                    <button
+                      key={i}
+                      className="obstacle-suggestion"
+                      onClick={() => {
+                        // Check if this obstacle is already added
+                        const exists = obstacles.some(
+                          o => o.obstacle === suggestion.obstacle
+                        );
+                        if (!exists) {
+                          setObstacles([
+                            ...obstacles,
+                            { obstacle: suggestion.obstacle, solution: suggestion.strategy },
+                          ]);
+                        }
+                      }}
+                    >
+                      <span className="suggestion-obstacle">{suggestion.obstacle}</span>
+                      <span className="suggestion-arrow">→</span>
+                      <span className="suggestion-strategy">{suggestion.strategy}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="obstacles-section">
               {obstacles.map((item, index) => (

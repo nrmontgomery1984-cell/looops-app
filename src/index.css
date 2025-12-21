@@ -11384,6 +11384,43 @@ body.modal-open {
   color: var(--color-text-tertiary);
 }
 
+/* Archetype context section */
+.goal-breakdown-archetype-context {
+  padding: 16px;
+  background: linear-gradient(135deg, var(--color-accent-subtle), var(--color-gray-900));
+  border: 1px solid var(--color-accent);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.goal-breakdown-archetype-badge {
+  font-size: 14px;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.goal-breakdown-archetype-badge strong {
+  color: var(--color-accent);
+}
+
+.goal-breakdown-archetype-approach {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.goal-breakdown-motivation {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--color-accent);
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--color-dark);
+  border-radius: 8px;
+  border-left: 3px solid var(--color-accent);
+}
+
 .goal-breakdown-suggestions h3 {
   font-size: 15px;
   font-weight: 600;
@@ -14520,6 +14557,105 @@ body.modal-open {
   font-style: italic;
 }
 
+/* Archetype context banner for SystemBuilder */
+.archetype-context-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--looops-coral-10) 0%, var(--looops-sage-10) 100%);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.archetype-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--looops-coral);
+  padding: 4px 10px;
+  background: var(--color-bg);
+  border-radius: 20px;
+}
+
+.archetype-hint {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* Identity example buttons */
+.identity-example-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  cursor: pointer;
+  text-align: left;
+  padding: 2px 0;
+  transition: color 0.2s;
+}
+
+.identity-example-btn:hover {
+  color: var(--looops-coral);
+}
+
+/* Archetype obstacle suggestions */
+.archetype-obstacles-suggestions {
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.archetype-obstacles-suggestions h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 12px 0;
+}
+
+.obstacle-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obstacle-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.obstacle-suggestion:hover {
+  border-color: var(--looops-coral);
+  background: var(--looops-coral-10);
+}
+
+.suggestion-obstacle {
+  font-size: 12px;
+  color: var(--color-text);
+  flex: 1;
+}
+
+.suggestion-arrow {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.suggestion-strategy {
+  font-size: 12px;
+  color: var(--looops-sage);
+  flex: 1;
+}
+
 /* Habits Section */
 .habits-section {
   display: flex;
@@ -14963,6 +15099,38 @@ body.modal-open {
 .habit-item.completed .habit-title {
   text-decoration: line-through;
   color: var(--color-text-tertiary);
+}
+
+/* Habit celebration animation */
+.habit-item.celebrating {
+  animation: habitCelebrate 0.5s ease-out;
+}
+
+@keyframes habitCelebrate {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.02); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+.habit-celebration {
+  font-size: 12px;
+  color: var(--looops-sage);
+  font-style: italic;
+  padding: 4px 0;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .habit-streak {

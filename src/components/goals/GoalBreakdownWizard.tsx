@@ -1,19 +1,27 @@
 // Goal Breakdown Wizard - Smart goal decomposition with context-aware suggestions
+// Enhanced with archetype-aware personalization
 
 import React, { useState, useMemo } from "react";
 import {
   Goal,
   GoalTimeframe,
-  LoopId,
   LOOP_COLORS,
   LOOP_DEFINITIONS,
   getNextTimeframe,
   Task,
+  UserPrototype,
 } from "../../types";
 import {
   generateSmartBreakdown,
+  generatePersonalizedBreakdown,
+  getArchetypeBreakdownHints,
   BreakdownSuggestion,
 } from "../../engines/breakdownEngine";
+import {
+  BREAKDOWN_STRATEGIES,
+  getRandomMotivation,
+} from "../../engines/voiceEngine";
+import { useApp } from "../../context";
 
 type WizardSuggestion = BreakdownSuggestion & {
   selected: boolean;
@@ -52,6 +60,11 @@ export function GoalBreakdownWizard({
   onCreateGoals,
   onClose,
 }: GoalBreakdownWizardProps) {
+  const { state } = useApp();
+  const prototype = state.user.prototype;
+  const archetype = prototype?.archetypeBlend?.primary;
+  const strategy = archetype ? BREAKDOWN_STRATEGIES[archetype] : null;
+
   const nextTimeframe = getNextTimeframe(parentGoal.timeframe);
 
   if (!nextTimeframe) {
@@ -71,16 +84,35 @@ export function GoalBreakdownWizard({
     );
   }
 
-  // Generate smart suggestions
+  // Generate smart suggestions - personalized if prototype exists
   const initialSuggestions = useMemo(() => {
-    const smartSuggestions = generateSmartBreakdown(parentGoal, nextTimeframe);
+    let smartSuggestions: BreakdownSuggestion[];
+
+    if (prototype) {
+      // Use personalized breakdown with archetype awareness
+      const personalized = generatePersonalizedBreakdown(parentGoal, prototype, nextTimeframe);
+      smartSuggestions = personalized.milestones.map((m, idx) => ({
+        id: `breakdown_${idx}_${Date.now()}`,
+        title: m.title,
+        description: m.description,
+        actionVerb: m.actionVerb,
+        targetDate: m.targetDate || new Date().toISOString().split("T")[0],
+        estimatedEffort: m.effort,
+        keyActions: m.keyActions.map(a => a.action),
+        motivationalNote: m.motivationalNote,
+      }));
+    } else {
+      // Fallback to generic breakdown
+      smartSuggestions = generateSmartBreakdown(parentGoal, nextTimeframe);
+    }
+
     return smartSuggestions.map((s, idx) => ({
       ...s,
       selected: idx < 4, // Pre-select first 4
       addToLoop: idx === 0, // Add first one to loop by default
       customTitle: s.title,
     }));
-  }, [parentGoal, nextTimeframe]);
+  }, [parentGoal, nextTimeframe, prototype]);
 
   const [suggestions, setSuggestions] = useState<WizardSuggestion[]>(initialSuggestions);
   const [customTitle, setCustomTitle] = useState("");
@@ -88,6 +120,9 @@ export function GoalBreakdownWizard({
 
   const loopColor = LOOP_COLORS[parentGoal.loop];
   const loopDef = LOOP_DEFINITIONS[parentGoal.loop];
+
+  // Get archetype-specific hints
+  const archetypeHints = archetype ? getArchetypeBreakdownHints(parentGoal, archetype) : null;
 
   const selectedCount = suggestions.filter((s) => s.selected).length;
   const addToLoopCount = suggestions.filter((s) => s.selected && s.addToLoop).length;
@@ -213,10 +248,30 @@ export function GoalBreakdownWizard({
           <span className="goal-breakdown-to">{getTimeframeLabel(nextTimeframe)}</span>
         </div>
 
+        {/* Archetype-aware breakdown context */}
+        {strategy && (
+          <div className="goal-breakdown-archetype-context">
+            <div className="goal-breakdown-archetype-badge">
+              Breaking down as a <strong>{archetype}</strong>
+            </div>
+            <p className="goal-breakdown-archetype-approach">
+              {strategy.approachName}: {strategy.description}
+            </p>
+            <p className="goal-breakdown-motivation">
+              "{getRandomMotivation(archetype!)}"
+            </p>
+          </div>
+        )}
+
         <div className="goal-breakdown-suggestions">
-          <h3>Smart {getTimeframeLabel(nextTimeframe)} Milestones</h3>
+          <h3>
+            {strategy ? `${archetype}'s` : "Smart"} {getTimeframeLabel(nextTimeframe)} Milestones
+          </h3>
           <p className="goal-breakdown-hint">
-            These milestones are tailored to your goal type. Edit titles or add your own.
+            {archetypeHints
+              ? archetypeHints[1] // Show the phase style hint
+              : "These milestones are tailored to your goal type."
+            } Edit titles or add your own.
           </p>
 
           <div className="goal-breakdown-list">

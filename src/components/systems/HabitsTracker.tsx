@@ -1,5 +1,6 @@
 // Habits Tracker - Track daily habits with streaks and completion
 // Shows today's habits with visual streak indicators
+// Enhanced with archetype-aware personalization
 
 import React, { useState } from "react";
 import {
@@ -10,6 +11,11 @@ import {
   LOOP_DEFINITIONS,
   getHabitsDueToday,
 } from "../../types";
+import {
+  getHabitActionPhrase,
+  getHabitCompletionMessage,
+} from "../../engines/habitEngine";
+import { useApp } from "../../context";
 
 interface HabitsTrackerProps {
   habits: Habit[];
@@ -30,7 +36,15 @@ export function HabitsTracker({
   filterLoop,
   showAll = false,
 }: HabitsTrackerProps) {
+  const { state } = useApp();
+  const prototype = state.user.prototype;
+  const archetype = prototype?.archetypeBlend?.primary;
+
   const today = new Date().toISOString().split("T")[0];
+
+  // Track recently completed habit for celebration message
+  const [celebratingHabitId, setCelebratingHabitId] = useState<string | null>(null);
+  const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
 
   // Filter habits
   let displayHabits = showAll ? habits : getHabitsDueToday(habits);
@@ -68,9 +82,30 @@ export function HabitsTracker({
   const handleToggle = (habit: Habit) => {
     if (isCompletedToday(habit.id)) {
       onUncomplete(habit.id, today);
+      setCelebratingHabitId(null);
+      setCelebrationMessage(null);
     } else {
       onComplete(habit.id, today);
+      // Show archetype-personalized celebration message
+      if (archetype) {
+        const message = getHabitCompletionMessage(habit, archetype, habit.streak + 1);
+        setCelebratingHabitId(habit.id);
+        setCelebrationMessage(message);
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+          setCelebratingHabitId(null);
+          setCelebrationMessage(null);
+        }, 3000);
+      }
     }
+  };
+
+  // Get archetype-styled action phrase for habit title
+  const getDisplayTitle = (habit: Habit) => {
+    if (archetype) {
+      return getHabitActionPhrase(habit, archetype);
+    }
+    return habit.title;
   };
 
   if (displayHabits.length === 0) {
@@ -93,11 +128,12 @@ export function HabitsTracker({
         {displayHabits.map(habit => {
           const completed = isCompletedToday(habit.id);
           const loopColor = LOOP_COLORS[habit.loop].border;
+          const isCelebrating = celebratingHabitId === habit.id;
 
           return (
             <div
               key={habit.id}
-              className={`habit-item ${completed ? "completed" : ""}`}
+              className={`habit-item ${completed ? "completed" : ""} ${isCelebrating ? "celebrating" : ""}`}
               style={{ "--loop-color": loopColor } as React.CSSProperties}
             >
               <button
@@ -114,13 +150,20 @@ export function HabitsTracker({
 
               <div className="habit-content" onClick={() => onEditHabit?.(habit)}>
                 <div className="habit-title-row">
-                  <span className="habit-title">{habit.title}</span>
+                  <span className="habit-title">{getDisplayTitle(habit)}</span>
                   {habit.streak > 0 && (
                     <span className="habit-streak">
                       🔥 {habit.streak}
                     </span>
                   )}
                 </div>
+
+                {/* Celebration message when habit is just completed */}
+                {isCelebrating && celebrationMessage && (
+                  <div className="habit-celebration">
+                    {celebrationMessage}
+                  </div>
+                )}
 
                 <div className="habit-meta">
                   <span
@@ -172,6 +215,9 @@ export function HabitsWidget({
   loop,
   limit = 5,
 }: HabitsWidgetProps) {
+  const { state } = useApp();
+  const archetype = state.user.prototype?.archetypeBlend?.primary;
+
   const today = new Date().toISOString().split("T")[0];
 
   let displayHabits = getHabitsDueToday(habits);
@@ -186,6 +232,14 @@ export function HabitsWidget({
 
   const completedCount = displayHabits.filter(h => isCompletedToday(h.id)).length;
   const totalCount = displayHabits.length;
+
+  // Get archetype-styled action phrase for habit title
+  const getDisplayTitle = (habit: Habit) => {
+    if (archetype) {
+      return getHabitActionPhrase(habit, archetype);
+    }
+    return habit.title;
+  };
 
   return (
     <div className="habits-widget">
@@ -221,7 +275,7 @@ export function HabitsWidget({
               <span className="habits-widget-check">
                 {completed ? "✓" : "○"}
               </span>
-              <span className="habits-widget-name">{habit.title}</span>
+              <span className="habits-widget-name">{getDisplayTitle(habit)}</span>
               {habit.streak > 0 && (
                 <span className="habits-widget-streak">🔥{habit.streak}</span>
               )}
