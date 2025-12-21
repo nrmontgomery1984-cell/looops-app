@@ -1,12 +1,9 @@
 // Todoist OAuth2 Authorization endpoint
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const TODOIST_CLIENT_ID = process.env.TODOIST_CLIENT_ID;
-const REDIRECT_URI = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}/api/integrations/todoist/callback`
-  : 'http://localhost:3000/api/integrations/todoist/callback';
-
 export default function handler(req: VercelRequest, res: VercelResponse) {
+  const TODOIST_CLIENT_ID = process.env.TODOIST_CLIENT_ID?.trim();
+
   if (!TODOIST_CLIENT_ID) {
     return res.status(500).json({ error: 'Todoist not configured' });
   }

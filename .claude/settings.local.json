@@ -20,7 +20,8 @@
       "Bash(git push:*)",
       "Bash(node -e:*)",
       "Bash(node run-migration.js:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(vercel:*)"
     ],
     "deny": [],
     "ask": []

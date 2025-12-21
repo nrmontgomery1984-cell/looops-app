@@ -1,12 +1,10 @@
 // Fitbit OAuth2 Authorization endpoint
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID;
-const REDIRECT_URI = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}/api/integrations/fitbit/callback`
-  : 'http://localhost:3000/api/integrations/fitbit/callback';
-
 export default function handler(req: VercelRequest, res: VercelResponse) {
+  const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID?.trim();
+  const REDIRECT_URI = 'https://looops-app.vercel.app/api/integrations/fitbit/callback';
+
   if (!FITBIT_CLIENT_ID) {
     return res.status(500).json({ error: 'Fitbit not configured' });
   }

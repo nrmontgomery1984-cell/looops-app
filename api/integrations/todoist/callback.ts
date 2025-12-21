@@ -1,11 +1,11 @@
 // Todoist OAuth2 Callback endpoint
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const TODOIST_CLIENT_ID = process.env.TODOIST_CLIENT_ID;
-const TODOIST_CLIENT_SECRET = process.env.TODOIST_CLIENT_SECRET;
-const APP_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173';
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const TODOIST_CLIENT_ID = process.env.TODOIST_CLIENT_ID?.trim();
+  const TODOIST_CLIENT_SECRET = process.env.TODOIST_CLIENT_SECRET?.trim();
+  const APP_URL = 'https://looops-app.vercel.app';
+
   const { code, state, error } = req.query;
 
   if (error) {

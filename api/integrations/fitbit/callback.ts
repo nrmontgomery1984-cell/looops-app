@@ -1,14 +1,12 @@
 // Fitbit OAuth2 Callback endpoint
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID;
-const FITBIT_CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET;
-const APP_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173';
-const REDIRECT_URI = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}/api/integrations/fitbit/callback`
-  : 'http://localhost:3000/api/integrations/fitbit/callback';
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID?.trim();
+  const FITBIT_CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET?.trim();
+  const APP_URL = 'https://looops-app.vercel.app';
+  const REDIRECT_URI = `${APP_URL}/api/integrations/fitbit/callback`;
+
   const { code, state, error } = req.query;
 
   if (error) {
