@@ -208,7 +208,7 @@ export function createStateHistoryEntry(
   fromState: LoopStateType,
   toState: LoopStateType,
   reason: string,
-  triggeredBy: "user" | "cascade" | "automatic"
+  triggeredBy: "user" | "cascade" | "manual"
 ): StateHistoryEntry {
   return {
     fromState,

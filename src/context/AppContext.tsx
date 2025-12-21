@@ -1260,8 +1260,8 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
     babysitter: {
       ...defaultState.babysitter,
       ...savedState.babysitter,
-      caregivers: savedState.babysitter?.caregivers?.length > 0
-        ? savedState.babysitter.caregivers
+      caregivers: (savedState.babysitter?.caregivers?.length ?? 0) > 0
+        ? savedState.babysitter!.caregivers
         : defaultState.babysitter.caregivers,
     },
     // Health - don't persist, always fetch fresh

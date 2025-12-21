@@ -67,7 +67,7 @@ export type Task = {
 
   // Hierarchy (for subtasks)
   parentId?: string; // Parent task ID for subtasks
-  order: number; // Sort order within project/section
+  order?: number; // Sort order within project/section
 
   // Priority and status
   priority: Priority;

@@ -92,7 +92,7 @@ export function HabitsTracker({
       <div className="habits-list">
         {displayHabits.map(habit => {
           const completed = isCompletedToday(habit.id);
-          const loopColor = LOOP_COLORS[habit.loop];
+          const loopColor = LOOP_COLORS[habit.loop].border;
 
           return (
             <div
