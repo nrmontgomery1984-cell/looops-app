@@ -1,4 +1,4 @@
-// 4-step onboarding wizard
+// 4-step onboarding wizard v2
 
 import React, { useState } from "react";
 import {
