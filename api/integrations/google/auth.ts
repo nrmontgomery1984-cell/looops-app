@@ -2,7 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
 
   // Use the production URL directly since VERCEL_URL can vary
   const baseUrl = 'https://looops-app.vercel.app';
