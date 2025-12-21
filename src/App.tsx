@@ -1,6 +1,6 @@
 // Looops - Personal Operating System
 // Main Application Component
-// Build: 2025-12-21-v2 - Fixed optional chaining for archetypeBlend
+// Build: 2025-12-21-v3 - Fixed sync timeout with Promise.race and master timeout
 
 import React, { useMemo, useState, useEffect } from "react";
 import {

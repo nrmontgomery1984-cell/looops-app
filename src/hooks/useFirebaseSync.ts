@@ -64,45 +64,47 @@ export function useFirebaseSync(
     }
 
     let authUnsubscribe: Unsubscribe | null = null;
-    let timeoutId: NodeJS.Timeout | null = null;
+    let masterTimeoutId: NodeJS.Timeout | null = null;
+    let isComplete = false;
+
+    // Helper to mark complete only once
+    const markComplete = (reason: string) => {
+      if (!isComplete) {
+        isComplete = true;
+        console.log(`Initial load complete: ${reason}`);
+        setSyncStatus((prev) => ({ ...prev, isInitialLoadComplete: true }));
+      }
+    };
+
+    // Master timeout - no matter what happens, mark complete after 3 seconds
+    masterTimeoutId = setTimeout(() => {
+      markComplete('master timeout (3s)');
+    }, 3000);
 
     const initAuth = async () => {
-      // Set a timeout - if we don't get auth state in 5 seconds, mark as complete anyway
-      timeoutId = setTimeout(() => {
-        console.log('Auth timeout - marking initial load complete');
-        setSyncStatus((prev) => {
-          if (!prev.isInitialLoadComplete) {
-            return { ...prev, isInitialLoadComplete: true, error: 'Sync timeout' };
-          }
-          return prev;
-        });
-      }, 5000);
-
       // Listen for auth changes
       authUnsubscribe = onAuthChange(async (user) => {
-        // Clear timeout since we got auth state
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-
         userRef.current = user;
 
         if (user) {
-          setSyncStatus((prev) => ({ ...prev, userId: user.uid, isInitialLoadComplete: false }));
+          setSyncStatus((prev) => ({ ...prev, userId: user.uid }));
 
           try {
-            // Load initial state from cloud
-            const cloudState = await loadAppState(user.uid);
+            // Race the Firestore load against a 2 second timeout
+            const loadPromise = loadAppState(user.uid);
+            const timeoutPromise = new Promise<null>((resolve) => {
+              setTimeout(() => resolve(null), 2000);
+            });
+
+            const cloudState = await Promise.race([loadPromise, timeoutPromise]);
             if (cloudState) {
               console.log('Loaded state from cloud');
               onRemoteUpdateRef.current(cloudState as Partial<AppState>);
             }
 
-            // Subscribe to real-time updates
+            // Subscribe to real-time updates (non-blocking)
             unsubscribeRef.current = subscribeToAppState(user.uid, (remoteState) => {
               if (remoteState) {
-                // Check if this is a remote update (not our own save)
                 const remoteJson = JSON.stringify(remoteState);
                 if (remoteJson !== lastSyncedState.current) {
                   console.log('Received remote update');
@@ -115,16 +117,13 @@ export function useFirebaseSync(
             console.error('Error loading cloud state:', error);
           }
 
-          // Mark initial load as complete (even if cloud load failed)
-          setSyncStatus((prev) => ({ ...prev, isInitialLoadComplete: true }));
+          markComplete('Firestore load done');
         } else {
-          // No user - mark complete anyway so app can proceed
-          setSyncStatus((prev) => ({ ...prev, userId: null, isInitialLoadComplete: true }));
+          markComplete('no user');
         }
       });
 
       // Try to sign in anonymously (for users who aren't signed in yet)
-      // This may fail if anonymous auth is disabled, which is fine
       try {
         const user = await signInAnonymouslyIfNeeded();
         if (user) {
@@ -132,20 +131,14 @@ export function useFirebaseSync(
         }
       } catch (error) {
         console.log('Anonymous sign-in not available:', error);
-        // Mark as complete anyway
-        setSyncStatus((prev) => {
-          if (!prev.isInitialLoadComplete) {
-            return { ...prev, isInitialLoadComplete: true };
-          }
-          return prev;
-        });
+        markComplete('anonymous sign-in failed');
       }
     };
 
     initAuth();
 
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (masterTimeoutId) clearTimeout(masterTimeoutId);
       authUnsubscribe?.();
       unsubscribeRef.current?.();
     };

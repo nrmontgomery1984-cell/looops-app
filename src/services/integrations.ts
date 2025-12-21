@@ -1,7 +1,77 @@
 // Integration Services - Client-side API for managing integrations
-// Connects to backend services for Fitbit, Todoist, Google Sheets (Tiller)
+// Connects to Vercel serverless functions for OAuth and backend services
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+// Use relative URLs for Vercel API routes, fall back to localhost for development
+const API_BASE = "";
+
+// Storage keys for tokens
+const STORAGE_KEYS = {
+  fitbit: 'looops_fitbit_tokens',
+  google_calendar: 'looops_google_calendar_tokens',
+  google_sheets: 'looops_google_sheets_tokens',
+  todoist: 'looops_todoist_tokens',
+  spotify: 'looops_spotify_tokens',
+};
+
+// Token storage helpers
+interface StoredTokens {
+  access_token: string;
+  refresh_token?: string;
+  expires_at?: number;
+  user_id?: string;
+}
+
+function getStoredTokens(integration: keyof typeof STORAGE_KEYS): StoredTokens | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS[integration]);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
+
+function storeTokens(integration: keyof typeof STORAGE_KEYS, tokens: StoredTokens): void {
+  localStorage.setItem(STORAGE_KEYS[integration], JSON.stringify(tokens));
+}
+
+function clearTokens(integration: keyof typeof STORAGE_KEYS): void {
+  localStorage.removeItem(STORAGE_KEYS[integration]);
+}
+
+// Handle OAuth callback from URL params
+export function handleOAuthCallback(): { integration: string; success: boolean; error?: string } | null {
+  const params = new URLSearchParams(window.location.search);
+  const integration = params.get('integration');
+  const success = params.get('success') === 'true';
+  const error = params.get('error');
+
+  if (!integration) return null;
+
+  if (success) {
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const expiresIn = params.get('expires_in');
+    const userId = params.get('user_id');
+
+    if (accessToken) {
+      const storageKey = integration.replace('google_', 'google_') as keyof typeof STORAGE_KEYS;
+      storeTokens(storageKey, {
+        access_token: accessToken,
+        refresh_token: refreshToken || undefined,
+        expires_at: expiresIn ? Date.now() + parseInt(expiresIn) * 1000 : undefined,
+        user_id: userId || undefined,
+      });
+    }
+  }
+
+  // Clean up URL
+  window.history.replaceState({}, document.title, window.location.pathname);
+
+  return { integration, success, error: error || undefined };
+}
 
 // Integration status types
 export interface IntegrationStatus {
@@ -71,24 +141,69 @@ export interface TillerFinancialData {
   updatedAt: string;
 }
 
+// ============ Integration Status Check ============
+
+interface BackendStatus {
+  fitbit: { configured: boolean; authUrl: string };
+  google_calendar: { configured: boolean; authUrl: string };
+  google_sheets: { configured: boolean; authUrl: string };
+  todoist: { configured: boolean; authUrl: string };
+  spotify: { configured: boolean; authUrl: string };
+}
+
+let cachedBackendStatus: BackendStatus | null = null;
+
+async function getBackendStatus(): Promise<BackendStatus | null> {
+  if (cachedBackendStatus) return cachedBackendStatus;
+
+  try {
+    const res = await fetch('/api/integrations/status');
+    if (res.ok) {
+      cachedBackendStatus = await res.json();
+      return cachedBackendStatus;
+    }
+  } catch {
+    // Backend not available
+  }
+  return null;
+}
+
 // ============ Fitbit Integration ============
 
 export async function getFitbitStatus(): Promise<IntegrationStatus> {
-  try {
-    const res = await fetch(`${API_BASE}/api/fitbit/status`);
-    if (!res.ok) throw new Error("Failed to fetch Fitbit status");
-    return res.json();
-  } catch (error) {
+  const tokens = getStoredTokens('fitbit');
+  const backend = await getBackendStatus();
+
+  if (tokens?.access_token) {
     return {
-      configured: false,
-      authorized: false,
-      message: "Server not available",
+      configured: true,
+      authorized: true,
+      message: "Connected",
+      lastSync: new Date().toISOString(),
     };
   }
+
+  if (backend?.fitbit?.configured) {
+    return {
+      configured: true,
+      authorized: false,
+      message: "Click Connect to authorize",
+    };
+  }
+
+  return {
+    configured: false,
+    authorized: false,
+    message: "Server not available",
+  };
 }
 
 export function getFitbitAuthUrl(): string {
-  return `${API_BASE}/api/fitbit/auth`;
+  return '/api/integrations/fitbit/auth';
+}
+
+export function disconnectFitbit(): void {
+  clearTokens('fitbit');
 }
 
 export async function getFitbitHealth(): Promise<FitbitHealthData | null> {
@@ -118,17 +233,39 @@ export async function getFitbitWeekly(): Promise<any> {
 // ============ Todoist Integration ============
 
 export async function getTodoistStatus(): Promise<IntegrationStatus> {
-  try {
-    const res = await fetch(`${API_BASE}/api/todoist/status`);
-    if (!res.ok) throw new Error("Failed to fetch Todoist status");
-    return res.json();
-  } catch (error) {
+  const tokens = getStoredTokens('todoist');
+  const backend = await getBackendStatus();
+
+  if (tokens?.access_token) {
     return {
-      configured: false,
-      authorized: false,
-      message: "Server not available",
+      configured: true,
+      authorized: true,
+      message: "Connected",
+      lastSync: new Date().toISOString(),
     };
   }
+
+  if (backend?.todoist?.configured) {
+    return {
+      configured: true,
+      authorized: false,
+      message: "Click Connect to authorize",
+    };
+  }
+
+  return {
+    configured: false,
+    authorized: false,
+    message: "Server not available",
+  };
+}
+
+export function getTodoistAuthUrl(): string {
+  return '/api/integrations/todoist/auth';
+}
+
+export function disconnectTodoist(): void {
+  clearTokens('todoist');
 }
 
 export async function syncTodoist(): Promise<{
@@ -168,17 +305,39 @@ export async function getTodoistLabels(): Promise<
 // ============ Tiller/Google Sheets Integration ============
 
 export async function getTillerStatus(): Promise<IntegrationStatus> {
-  try {
-    const res = await fetch(`${API_BASE}/api/tiller/status`);
-    if (!res.ok) throw new Error("Failed to fetch Tiller status");
-    return res.json();
-  } catch (error) {
+  const tokens = getStoredTokens('google_sheets');
+  const backend = await getBackendStatus();
+
+  if (tokens?.access_token) {
     return {
-      configured: false,
-      authorized: false,
-      message: "Server not available",
+      configured: true,
+      authorized: true,
+      message: "Connected",
+      lastSync: new Date().toISOString(),
     };
   }
+
+  if (backend?.google_sheets?.configured) {
+    return {
+      configured: true,
+      authorized: false,
+      message: "Click Connect to authorize",
+    };
+  }
+
+  return {
+    configured: false,
+    authorized: false,
+    message: "Server not available",
+  };
+}
+
+export function getTillerAuthUrl(): string {
+  return '/api/integrations/google/auth?service=sheets';
+}
+
+export function disconnectTiller(): void {
+  clearTokens('google_sheets');
 }
 
 export async function getTillerSummary(
@@ -224,41 +383,77 @@ export async function getTillerBalances(): Promise<
 // ============ Google Calendar Integration ============
 
 export async function getCalendarStatus(): Promise<IntegrationStatus> {
-  try {
-    const res = await fetch(`${API_BASE}/api/calendar/status`);
-    if (!res.ok) throw new Error("Failed to fetch Calendar status");
-    return res.json();
-  } catch (error) {
+  const tokens = getStoredTokens('google_calendar');
+  const backend = await getBackendStatus();
+
+  if (tokens?.access_token) {
     return {
-      configured: false,
-      authorized: false,
-      message: "Server not available",
+      configured: true,
+      authorized: true,
+      message: "Connected",
+      lastSync: new Date().toISOString(),
     };
   }
+
+  if (backend?.google_calendar?.configured) {
+    return {
+      configured: true,
+      authorized: false,
+      message: "Click Connect to authorize",
+    };
+  }
+
+  return {
+    configured: false,
+    authorized: false,
+    message: "Server not available",
+  };
 }
 
 export function getCalendarAuthUrl(): string {
-  return `${API_BASE}/api/calendar/auth`;
+  return '/api/integrations/google/auth?service=calendar';
+}
+
+export function disconnectCalendar(): void {
+  clearTokens('google_calendar');
 }
 
 // ============ Spotify Integration ============
 
 export async function getSpotifyStatus(): Promise<IntegrationStatus> {
-  try {
-    const res = await fetch(`${API_BASE}/api/spotify/status`);
-    if (!res.ok) throw new Error("Failed to fetch Spotify status");
-    return res.json();
-  } catch (error) {
+  const tokens = getStoredTokens('spotify');
+  const backend = await getBackendStatus();
+
+  if (tokens?.access_token) {
     return {
-      configured: false,
-      authorized: false,
-      message: "Server not available",
+      configured: true,
+      authorized: true,
+      message: "Connected",
+      lastSync: new Date().toISOString(),
     };
   }
+
+  if (backend?.spotify?.configured) {
+    return {
+      configured: true,
+      authorized: false,
+      message: "Click Connect to authorize",
+    };
+  }
+
+  return {
+    configured: false,
+    authorized: false,
+    message: "Server not available",
+  };
 }
 
 export function getSpotifyAuthUrl(): string {
-  return `${API_BASE}/api/spotify/auth`;
+  return '/api/integrations/spotify/auth';
+}
+
+export function disconnectSpotify(): void {
+  clearTokens('spotify');
 }
 
 // ============ All Integrations Status ============
@@ -284,20 +479,35 @@ export async function getAllIntegrationsStatus(): Promise<AllIntegrationsStatus>
 }
 
 export default {
+  // OAuth callback handler
+  handleOAuthCallback,
+  // Fitbit
   getFitbitStatus,
   getFitbitAuthUrl,
   getFitbitHealth,
   getFitbitWeekly,
+  disconnectFitbit,
+  // Todoist
   getTodoistStatus,
+  getTodoistAuthUrl,
   syncTodoist,
   getTodoistLabels,
+  disconnectTodoist,
+  // Tiller/Google Sheets
   getTillerStatus,
+  getTillerAuthUrl,
   getTillerSummary,
   getTillerTransactions,
   getTillerBalances,
+  disconnectTiller,
+  // Google Calendar
   getCalendarStatus,
   getCalendarAuthUrl,
+  disconnectCalendar,
+  // Spotify
   getSpotifyStatus,
   getSpotifyAuthUrl,
+  disconnectSpotify,
+  // All
   getAllIntegrationsStatus,
 };

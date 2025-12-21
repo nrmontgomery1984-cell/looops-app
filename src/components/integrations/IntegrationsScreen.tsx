@@ -4,15 +4,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   getAllIntegrationsStatus,
+  handleOAuthCallback,
   getFitbitAuthUrl,
   getFitbitHealth,
+  getTodoistAuthUrl,
   syncTodoist,
-  getTillerSummary,
+  getTillerAuthUrl,
   getCalendarAuthUrl,
   getSpotifyAuthUrl,
   IntegrationStatus,
   FitbitHealthData,
-  TillerFinancialData,
 } from "../../services/integrations";
 
 // Icons for each integration
@@ -199,7 +200,6 @@ export function IntegrationsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [syncingService, setSyncingService] = useState<string | null>(null);
   const [fitbitData, setFitbitData] = useState<FitbitHealthData | null>(null);
-  const [tillerData, setTillerData] = useState<TillerFinancialData | null>(null);
   const [todoistTaskCount, setTodoistTaskCount] = useState<number | null>(null);
 
   // Fetch all integration statuses
@@ -214,16 +214,20 @@ export function IntegrationsScreen() {
         const health = await getFitbitHealth();
         setFitbitData(health);
       }
-
-      // If Tiller is connected, fetch summary
-      if (allStatuses.tiller.authorized || allStatuses.tiller.configured) {
-        const summary = await getTillerSummary(30);
-        setTillerData(summary);
-      }
     } catch (error) {
       console.error("Failed to fetch integration statuses:", error);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Handle OAuth callback on mount
+  useEffect(() => {
+    const result = handleOAuthCallback();
+    if (result) {
+      console.log('OAuth callback:', result);
+      // Refresh statuses after OAuth
+      fetchStatuses();
     }
   }, []);
 
@@ -265,19 +269,6 @@ export function IntegrationsScreen() {
       setFitbitData(health);
     } catch (error) {
       console.error("Fitbit refresh failed:", error);
-    } finally {
-      setSyncingService(null);
-    }
-  };
-
-  // Handle Tiller refresh
-  const handleTillerRefresh = async () => {
-    setSyncingService("tiller");
-    try {
-      const summary = await getTillerSummary(30);
-      setTillerData(summary);
-    } catch (error) {
-      console.error("Tiller refresh failed:", error);
     } finally {
       setSyncingService(null);
     }
@@ -345,6 +336,7 @@ export function IntegrationsScreen() {
           status={statuses.todoist}
           loopBadge="Tasks"
           loopColor="#5a7fb8"
+          onConnect={() => handleConnect(getTodoistAuthUrl())}
           onSync={handleTodoistSync}
           isLoading={isLoading}
           isSyncing={syncingService === "todoist"}
@@ -357,54 +349,16 @@ export function IntegrationsScreen() {
           }
         />
 
-        {/* Tiller/Google Sheets - Wealth Loop */}
+        {/* Google Sheets - Wealth Loop */}
         <IntegrationCard
-          name="Tiller Money (Google Sheets)"
-          description="Track budgets, transactions, and net worth from your Tiller spreadsheet"
+          name="Google Sheets"
+          description="Connect to your budget spreadsheets for financial tracking"
           icon={<SheetsIcon />}
           status={statuses.tiller}
           loopBadge="Wealth"
           loopColor="#F4B942"
-          onSync={handleTillerRefresh}
+          onConnect={() => handleConnect(getTillerAuthUrl())}
           isLoading={isLoading}
-          isSyncing={syncingService === "tiller"}
-          previewData={
-            tillerData?.netWorth && (
-              <div className="integration-preview-grid">
-                <div className="integration-preview-stat">
-                  <span className="integration-preview-label">Net Worth</span>
-                  <span className="integration-preview-value">
-                    ${tillerData.netWorth.netWorth.toLocaleString()}
-                  </span>
-                </div>
-                <div className="integration-preview-stat">
-                  <span className="integration-preview-label">This Month</span>
-                  <span
-                    className={`integration-preview-value ${
-                      (tillerData.incomeExpenses?.net || 0) >= 0
-                        ? "integration-preview-value--positive"
-                        : "integration-preview-value--negative"
-                    }`}
-                  >
-                    {(tillerData.incomeExpenses?.net || 0) >= 0 ? "+" : ""}$
-                    {Math.abs(tillerData.incomeExpenses?.net || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="integration-preview-stat">
-                  <span className="integration-preview-label">Savings Rate</span>
-                  <span className="integration-preview-value">
-                    {tillerData.incomeExpenses?.savingsRate || 0}%
-                  </span>
-                </div>
-                <div className="integration-preview-stat">
-                  <span className="integration-preview-label">Accounts</span>
-                  <span className="integration-preview-value">
-                    {tillerData.netWorth.accounts.length}
-                  </span>
-                </div>
-              </div>
-            )
-          }
         />
 
         {/* Google Calendar */}
