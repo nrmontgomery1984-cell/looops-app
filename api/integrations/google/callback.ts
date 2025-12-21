@@ -48,7 +48,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('Google token error:', errorData);
-      return res.redirect(`${APP_URL}?integration=google_${service}&error=token_exchange_failed`);
+      // Include the actual error in the redirect for debugging
+      const errorMsg = encodeURIComponent(errorData.substring(0, 200));
+      return res.redirect(`${APP_URL}?integration=google_${service}&error=token_exchange_failed&details=${errorMsg}`);
     }
 
     const tokens = await tokenResponse.json();
