@@ -513,33 +513,37 @@ export function OnboardingFlow({ onComplete, onClose, onSkip, theme, onToggleThe
           {renderStep()}
         </div>
 
-        <div className="modal__footer">
-          {step === 1 && onSkip && (
-            <button className="button button--text" onClick={onSkip}>
-              Skip for now
-            </button>
-          )}
-          {step > 1 && (
-            <button className="button" onClick={handleBack}>
-              Back
-            </button>
-          )}
-          {step < totalSteps ? (
-            <button
-              className="button button--primary"
-              onClick={handleNext}
-              disabled={!canProceed()}
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              className="button button--primary"
-              onClick={handleComplete}
-            >
-              Start Using Looops
-            </button>
-          )}
+        <div className="modal__footer" style={{ justifyContent: 'space-between' }}>
+          <div>
+            {onSkip && (
+              <button className="button button--text" onClick={onSkip}>
+                Skip for now
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {step > 1 && (
+              <button className="button" onClick={handleBack}>
+                Back
+              </button>
+            )}
+            {step < totalSteps ? (
+              <button
+                className="button button--primary"
+                onClick={handleNext}
+                disabled={!canProceed()}
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                className="button button--primary"
+                onClick={handleComplete}
+              >
+                Start Using Looops
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

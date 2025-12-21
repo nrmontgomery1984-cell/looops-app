@@ -1,9 +1,8 @@
 // TraitStatementPair - Displays two statements (one per pole) with 1-5 rating buttons
-// Uses dual-framing to get more accurate trait assessment
 
-import React from "react";
+import { useReducer } from "react";
 import { TraitKey } from "../../types";
-import { StatementResponse, TraitAssessmentInput } from "../../engines/traitScoring";
+import { TraitAssessmentInput } from "../../engines/traitScoring";
 import { TraitStatement } from "../../data/traitStatements";
 
 type TraitStatementPairProps = {
@@ -12,52 +11,61 @@ type TraitStatementPairProps = {
   onChange: (traitId: TraitKey, input: TraitAssessmentInput) => void;
 };
 
-const RATING_LABELS = [
-  { value: 1, label: "Strongly Disagree" },
-  { value: 2, label: "Disagree" },
-  { value: 3, label: "Neutral" },
-  { value: 4, label: "Agree" },
-  { value: 5, label: "Strongly Agree" },
-] as const;
+const RATINGS = [1, 2, 3, 4, 5] as const;
+
+type State = { left: number; right: number };
+type Action = { type: "SET_LEFT"; value: number } | { type: "SET_RIGHT"; value: number };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "SET_LEFT":
+      return { ...state, left: action.value };
+    case "SET_RIGHT":
+      return { ...state, right: action.value };
+    default:
+      return state;
+  }
+}
 
 export function TraitStatementPair({
   statement,
   value,
   onChange,
 }: TraitStatementPairProps) {
-  const handleLeftChange = (rating: StatementResponse) => {
+  const [state, dispatch] = useReducer(reducer, {
+    left: value?.leftPoleResponse ?? 0,
+    right: value?.rightPoleResponse ?? 0,
+  });
+
+  const handleLeft = (rating: number) => {
+    dispatch({ type: "SET_LEFT", value: rating });
     onChange(statement.traitId, {
-      leftPoleResponse: rating,
-      rightPoleResponse: value?.rightPoleResponse ?? (0 as StatementResponse),
+      leftPoleResponse: rating as 0 | 1 | 2 | 3 | 4 | 5,
+      rightPoleResponse: state.right as 0 | 1 | 2 | 3 | 4 | 5,
     });
   };
 
-  const handleRightChange = (rating: StatementResponse) => {
+  const handleRight = (rating: number) => {
+    dispatch({ type: "SET_RIGHT", value: rating });
     onChange(statement.traitId, {
-      leftPoleResponse: value?.leftPoleResponse ?? (0 as StatementResponse),
-      rightPoleResponse: rating,
+      leftPoleResponse: state.left as 0 | 1 | 2 | 3 | 4 | 5,
+      rightPoleResponse: rating as 0 | 1 | 2 | 3 | 4 | 5,
     });
   };
 
   return (
     <div className="trait-statement-pair">
-      {/* Left pole statement */}
       <div className="trait-statement">
         <p className="trait-statement__text">{statement.leftStatement}</p>
         <div className="trait-statement__ratings">
-          {RATING_LABELS.map(({ value: ratingValue, label }) => (
-            <button
-              key={ratingValue}
-              type="button"
-              className={`trait-rating-btn ${
-                value?.leftPoleResponse === ratingValue ? "trait-rating-btn--selected" : ""
-              }`}
-              onClick={() => handleLeftChange(ratingValue as StatementResponse)}
-              aria-label={label}
-              title={label}
+          {RATINGS.map((r) => (
+            <div
+              key={r}
+              className={`trait-rating-btn${state.left === r ? " trait-rating-btn--selected" : ""}`}
+              onClick={() => handleLeft(r)}
             >
-              {ratingValue}
-            </button>
+              {r}
+            </div>
           ))}
         </div>
         <div className="trait-statement__scale-labels">
@@ -66,26 +74,19 @@ export function TraitStatementPair({
         </div>
       </div>
 
-      {/* Divider */}
       <div className="trait-statement-pair__divider" />
 
-      {/* Right pole statement */}
       <div className="trait-statement">
         <p className="trait-statement__text">{statement.rightStatement}</p>
         <div className="trait-statement__ratings">
-          {RATING_LABELS.map(({ value: ratingValue, label }) => (
-            <button
-              key={ratingValue}
-              type="button"
-              className={`trait-rating-btn ${
-                value?.rightPoleResponse === ratingValue ? "trait-rating-btn--selected" : ""
-              }`}
-              onClick={() => handleRightChange(ratingValue as StatementResponse)}
-              aria-label={label}
-              title={label}
+          {RATINGS.map((r) => (
+            <div
+              key={r}
+              className={`trait-rating-btn${state.right === r ? " trait-rating-btn--selected" : ""}`}
+              onClick={() => handleRight(r)}
             >
-              {ratingValue}
-            </button>
+              {r}
+            </div>
           ))}
         </div>
         <div className="trait-statement__scale-labels">

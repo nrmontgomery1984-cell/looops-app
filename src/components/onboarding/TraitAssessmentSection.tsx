@@ -1,7 +1,7 @@
 // TraitAssessmentSection - Multi-screen trait assessment with category navigation
 // Groups traits by category and handles fallback sliders for ambiguous responses
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { TraitKey, UserTraits, TraitDimension } from "../../types";
 import { TRAIT_DEFINITIONS } from "../../data/traits";
 import {
@@ -25,6 +25,26 @@ type TraitAssessmentSectionProps = {
   onComplete: (traits: UserTraits) => void;
 };
 
+// Fisher-Yates shuffle with seed for consistent randomization per session
+function shuffleArray<T>(array: T[], seed: number): T[] {
+  const shuffled = [...array];
+  let currentIndex = shuffled.length;
+
+  // Simple seeded random number generator
+  const seededRandom = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+
+  while (currentIndex > 0) {
+    const randomIndex = Math.floor(seededRandom() * currentIndex);
+    currentIndex--;
+    [shuffled[currentIndex], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[currentIndex]];
+  }
+
+  return shuffled;
+}
+
 export function TraitAssessmentSection({
   initialTraits,
   onComplete,
@@ -41,15 +61,20 @@ export function TraitAssessmentSection({
   // Whether we're in clarification phase
   const [showClarification, setShowClarification] = useState(false);
 
+  // Random seed for shuffling (stable per session)
+  const shuffleSeed = useRef(Math.floor(Math.random() * 10000));
+
   const currentGroup = TRAIT_STATEMENT_GROUPS[currentGroupIndex];
   const isLastGroup = currentGroupIndex === TRAIT_STATEMENT_GROUPS.length - 1;
 
-  // Get statements for current group
+  // Get statements for current group, randomized
   const currentStatements = useMemo(() => {
-    return currentGroup.traitIds
+    const statements = currentGroup.traitIds
       .map(traitId => getStatementByTraitId(traitId))
       .filter(Boolean);
-  }, [currentGroup]);
+    // Use group index as part of seed so each screen has different order
+    return shuffleArray(statements, shuffleSeed.current + currentGroupIndex);
+  }, [currentGroup, currentGroupIndex]);
 
   // Check if current group is complete
   const isCurrentGroupComplete = useMemo(() => {

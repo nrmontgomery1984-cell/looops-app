@@ -3,13 +3,13 @@
 
 import { TraitKey, UserTraits, DEFAULT_TRAITS } from "../types";
 
-// Response on 1-5 Likert scale
-export type StatementResponse = 1 | 2 | 3 | 4 | 5;
+// Response on 1-5 Likert scale (0 means not yet answered)
+export type StatementResponse = 0 | 1 | 2 | 3 | 4 | 5;
 
 // Input for a single trait assessment (both poles rated)
 export type TraitAssessmentInput = {
-  leftPoleResponse: StatementResponse;   // Rating for left pole statement
-  rightPoleResponse: StatementResponse;  // Rating for right pole statement
+  leftPoleResponse: StatementResponse;   // Rating for left pole statement (0 = not answered)
+  rightPoleResponse: StatementResponse;  // Rating for right pole statement (0 = not answered)
 };
 
 // Assessment state for all traits

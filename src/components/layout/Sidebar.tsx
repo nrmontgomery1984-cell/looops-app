@@ -85,6 +85,16 @@ const ProfileIcon = () => (
   </svg>
 );
 
+const IntegrationsIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4h6v6H4V4z" />
+    <path d="M14 4h6v6h-6V4z" />
+    <path d="M4 14h6v6H4v-6z" />
+    <path d="M17 14v3h3" />
+    <path d="M14 17h3v3" />
+  </svg>
+);
+
 const SunIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="5" />
@@ -134,6 +144,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "loops", icon: <LoopsIcon />, label: "Loops" },
   { id: "planning", icon: <PlanningIcon />, label: "Planning" },
   { id: "history", icon: <HistoryIcon />, label: "History" },
+  { id: "integrations", icon: <IntegrationsIcon />, label: "Integrations" },
   { id: "me", icon: <ProfileIcon />, label: "Me" },
 ];
 

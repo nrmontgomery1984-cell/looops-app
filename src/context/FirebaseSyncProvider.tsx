@@ -10,6 +10,7 @@ interface SyncContextValue {
   lastSynced: string | null;
   error: string | null;
   userId: string | null;
+  isInitialLoadComplete: boolean;
 }
 
 const SyncContext = React.createContext<SyncContextValue>({
@@ -18,6 +19,7 @@ const SyncContext = React.createContext<SyncContextValue>({
   lastSynced: null,
   error: null,
   userId: null,
+  isInitialLoadComplete: false,
 });
 
 export function useSyncStatus() {
@@ -59,6 +61,7 @@ function FirebaseSyncInner({ children }: { children: React.ReactNode }) {
 export function FirebaseSyncProvider({ children }: { children: React.ReactNode }) {
   if (!isFirebaseConfigured()) {
     // Firebase not configured, just render children without sync
+    // Mark initial load as complete since there's nothing to sync
     return (
       <SyncContext.Provider value={{
         isOnline: false,
@@ -66,6 +69,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
         lastSynced: null,
         error: null,
         userId: null,
+        isInitialLoadComplete: true,
       }}>
         {children}
       </SyncContext.Provider>

@@ -1,5 +1,6 @@
 // Looops - Personal Operating System
 // Main Application Component
+// Build: 2025-12-21-v2 - Fixed optional chaining for archetypeBlend
 
 import React, { useMemo, useState, useEffect } from "react";
 import {
@@ -47,6 +48,7 @@ import { MediaWidget } from "./components/dashboard/MediaWidget";
 import { CalendarWidget as GoogleCalendarWidget } from "./components/dashboard/CalendarWidget";
 import { HistoryScreen } from "./components/history";
 import { WeeklyPlanning } from "./components/planning";
+import { IntegrationsScreen } from "./components/integrations";
 import { LoginScreen } from "./components/auth";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { generatePrototype, getArchetypeGreeting, frameTasks } from "./engines";
@@ -103,9 +105,15 @@ function AppContent() {
     clearError,
   } = useFirebaseAuth();
 
+  // Get sync status to know when Firebase data is loaded
+  const syncStatus = useSyncStatus();
+  // For demo mode, data is loaded immediately. For authenticated mode, wait for Firebase initial load.
+  const isFirebaseDataLoaded = authMode === 'demo' || (authMode === 'authenticated' && syncStatus.isInitialLoadComplete);
+
   // Check for skip param immediately
   const skipOnboarding = new URLSearchParams(window.location.search).get('skip') === '1';
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingKey, setOnboardingKey] = useState(0); // Key to force fresh component state
   const [demoDataLoaded, setDemoDataLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<"visual" | "kanban">("visual");
   const [showGoalsWizard, setShowGoalsWizard] = useState(false);
@@ -270,17 +278,31 @@ function AppContent() {
       // Reload without the param
       window.location.href = window.location.pathname;
     }
+    // Force clear service worker cache with ?clear-cache=1
+    if (params.get("clear-cache") === "1") {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => registration.unregister());
+        });
+        caches.keys().then((names) => {
+          names.forEach((name) => caches.delete(name));
+        });
+      }
+      localStorage.clear();
+      window.location.href = window.location.pathname;
+    }
   }, []);
 
   // Show onboarding if not complete (skip if ?skip=1 in URL)
-  // Only trigger after user is authenticated
+  // Wait for Firebase data to load before deciding to show onboarding
   useEffect(() => {
     if (skipOnboarding) return;
     if (!authMode) return; // Don't show onboarding until authenticated
+    if (!isFirebaseDataLoaded) return; // Wait for Firebase sync to complete
     if (!user.onboardingComplete && !showOnboarding) {
       setShowOnboarding(true);
     }
-  }, [user.onboardingComplete, skipOnboarding, authMode]);
+  }, [user.onboardingComplete, skipOnboarding, authMode, isFirebaseDataLoaded]);
 
   // Get time of day for greeting
   const timeOfDay = useMemo(() => {
@@ -293,7 +315,7 @@ function AppContent() {
   // Get greeting based on archetype
   const greeting = useMemo(() => {
     const name = user.profile?.name || "there";
-    if (user.prototype?.archetypeBlend.primary) {
+    if (user.prototype?.archetypeBlend?.primary) {
       return getArchetypeGreeting(user.prototype.archetypeBlend.primary, name, timeOfDay);
     }
     return `Good ${timeOfDay}, ${name}`;
@@ -307,7 +329,7 @@ function AppContent() {
     );
 
     // Apply archetype framing if prototype exists
-    if (user.prototype?.archetypeBlend.primary) {
+    if (user.prototype?.archetypeBlend?.primary) {
       filtered = frameTasks(filtered, user.prototype.archetypeBlend.primary);
     }
 
@@ -567,7 +589,7 @@ function AppContent() {
                     </div>
                   </div>
 
-                  {user.prototype && (
+                  {user.prototype?.archetypeBlend && (
                     <div className="archetype-summary">
                       <h3>Your Archetype</h3>
                       <p className="archetype-name-display">
@@ -1307,6 +1329,9 @@ function AppContent() {
       case "history":
         return <HistoryScreen tasks={tasks.items} />;
 
+      case "integrations":
+        return <IntegrationsScreen />;
+
       case "me":
         return (
           <div className="screen profile-screen">
@@ -1367,7 +1392,7 @@ function AppContent() {
               </div>
             )}
 
-            {user.prototype && (
+            {user.prototype?.archetypeBlend && (
               <>
                 <div className="profile-section">
                   <h3>Your Archetype</h3>
@@ -1452,7 +1477,10 @@ function AppContent() {
             <div className="profile-actions">
               <button
                 className="button"
-                onClick={() => setShowOnboarding(true)}
+                onClick={() => {
+                  setOnboardingKey(k => k + 1); // Force fresh component state
+                  setShowOnboarding(true);
+                }}
               >
                 Retake Prototype Assessment
               </button>
@@ -1490,8 +1518,9 @@ function AppContent() {
     }
   };
 
-  // Show loading screen while checking auth state
-  if (authLoading) {
+  // Show loading screen while checking auth state OR while syncing Firebase data
+  const isLoading = authLoading || (authMode === 'authenticated' && !isFirebaseDataLoaded);
+  if (isLoading) {
     return (
       <div className="login-screen">
         <div className="login-container">
@@ -1510,7 +1539,7 @@ function AppContent() {
               </svg>
             </div>
             <h1 className="login-title">Looops</h1>
-            <p className="login-subtitle">Loading...</p>
+            <p className="login-subtitle">{authLoading ? 'Loading...' : 'Syncing your data...'}</p>
           </div>
         </div>
       </div>
@@ -1548,17 +1577,18 @@ function AppContent() {
 
       {showOnboarding && !skipOnboarding && (
         <OnboardingFlow
+          key={onboardingKey}
           onComplete={handleOnboardingComplete}
           onClose={() => {
             if (user.onboardingComplete) {
               setShowOnboarding(false);
             }
           }}
-          onSkip={authMode === "demo" ? () => {
-            // Create a default profile for demo mode skip
+          onSkip={() => {
+            // Create a default profile to skip onboarding
             const defaultProfile = {
               id: `user_${Date.now()}`,
-              name: "Demo User",
+              name: authMode === "demo" ? "Demo User" : "User",
               lifeSeason: "single",
               majorTransition: "none",
               primaryChallenges: ["direction"],
@@ -1591,7 +1621,7 @@ function AppContent() {
             dispatch({ type: "SET_PROTOTYPE", payload: defaultPrototype });
             dispatch({ type: "COMPLETE_ONBOARDING" });
             setShowOnboarding(false);
-          } : undefined}
+          }}
           theme={theme}
           onToggleTheme={toggleTheme}
         />
