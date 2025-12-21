@@ -1,0 +1,94 @@
+// Firebase service helpers - uses shared Firebase instance
+import { doc, setDoc, getDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
+import { auth, db } from '../lib/firebase';
+
+// Check if Firebase is configured
+export const isFirebaseConfigured = (): boolean => {
+  return !!auth && !!db;
+};
+
+// Re-export auth and db for convenience
+export { db, auth };
+
+// Auth helpers
+export async function signInAnonymouslyIfNeeded(): Promise<User | null> {
+  if (!auth) return null;
+
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      unsubscribe();
+      if (user) {
+        resolve(user);
+      } else {
+        try {
+          const result = await signInAnonymously(auth);
+          resolve(result.user);
+        } catch (error) {
+          console.error('Anonymous sign-in failed:', error);
+          resolve(null);
+        }
+      }
+    });
+  });
+}
+
+export function onAuthChange(callback: (user: User | null) => void): Unsubscribe | null {
+  if (!auth) return null;
+  return onAuthStateChanged(auth, callback);
+}
+
+// Firestore helpers for app state
+const APP_STATE_COLLECTION = 'users';
+
+export async function saveAppState(userId: string, state: object): Promise<boolean> {
+  if (!db) return false;
+
+  try {
+    const docRef = doc(db, APP_STATE_COLLECTION, userId);
+    await setDoc(docRef, {
+      ...state,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    return true;
+  } catch (error) {
+    console.error('Error saving app state to Firestore:', error);
+    return false;
+  }
+}
+
+export async function loadAppState(userId: string): Promise<object | null> {
+  if (!db) return null;
+
+  try {
+    const docRef = doc(db, APP_STATE_COLLECTION, userId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error loading app state from Firestore:', error);
+    return null;
+  }
+}
+
+export function subscribeToAppState(
+  userId: string,
+  callback: (state: object | null) => void
+): Unsubscribe | null {
+  if (!db) return null;
+
+  const docRef = doc(db, APP_STATE_COLLECTION, userId);
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data());
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error('Error subscribing to app state:', error);
+    callback(null);
+  });
+}

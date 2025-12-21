@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Looops app with React + TypeScript + Vite\n\n- Task and challenge management system\n- Six life loops: Health, Wealth, Family, Work, Fun, Maintenance\n- Today view with daily challenges and tasks\n- Loops view with kanban-style task organization\n- History and profile screens\n- Archetype scoring system\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)",
+      "Bash(gh:*)",
+      "Bash(npm run dev:*)",
+      "Bash(xargs ls:*)",
+      "Bash(cat:*)",
+      "Bash(node check-time-entries.js:*)",
+      "Bash(npm install)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run dev:client:*)",
+      "Bash(taskkill:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node -e:*)",
+      "Bash(node run-migration.js:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

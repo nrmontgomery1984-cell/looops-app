@@ -1,0 +1,17 @@
+{
+  "name": "looops-server",
+  "version": "0.0.1",
+  "description": "Looops backend server for integrations",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "googleapis": "^128.0.0"
+  }
+}
