@@ -1,20 +1,21 @@
 // Google OAuth2 Callback endpoint
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const APP_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173';
-const REDIRECT_URI = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}/api/integrations/google/callback`
-  : 'http://localhost:3000/api/integrations/google/callback';
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+  const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+
+  // Use production URLs directly
+  const APP_URL = 'https://looops-app.vercel.app';
+  const REDIRECT_URI = `${APP_URL}/api/integrations/google/callback`;
+
   const { code, state, error } = req.query;
 
-  // Parse state to get service type
+  // Parse state to get service type (state is base64 encoded)
   let service = 'calendar';
   try {
-    const stateObj = JSON.parse(state as string);
+    const stateStr = Buffer.from(state as string, 'base64').toString();
+    const stateObj = JSON.parse(stateStr);
     service = stateObj.service || 'calendar';
   } catch {
     // Default to calendar
