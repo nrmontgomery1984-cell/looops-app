@@ -1,37 +1,43 @@
 // Firebase service helpers - uses shared Firebase instance
-import { doc, setDoc, getDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 
-// Check if Firebase is properly configured (has valid project ID)
+// Check if Firebase is properly configured
 export const isFirebaseConfigured = (): boolean => {
   try {
-    // Check if we have a valid Firebase app with a project ID
     const projectId = auth?.app?.options?.projectId;
-    return !!projectId && projectId.length > 0;
+    const configured = !!projectId && projectId.length > 0;
+    console.log('[Firebase] Configured:', configured, 'projectId:', projectId);
+    return configured;
   } catch {
     return false;
   }
 };
 
-// Re-export auth and db for convenience
 export { db, auth };
 
 // Auth helpers
 export async function signInAnonymouslyIfNeeded(): Promise<User | null> {
-  if (!auth) return null;
+  if (!auth) {
+    console.log('[Firebase] No auth instance');
+    return null;
+  }
 
   return new Promise((resolve) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       unsubscribe();
       if (user) {
+        console.log('[Firebase] Already signed in:', user.uid);
         resolve(user);
       } else {
         try {
+          console.log('[Firebase] Signing in anonymously...');
           const result = await signInAnonymously(auth);
+          console.log('[Firebase] Signed in:', result.user.uid);
           resolve(result.user);
         } catch (error) {
-          console.error('Anonymous sign-in failed:', error);
+          console.error('[Firebase] Anonymous sign-in failed:', error);
           resolve(null);
         }
       }
@@ -40,26 +46,25 @@ export async function signInAnonymouslyIfNeeded(): Promise<User | null> {
 }
 
 export function onAuthChange(callback: (user: User | null) => void): Unsubscribe | null {
-  if (!auth) return null;
+  if (!auth) {
+    console.log('[Firebase] No auth for onAuthChange');
+    return null;
+  }
   return onAuthStateChanged(auth, callback);
 }
 
-// Firestore helpers for app state
-const APP_STATE_COLLECTION = 'users';
+// Firestore helpers
+const USERS_COLLECTION = 'users';
 
-// Recursively remove undefined values from an object (Firestore doesn't accept undefined)
-function removeUndefined(obj: any): any {
-  if (obj === null || obj === undefined) {
-    return null;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(removeUndefined);
-  }
+// Remove undefined values (Firestore doesn't accept undefined)
+function cleanForFirestore(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) return obj.map(cleanForFirestore);
   if (typeof obj === 'object') {
-    const cleaned: any = {};
-    for (const [key, value] of Object.entries(obj)) {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       if (value !== undefined) {
-        cleaned[key] = removeUndefined(value);
+        cleaned[key] = cleanForFirestore(value);
       }
     }
     return cleaned;
@@ -67,84 +72,98 @@ function removeUndefined(obj: any): any {
   return obj;
 }
 
-export async function saveAppState(userId: string, state: object): Promise<boolean> {
+// Save state to Firestore
+export async function saveState(userId: string, state: object, version: number): Promise<boolean> {
   if (!db) {
-    console.error('[Firebase] No db instance, cannot save');
+    console.log('[Firebase] No db for save');
     return false;
   }
 
   try {
-    console.log('[Firebase] Saving state for user:', userId);
-    const docRef = doc(db, APP_STATE_COLLECTION, userId);
-    // Clean undefined values before saving to Firestore
-    // Preserve updatedAt if already set by the caller
-    const stateWithTimestamp = state as any;
-    const cleanedState = removeUndefined({
+    console.log('[Firebase] Saving for user:', userId, 'version:', version);
+    const docRef = doc(db, USERS_COLLECTION, userId);
+    const data = cleanForFirestore({
       ...state,
-      updatedAt: stateWithTimestamp.updatedAt || new Date().toISOString(),
+      _version: version,
+      _updatedAt: new Date().toISOString(),
     });
-    console.log('[Firebase] Saving with updatedAt:', cleanedState.updatedAt);
-    await setDoc(docRef, cleanedState, { merge: true });
-    console.log('[Firebase] State saved successfully for user:', userId);
+    await setDoc(docRef, data as Record<string, unknown>, { merge: true });
+    console.log('[Firebase] Save success');
     return true;
   } catch (error) {
-    console.error('[Firebase] Error saving app state to Firestore:', error);
+    console.error('[Firebase] Save failed:', error);
     return false;
   }
 }
 
-export async function loadAppState(userId: string): Promise<object | null> {
+// Load state from Firestore
+export async function loadState(userId: string): Promise<{ state: object; version: number } | null> {
   if (!db) {
-    console.error('[Firebase] No db instance, cannot load');
+    console.log('[Firebase] No db for load');
     return null;
   }
 
   try {
-    console.log('[Firebase] Loading state for user:', userId);
-    const docRef = doc(db, APP_STATE_COLLECTION, userId);
-    const docSnap = await getDoc(docRef);
+    console.log('[Firebase] Loading for user:', userId);
+    const docRef = doc(db, USERS_COLLECTION, userId);
+
+    // Use getDocFromServer to force network fetch, fall back to cache
+    const { getDocFromServer, getDocFromCache } = await import('firebase/firestore');
+
+    let docSnap;
+    try {
+      docSnap = await getDocFromServer(docRef);
+      console.log('[Firebase] Loaded from server');
+    } catch (serverError) {
+      console.log('[Firebase] Server fetch failed, trying cache');
+      try {
+        docSnap = await getDocFromCache(docRef);
+        console.log('[Firebase] Loaded from cache');
+      } catch (cacheError) {
+        console.log('[Firebase] No cache available');
+        return null;
+      }
+    }
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      console.log('[Firebase] Loaded state, updatedAt:', (data as any)?.updatedAt);
-      return data;
+      const version = (data._version as number) || 0;
+      console.log('[Firebase] Loaded, version:', version);
+      return { state: data, version };
     }
-    console.log('[Firebase] No document found for user:', userId);
+    console.log('[Firebase] No doc exists');
     return null;
   } catch (error) {
-    console.error('[Firebase] Error loading app state from Firestore:', error);
+    console.error('[Firebase] Load failed:', error);
     return null;
   }
 }
 
-export function subscribeToAppState(
+// Subscribe to state changes
+export function subscribeToState(
   userId: string,
-  callback: (state: object | null) => void
+  callback: (state: object, version: number) => void
 ): Unsubscribe | null {
   if (!db) {
-    console.error('[Firebase] No db instance, cannot subscribe');
+    console.log('[Firebase] No db for subscribe');
     return null;
   }
 
-  console.log('[Firebase] Subscribing to updates for user:', userId);
-  const docRef = doc(db, APP_STATE_COLLECTION, userId);
-  // Include metadata changes to see cache vs server source
-  return onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
-    const source = docSnap.metadata.fromCache ? 'LOCAL CACHE' : 'SERVER';
-    const hasPending = docSnap.metadata.hasPendingWrites;
-    console.log('[Firebase] Snapshot from:', source, 'hasPendingWrites:', hasPending);
+  console.log('[Firebase] Subscribing for user:', userId);
+  const docRef = doc(db, USERS_COLLECTION, userId);
+
+  return onSnapshot(docRef, (docSnap) => {
+    // Only process server updates, not local cache
+    if (docSnap.metadata.hasPendingWrites) {
+      console.log('[Firebase] Ignoring local write');
+      return;
+    }
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      const taskCount = (data as any)?.tasks?.items?.length || 0;
-      console.log('[Firebase] Snapshot data - tasks:', taskCount, 'updatedAt:', (data as any)?.updatedAt);
-      callback(data);
-    } else {
-      console.log('[Firebase] Snapshot received but no document exists');
-      callback(null);
+      const version = (data._version as number) || 0;
+      console.log('[Firebase] Snapshot received, version:', version);
+      callback(data, version);
     }
-  }, (error) => {
-    console.error('[Firebase] Error subscribing to app state:', error);
-    callback(null);
   });
 }

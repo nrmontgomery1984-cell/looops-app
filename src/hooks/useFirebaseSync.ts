@@ -1,206 +1,144 @@
-// Firebase sync hook for cloud data persistence
-import { useEffect, useRef, useState, useCallback } from 'react';
+// Firebase sync hook - simple bidirectional sync
+import { useEffect, useRef, useCallback } from 'react';
 import { User, Unsubscribe } from 'firebase/auth';
 import {
   isFirebaseConfigured,
   onAuthChange,
-  saveAppState,
-  loadAppState,
-  subscribeToAppState,
+  saveState,
+  loadState,
+  subscribeToState,
+  signInAnonymouslyIfNeeded,
 } from '../services/firebase';
 import { AppState } from '../context/AppContext';
 
-interface SyncStatus {
-  isOnline: boolean;
-  isSyncing: boolean;
-  lastSynced: string | null;
-  error: string | null;
-  userId: string | null;
-}
+// Track if user has made a change this session (prevents overwriting cloud on load)
+let userMadeChange = false;
 
-// Global flag - user has made a change this session
-let userHasMadeChange = false;
-let hasLoggedChange = false;
-
-// Call this before dispatching any user action
 export function markUserChange() {
-  if (!userHasMadeChange && !hasLoggedChange) {
-    hasLoggedChange = true;
-    console.log('[Sync] User made change - saves will be enabled');
-  }
-  userHasMadeChange = true;
+  userMadeChange = true;
 }
 
 export function useFirebaseSync(
   state: Omit<AppState, 'ui'>,
   onRemoteUpdate: (state: Partial<AppState>) => void
 ) {
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
-    isOnline: isFirebaseConfigured(),
-    isSyncing: false,
-    lastSynced: null,
-    error: null,
-    userId: null,
-  });
-
   const userRef = useRef<User | null>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSavingRef = useRef(false);
-  const lastSavedStateRef = useRef<string>('');
+  const versionRef = useRef(0);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Stable reference to callback
   const onRemoteUpdateRef = useRef(onRemoteUpdate);
   onRemoteUpdateRef.current = onRemoteUpdate;
 
-  // Auth and subscription setup
+  // Shared document ID for all devices
+  const syncId = 'shared-user';
+
+  // Save to cloud
+  const save = useCallback(async () => {
+    const user = userRef.current;
+    if (!user) {
+      console.log('[Sync] No user, cannot save');
+      return;
+    }
+
+    versionRef.current += 1;
+    console.log('[Sync] Saving, version:', versionRef.current);
+    const success = await saveState(syncId, state, versionRef.current);
+    console.log('[Sync] Save result:', success);
+  }, [state]);
+
+  // Auth and initial load
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       console.log('[Sync] Firebase not configured');
       return;
     }
 
+    console.log('[Sync] Starting auth flow');
     let unsubscribeFirestore: Unsubscribe | null = null;
 
-    const authUnsubscribe = onAuthChange(async (user) => {
-      console.log('[Sync] Auth:', user ? user.uid : 'none');
+    const unsubscribeAuth = onAuthChange(async (user) => {
+      console.log('[Sync] Auth state:', user ? user.uid : 'null');
 
-      // Cleanup old subscription
-      if (unsubscribeFirestore) {
-        unsubscribeFirestore();
-        unsubscribeFirestore = null;
+      // Cleanup previous subscription
+      unsubscribeFirestore?.();
+      unsubscribeFirestore = null;
+
+      // If no user, try anonymous sign-in
+      if (!user) {
+        console.log('[Sync] No user, signing in anonymously');
+        await signInAnonymouslyIfNeeded();
+        return; // Auth callback will fire again with the new user
       }
 
       userRef.current = user;
+      console.log('[Sync] Using sync ID:', syncId, '(auth uid:', user.uid, ')');
 
-      if (!user) {
-        setSyncStatus(prev => ({ ...prev, userId: null }));
-        return;
+      // Reset on new session
+      userMadeChange = false;
+      console.log('[Sync] Session started, saves disabled until user action');
+
+      // Load initial state
+      console.log('[Sync] Loading state');
+      const result = await loadState(syncId);
+      if (result) {
+        versionRef.current = result.version;
+        console.log('[Sync] Loaded state, version:', result.version);
+        onRemoteUpdateRef.current(result.state as Partial<AppState>);
+      } else {
+        console.log('[Sync] No existing state in cloud');
       }
 
-      setSyncStatus(prev => ({ ...prev, userId: user.uid }));
-
-      // Reset the flag on login - fresh session
-      userHasMadeChange = false;
-      console.log('[Sync] Fresh session - saves disabled until user action');
-
-      try {
-        // Load initial state
-        const cloudState = await loadAppState(user.uid);
-        console.log('[Sync] Load result:', cloudState ? 'has data' : 'null/empty');
-        if (cloudState) {
-          console.log('[Sync] Loaded cloud state, tasks:', (cloudState as any)?.tasks?.items?.length || 0);
-          lastSavedStateRef.current = JSON.stringify(cloudState);
-          onRemoteUpdateRef.current(cloudState as Partial<AppState>);
-          console.log('[Sync] Dispatched HYDRATE');
-        }
-
-        // Subscribe to updates
-        unsubscribeFirestore = subscribeToAppState(user.uid, (remoteState) => {
-          console.log('[Sync] Snapshot callback fired');
-          if (!remoteState) {
-            console.log('[Sync] No remote state in snapshot');
-            return;
-          }
-
-          const remoteStr = JSON.stringify(remoteState);
-          const remoteTasks = (remoteState as any)?.tasks?.items?.length || 0;
-          console.log('[Sync] Snapshot has', remoteTasks, 'tasks');
-
-          if (remoteStr === lastSavedStateRef.current) {
-            console.log('[Sync] Ignoring echo (same as lastSaved)');
-            return;
-          }
-
-          console.log('[Sync] NEW remote update - applying HYDRATE');
-          lastSavedStateRef.current = remoteStr;
+      // Subscribe to remote changes
+      console.log('[Sync] Subscribing to remote changes');
+      unsubscribeFirestore = subscribeToState(syncId, (remoteState, remoteVersion) => {
+        console.log('[Sync] Remote update, version:', remoteVersion, 'local:', versionRef.current);
+        // Only apply if remote is newer
+        if (remoteVersion > versionRef.current) {
+          console.log('[Sync] Applying remote update');
+          versionRef.current = remoteVersion;
           onRemoteUpdateRef.current(remoteState as Partial<AppState>);
-        });
-
-      } catch (error) {
-        console.error('[Sync] Error:', error);
-        setSyncStatus(prev => ({ ...prev, error: 'Sync error' }));
-      }
+        }
+      });
     });
 
     return () => {
-      authUnsubscribe?.();
+      unsubscribeAuth?.();
       unsubscribeFirestore?.();
     };
   }, []);
 
-  // Save function
-  const doSave = useCallback(async (userId: string, stateToSave: object) => {
-    if (isSavingRef.current) return;
-
-    isSavingRef.current = true;
-    setSyncStatus(prev => ({ ...prev, isSyncing: true }));
-
-    const stateStr = JSON.stringify(stateToSave);
-    const success = await saveAppState(userId, stateToSave);
-
-    isSavingRef.current = false;
-
-    if (success) {
-      lastSavedStateRef.current = stateStr;
-      setSyncStatus(prev => ({
-        ...prev,
-        isSyncing: false,
-        lastSynced: new Date().toISOString(),
-      }));
-      console.log('[Sync] Saved');
-    } else {
-      setSyncStatus(prev => ({ ...prev, isSyncing: false, error: 'Save failed' }));
-    }
-  }, []);
-
-  // Watch for state changes
+  // Save on state change (debounced)
   useEffect(() => {
-    if (!userRef.current || !isFirebaseConfigured()) return;
-
-    // THE KEY CHECK: Only save if user has made a change
-    if (!userHasMadeChange) {
-      console.log('[Sync] No user change yet - skip save');
+    if (!userRef.current) {
       return;
     }
 
-    const stateStr = JSON.stringify(state);
-    if (stateStr === lastSavedStateRef.current) return;
-
-    // Clear existing timer
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
+    if (!userMadeChange) {
+      return;
     }
 
-    const userId = userRef.current.uid;
+    // Clear pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
     console.log('[Sync] Scheduling save');
 
-    saveTimerRef.current = setTimeout(() => {
-      saveTimerRef.current = null;
-
-      // Double-check flag
-      if (!userHasMadeChange) {
-        console.log('[Sync] Save cancelled - no user change');
-        return;
-      }
-
-      const currentStr = JSON.stringify(state);
-      if (currentStr === lastSavedStateRef.current) {
-        console.log('[Sync] Already in sync');
-        return;
-      }
-
-      console.log('[Sync] Saving now');
-      doSave(userId, state);
-    }, 2000);
+    // Debounce save by 1 second
+    saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null;
+      save();
+    }, 1000);
 
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [state, doSave]);
+  }, [state, save]);
 
-  return { ...syncStatus, isInitialLoadComplete: true };
+  return { isInitialLoadComplete: true };
 }
 
 export default useFirebaseSync;

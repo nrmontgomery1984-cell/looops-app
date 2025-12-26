@@ -66,6 +66,10 @@ import {
   LoopDirections,
 } from "../types";
 import { STORAGE_KEYS } from "../storage";
+import { findTemplateById, BUILT_IN_TEMPLATES } from "../data/taskTemplates";
+import { TaskTemplate } from "../types/taskTemplates";
+import { createTask } from "../types/tasks";
+import { createProject } from "../types/projects";
 
 // User profile type
 export type UserProfile = {
@@ -160,6 +164,9 @@ export type AppState = {
   // Directional Document (personal direction framework)
   directionalDocument: DirectionalDocument | null;
 
+  // Custom task templates
+  customTemplates: TaskTemplate[];
+
   // UI State
   ui: {
     activeTab: TabId;
@@ -247,6 +254,8 @@ const defaultState: AppState = {
   media: DEFAULT_MEDIA_STATE,
   // Directional Document
   directionalDocument: null,
+  // Custom Templates
+  customTemplates: [],
   ui: {
     activeTab: "today",
     selectedLoop: null,
@@ -387,6 +396,12 @@ export type AppAction =
   | { type: "SET_DIRECTIONAL_DOCUMENT"; payload: DirectionalDocument | null }
   | { type: "UPDATE_CORE_DIRECTIONS"; payload: Partial<CoreDirections> }
   | { type: "UPDATE_LOOP_DIRECTIONS"; payload: { loopId: LoopId; directions: Partial<LoopDirections> } }
+
+  // Template actions
+  | { type: "CREATE_FROM_TEMPLATE"; payload: { templateId: string; projectName?: string } }
+  | { type: "ADD_CUSTOM_TEMPLATE"; payload: TaskTemplate }
+  | { type: "UPDATE_CUSTOM_TEMPLATE"; payload: TaskTemplate }
+  | { type: "DELETE_CUSTOM_TEMPLATE"; payload: string }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -1249,6 +1264,65 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case "HYDRATE":
       return { ...state, ...action.payload };
 
+    // Template actions
+    case "CREATE_FROM_TEMPLATE": {
+      const { templateId, projectName } = action.payload;
+      // Check built-in templates first, then custom templates
+      const template = findTemplateById(templateId) ||
+        state.customTemplates.find(t => t.id === templateId);
+      if (!template) {
+        console.warn(`Template not found: ${templateId}`);
+        return state;
+      }
+
+      // Create the project
+      const project = createProject(projectName || template.name, template.loop, {
+        description: template.description,
+        icon: template.icon,
+      });
+
+      // Create tasks from template
+      const newTasks = template.tasks.map((templateTask, index) =>
+        createTask(templateTask.title, template.loop, {
+          description: templateTask.description,
+          estimateMinutes: templateTask.estimatedMinutes,
+          projectId: project.id,
+          order: templateTask.order || index,
+          status: "todo",
+          source: "generated",
+        })
+      );
+
+      return {
+        ...state,
+        projects: [...state.projects, project],
+        tasks: {
+          ...state.tasks,
+          items: [...state.tasks.items, ...newTasks],
+        },
+      };
+    }
+
+    case "ADD_CUSTOM_TEMPLATE":
+      return {
+        ...state,
+        customTemplates: [...state.customTemplates, action.payload],
+      };
+
+    case "UPDATE_CUSTOM_TEMPLATE":
+      return {
+        ...state,
+        customTemplates: state.customTemplates.map(t =>
+          t.id === action.payload.id ? action.payload : t
+        ),
+      };
+
+    case "DELETE_CUSTOM_TEMPLATE":
+      return {
+        ...state,
+        customTemplates: state.customTemplates.filter(t => t.id !== action.payload),
+      };
+
     default:
       return state;
   }
@@ -1334,6 +1408,8 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
     },
     // Directional Document - persists
     directionalDocument: savedState.directionalDocument ?? defaultState.directionalDocument,
+    // Custom Templates - persists
+    customTemplates: savedState.customTemplates ?? defaultState.customTemplates,
     ui: defaultState.ui, // Always use fresh UI state
   };
 }

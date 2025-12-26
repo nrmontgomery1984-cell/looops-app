@@ -2007,38 +2007,10 @@ function AppContent() {
   );
 }
 
-// Sync status indicator component
+// Sync status indicator component - simplified, sync happens silently
 function SyncStatusIndicator() {
-  const { isOnline, isSyncing, lastSynced, error } = useSyncStatus();
-
-  if (!isOnline) return null;
-
-  return (
-    <div className="sync-status">
-      {isSyncing ? (
-        <span className="sync-status-syncing">
-          <svg className="sync-icon spinning" viewBox="0 0 24 24" width="14" height="14">
-            <path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
-          </svg>
-          Syncing...
-        </span>
-      ) : error ? (
-        <span className="sync-status-error" title={error}>
-          <svg viewBox="0 0 24 24" width="14" height="14">
-            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-          </svg>
-          Sync error
-        </span>
-      ) : lastSynced ? (
-        <span className="sync-status-synced" title={`Last synced: ${new Date(lastSynced).toLocaleTimeString()}`}>
-          <svg viewBox="0 0 24 24" width="14" height="14">
-            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
-          Synced
-        </span>
-      ) : null}
-    </div>
-  );
+  // Sync runs in background, no UI needed
+  return null;
 }
 
 // Root App Component (wraps with providers)

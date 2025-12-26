@@ -17,6 +17,7 @@ import {
 import { TaskList } from "./TaskList";
 import { TaskDetailModal } from "./TaskDetailModal";
 import { TaskInput } from "./TaskInput";
+import { TemplatesModal } from "./TemplatesModal";
 
 type TaskView = "inbox" | "today" | "upcoming" | "project" | "loop" | "label";
 
@@ -58,6 +59,7 @@ export function TasksScreen({
   const [sortBy, setSortBy] = useState<TaskSortOption>("manual");
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectLoop, setNewProjectLoop] = useState<LoopId>("Work");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -209,201 +211,187 @@ export function TasksScreen({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Mobile-specific inline styles to fix positioning - bypasses CSS conflicts
-  // ALWAYS apply these styles on mobile to ensure correct positioning
+  // Mobile-specific inline styles to fix positioning
   const mobileStyles: React.CSSProperties = isMobile ? {
     position: 'fixed',
     top: '56px',
-    left: '0px',
-    right: '0px',
-    bottom: '0px',
-    margin: '0px',
-    padding: '0px',
+    left: '0',
+    right: '0',
+    bottom: '0',
+    margin: '0',
+    padding: '0',
     display: 'flex',
     flexDirection: 'column',
     background: 'var(--color-bg)',
     zIndex: 999,
     overflow: 'hidden',
-    width: '100vw',
-    height: 'calc(100vh - 56px)',
-    // DEBUG: red border to see actual bounds
-    border: '3px solid red',
   } : {};
 
-  // Debug: log when mobile styles are applied
-  console.log('[TasksScreen] isMobile:', isMobile, 'applying styles:', isMobile ? 'YES' : 'NO');
+  // Sidebar content - extracted to avoid duplication
+  const sidebarContent = (
+    <>
+      <button
+        className="sidebar-toggle"
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+      >
+        {sidebarCollapsed ? "▶" : "◀"}
+      </button>
 
-  // Mobile styles for tasks-main child - reset padding that desktop styles add
-  const mobileMainStyles: React.CSSProperties = isMobile ? {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    padding: 0,
-    margin: 0,
-    overflowY: 'auto',
-    overflowX: 'hidden',
-    // DEBUG
-    border: '3px solid blue',
-  } : {};
+      {!sidebarCollapsed && (
+        <>
+          {/* Main views */}
+          <div className="sidebar-section">
+            <button
+              className={`sidebar-item ${currentView === "inbox" ? "active" : ""}`}
+              onClick={() => handleViewChange("inbox")}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="sidebar-icon">
+                <path d="M19 3H4.99c-1.11 0-1.98.89-1.98 2L3 19c0 1.1.88 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z" />
+              </svg>
+              <span>Inbox</span>
+              {inboxCount > 0 && <span className="sidebar-badge">{inboxCount}</span>}
+            </button>
 
-  // Mobile header styles - ensure no margin/padding
-  const mobileHeaderStyles: React.CSSProperties = isMobile ? {
-    margin: 0,
-    padding: '12px',
-    border: '3px solid green',
-  } : {};
+            <button
+              className={`sidebar-item ${currentView === "today" ? "active" : ""}`}
+              onClick={() => handleViewChange("today")}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="sidebar-icon today-icon">
+                <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z" />
+              </svg>
+              <span>Today</span>
+              {todayCount > 0 && <span className="sidebar-badge">{todayCount}</span>}
+            </button>
 
-  return (
-    <div className="tasks-screen" style={mobileStyles}>
-      {/* Mobile Sidebar Overlay */}
-      {mobileSidebarOpen && (
-        <div className="tasks-sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
-      )}
+            <button
+              className={`sidebar-item ${currentView === "upcoming" ? "active" : ""}`}
+              onClick={() => handleViewChange("upcoming")}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="sidebar-icon">
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z" />
+              </svg>
+              <span>Upcoming</span>
+            </button>
+          </div>
 
-      {/* Sidebar */}
-      <div className={`tasks-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileSidebarOpen ? "mobile-open" : ""}`}>
-        <button
-          className="sidebar-toggle"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        >
-          {sidebarCollapsed ? "▶" : "◀"}
-        </button>
-
-        {!sidebarCollapsed && (
-          <>
-            {/* Main views */}
-            <div className="sidebar-section">
-              <button
-                className={`sidebar-item ${currentView === "inbox" ? "active" : ""}`}
-                onClick={() => handleViewChange("inbox")}
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="sidebar-icon">
-                  <path d="M19 3H4.99c-1.11 0-1.98.89-1.98 2L3 19c0 1.1.88 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z" />
-                </svg>
-                <span>Inbox</span>
-                {inboxCount > 0 && <span className="sidebar-badge">{inboxCount}</span>}
-              </button>
-
-              <button
-                className={`sidebar-item ${currentView === "today" ? "active" : ""}`}
-                onClick={() => handleViewChange("today")}
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="sidebar-icon today-icon">
-                  <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z" />
-                </svg>
-                <span>Today</span>
-                {todayCount > 0 && <span className="sidebar-badge">{todayCount}</span>}
-              </button>
-
-              <button
-                className={`sidebar-item ${currentView === "upcoming" ? "active" : ""}`}
-                onClick={() => handleViewChange("upcoming")}
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="sidebar-icon">
-                  <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z" />
-                </svg>
-                <span>Upcoming</span>
-              </button>
+          {/* Loops */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-header">
+              <span>Loops</span>
             </div>
-
-            {/* Loops */}
-            <div className="sidebar-section">
-              <div className="sidebar-section-header">
-                <span>Loops</span>
-              </div>
-              {ALL_LOOPS.map((loopId) => {
-                const loop = LOOP_DEFINITIONS[loopId];
-                const loopTaskCount = tasks.filter((t) => t.loop === loopId && t.status !== "done").length;
-                return (
-                  <button
-                    key={loopId}
-                    className={`sidebar-item ${currentView === "loop" && selectedLoopId === loopId ? "active" : ""}`}
-                    onClick={() => handleViewChange("loop", undefined, loopId)}
-                  >
-                    <span className="sidebar-icon loop-icon">{loop.icon}</span>
-                    <span>{loopId}</span>
-                    {loopTaskCount > 0 && <span className="sidebar-badge">{loopTaskCount}</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Projects */}
-            <div className="sidebar-section">
-              <div className="sidebar-section-header">
-                <span>Projects</span>
+            {ALL_LOOPS.map((loopId) => {
+              const loop = LOOP_DEFINITIONS[loopId];
+              const loopTaskCount = tasks.filter((t) => t.loop === loopId && t.status !== "done").length;
+              return (
                 <button
-                  className="add-btn"
-                  onClick={() => setShowNewProjectModal(true)}
-                  title="Add project"
+                  key={loopId}
+                  className={`sidebar-item ${currentView === "loop" && selectedLoopId === loopId ? "active" : ""}`}
+                  onClick={() => handleViewChange("loop", undefined, loopId)}
                 >
-                  +
+                  <span className="sidebar-icon loop-icon">{loop.icon}</span>
+                  <span>{loopId}</span>
+                  {loopTaskCount > 0 && <span className="sidebar-badge">{loopTaskCount}</span>}
                 </button>
-              </div>
-              {projects
-                .filter((p) => !p.archived)
-                .map((project) => {
-                  const projectTaskCount = tasks.filter(
-                    (t) => t.projectId === project.id && t.status !== "done"
-                  ).length;
-                  return (
-                    <button
-                      key={project.id}
-                      className={`sidebar-item ${currentView === "project" && selectedProjectId === project.id ? "active" : ""}`}
-                      onClick={() => handleViewChange("project", project.id)}
-                    >
-                      <span
-                        className="sidebar-icon project-dot"
-                        style={{ backgroundColor: project.color }}
-                      />
-                      <span>{project.name}</span>
-                      {projectTaskCount > 0 && (
-                        <span className="sidebar-badge">{projectTaskCount}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              {projects.filter((p) => !p.archived).length === 0 && (
-                <div className="sidebar-empty">No projects yet</div>
-              )}
-            </div>
+              );
+            })}
+          </div>
 
-            {/* Labels */}
-            <div className="sidebar-section">
-              <div className="sidebar-section-header">
-                <span>Labels</span>
-              </div>
-              {labels.map((label) => {
-                const labelTaskCount = tasks.filter(
-                  (t) => t.labels?.includes(label.id) && t.status !== "done"
+          {/* Projects */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-header">
+              <span>Projects</span>
+              <button
+                className="add-btn"
+                onClick={() => setShowNewProjectModal(true)}
+                title="Add project"
+              >
+                +
+              </button>
+            </div>
+            {projects
+              .filter((p) => !p.archived)
+              .map((project) => {
+                const projectTaskCount = tasks.filter(
+                  (t) => t.projectId === project.id && t.status !== "done"
                 ).length;
                 return (
                   <button
-                    key={label.id}
-                    className={`sidebar-item ${currentView === "label" && selectedLabelId === label.id ? "active" : ""}`}
-                    onClick={() => handleViewChange("label", undefined, undefined, label.id)}
+                    key={project.id}
+                    className={`sidebar-item ${currentView === "project" && selectedProjectId === project.id ? "active" : ""}`}
+                    onClick={() => handleViewChange("project", project.id)}
                   >
                     <span
-                      className="sidebar-icon label-dot"
-                      style={{ backgroundColor: label.color }}
+                      className="sidebar-icon project-dot"
+                      style={{ backgroundColor: project.color }}
                     />
-                    <span>{label.name}</span>
-                    {labelTaskCount > 0 && <span className="sidebar-badge">{labelTaskCount}</span>}
+                    <span>{project.name}</span>
+                    {projectTaskCount > 0 && (
+                      <span className="sidebar-badge">{projectTaskCount}</span>
+                    )}
                   </button>
                 );
               })}
-              {labels.length === 0 && (
-                <div className="sidebar-empty">No labels yet</div>
-              )}
+            {projects.filter((p) => !p.archived).length === 0 && (
+              <div className="sidebar-empty">No projects yet</div>
+            )}
+          </div>
+
+          {/* Labels */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-header">
+              <span>Labels</span>
             </div>
-          </>
-        )}
-      </div>
+            {labels.map((label) => {
+              const labelTaskCount = tasks.filter(
+                (t) => t.labels?.includes(label.id) && t.status !== "done"
+              ).length;
+              return (
+                <button
+                  key={label.id}
+                  className={`sidebar-item ${currentView === "label" && selectedLabelId === label.id ? "active" : ""}`}
+                  onClick={() => handleViewChange("label", undefined, undefined, label.id)}
+                >
+                  <span
+                    className="sidebar-icon label-dot"
+                    style={{ backgroundColor: label.color }}
+                  />
+                  <span>{label.name}</span>
+                  {labelTaskCount > 0 && <span className="sidebar-badge">{labelTaskCount}</span>}
+                </button>
+              );
+            })}
+            {labels.length === 0 && (
+              <div className="sidebar-empty">No labels yet</div>
+            )}
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <div className="tasks-screen" style={mobileStyles}>
+      {/* Mobile Sidebar - only render when open on mobile */}
+      {isMobile && mobileSidebarOpen && (
+        <>
+          <div className="tasks-sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
+          <div className="tasks-sidebar mobile-open">
+            {sidebarContent}
+          </div>
+        </>
+      )}
+
+      {/* Desktop Sidebar - always render on desktop */}
+      {!isMobile && (
+        <div className={`tasks-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+          {sidebarContent}
+        </div>
+      )}
 
       {/* Main content */}
-      <div className="tasks-main" style={mobileMainStyles}>
+      <div className="tasks-main">
         {/* Header */}
-        <div className="tasks-header" style={mobileHeaderStyles}>
+        <div className="tasks-header">
           <div className="tasks-header-left">
             {/* Mobile menu button */}
             <button
@@ -464,6 +452,18 @@ export function TasksScreen({
                 Kanban
               </button>
             </div>
+
+            {/* Templates Button */}
+            <button
+              className="templates-btn"
+              onClick={() => setShowTemplatesModal(true)}
+              title="Browse task templates"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+              </svg>
+              <span>Templates</span>
+            </button>
 
             {/* Sort by */}
             <div className="header-control">
@@ -692,6 +692,11 @@ export function TasksScreen({
           <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
         </svg>
       </button>
+
+      {/* Templates Modal */}
+      {showTemplatesModal && (
+        <TemplatesModal onClose={() => setShowTemplatesModal(false)} />
+      )}
     </div>
   );
 }
