@@ -225,6 +225,17 @@ export function TasksScreen({
     overflow: 'hidden',
   } : {};
 
+  // Mobile styles for tasks-main child - reset padding that desktop styles add
+  const mobileMainStyles: React.CSSProperties = isMobile ? {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 0,
+    margin: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+  } : {};
+
   return (
     <div className="tasks-screen" style={mobileStyles}>
       {/* Mobile Sidebar Overlay */}
@@ -373,7 +384,7 @@ export function TasksScreen({
       </div>
 
       {/* Main content */}
-      <div className="tasks-main">
+      <div className="tasks-main" style={mobileMainStyles}>
         {/* Header */}
         <div className="tasks-header">
           <div className="tasks-header-left">
