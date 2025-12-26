@@ -49,6 +49,7 @@ export function useFirebaseSync(
   const isInitialMount = useRef(true);
   const lastSyncedState = useRef<string>('');
   const ignoringOwnSaveUntil = useRef<number>(0); // Timestamp to ignore remote updates until
+  const hasLoadedFromCloud = useRef(false); // Track if we've loaded cloud data
 
   // Store callback in ref to avoid re-running effect when callback changes
   const onRemoteUpdateRef = useRef(onRemoteUpdate);
@@ -108,10 +109,16 @@ export function useFirebaseSync(
             const cloudState = await Promise.race([loadPromise, timeoutPromise]);
             if (cloudState) {
               console.log('Loaded state from cloud for user:', user.uid);
-              onRemoteUpdateRef.current(cloudState as Partial<AppState>);
+              hasLoadedFromCloud.current = true;
+              // Set lastSyncedState BEFORE updating to prevent immediate re-save
               lastSyncedState.current = JSON.stringify(cloudState);
+              // Set a brief cooldown to prevent saving the hydrated state back
+              ignoringOwnSaveUntil.current = Date.now() + 2000;
+              onRemoteUpdateRef.current(cloudState as Partial<AppState>);
             } else {
               console.log('No cloud state found for user:', user.uid);
+              // No cloud state - this device's state will be the source of truth
+              hasLoadedFromCloud.current = false;
             }
 
             // Subscribe to real-time updates (non-blocking)
