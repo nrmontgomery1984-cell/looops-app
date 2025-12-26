@@ -242,6 +242,15 @@ export function TasksScreen({
     margin: 0,
     overflowY: 'auto',
     overflowX: 'hidden',
+    // DEBUG
+    border: '3px solid blue',
+  } : {};
+
+  // Mobile header styles - ensure no margin/padding
+  const mobileHeaderStyles: React.CSSProperties = isMobile ? {
+    margin: 0,
+    padding: '12px',
+    border: '3px solid green',
   } : {};
 
   return (
@@ -394,7 +403,7 @@ export function TasksScreen({
       {/* Main content */}
       <div className="tasks-main" style={mobileMainStyles}>
         {/* Header */}
-        <div className="tasks-header">
+        <div className="tasks-header" style={mobileHeaderStyles}>
           <div className="tasks-header-left">
             {/* Mobile menu button */}
             <button
