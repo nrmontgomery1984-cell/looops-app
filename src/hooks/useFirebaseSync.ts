@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { User, Unsubscribe } from 'firebase/auth';
 import {
   isFirebaseConfigured,
-  signInAnonymouslyIfNeeded,
   onAuthChange,
   saveAppState,
   loadAppState,
@@ -66,6 +65,7 @@ export function useFirebaseSync(
     let authUnsubscribe: Unsubscribe | null = null;
     let masterTimeoutId: NodeJS.Timeout | null = null;
     let isComplete = false;
+    let currentSubscribeUnsubscribe: Unsubscribe | null = null;
 
     // Helper to mark complete only once
     const markComplete = (reason: string) => {
@@ -82,12 +82,20 @@ export function useFirebaseSync(
     }, 3000);
 
     const initAuth = async () => {
-      // Listen for auth changes
+      // Listen for auth changes - this fires on every auth state change (login, logout, user switch)
       authUnsubscribe = onAuthChange(async (user) => {
+        console.log('Auth state changed:', user ? `User ${user.uid} (${user.email || 'anonymous'})` : 'No user');
+
+        // Clean up previous subscription when user changes
+        if (currentSubscribeUnsubscribe) {
+          currentSubscribeUnsubscribe();
+          currentSubscribeUnsubscribe = null;
+        }
+
         userRef.current = user;
 
         if (user) {
-          setSyncStatus((prev) => ({ ...prev, userId: user.uid }));
+          setSyncStatus((prev) => ({ ...prev, userId: user.uid, error: null }));
 
           try {
             // Race the Firestore load against a 2 second timeout
@@ -98,41 +106,39 @@ export function useFirebaseSync(
 
             const cloudState = await Promise.race([loadPromise, timeoutPromise]);
             if (cloudState) {
-              console.log('Loaded state from cloud');
+              console.log('Loaded state from cloud for user:', user.uid);
               onRemoteUpdateRef.current(cloudState as Partial<AppState>);
+              lastSyncedState.current = JSON.stringify(cloudState);
+            } else {
+              console.log('No cloud state found for user:', user.uid);
             }
 
             // Subscribe to real-time updates (non-blocking)
-            unsubscribeRef.current = subscribeToAppState(user.uid, (remoteState) => {
+            currentSubscribeUnsubscribe = subscribeToAppState(user.uid, (remoteState) => {
               if (remoteState) {
                 const remoteJson = JSON.stringify(remoteState);
                 if (remoteJson !== lastSyncedState.current) {
-                  console.log('Received remote update');
+                  console.log('Received remote update for user:', user.uid);
                   onRemoteUpdateRef.current(remoteState as Partial<AppState>);
                   lastSyncedState.current = remoteJson;
                 }
               }
             });
+            unsubscribeRef.current = currentSubscribeUnsubscribe;
           } catch (error) {
             console.error('Error loading cloud state:', error);
+            setSyncStatus((prev) => ({ ...prev, error: 'Failed to load from cloud' }));
           }
 
           markComplete('Firestore load done');
         } else {
+          setSyncStatus((prev) => ({ ...prev, userId: null }));
           markComplete('no user');
         }
       });
 
-      // Try to sign in anonymously (for users who aren't signed in yet)
-      try {
-        const user = await signInAnonymouslyIfNeeded();
-        if (user) {
-          console.log('Signed in as:', user.uid);
-        }
-      } catch (error) {
-        console.log('Anonymous sign-in not available:', error);
-        markComplete('anonymous sign-in failed');
-      }
+      // Don't automatically sign in anonymously - let the user choose to sign in
+      // This prevents creating orphan anonymous accounts
     };
 
     initAuth();
@@ -140,6 +146,7 @@ export function useFirebaseSync(
     return () => {
       if (masterTimeoutId) clearTimeout(masterTimeoutId);
       authUnsubscribe?.();
+      if (currentSubscribeUnsubscribe) currentSubscribeUnsubscribe();
       unsubscribeRef.current?.();
     };
   }, []); // Empty dependency array - only run once
