@@ -1275,18 +1275,26 @@ function appReducer(state: AppState, action: AppAction): AppState {
         return state;
       }
 
-      // Create the project
-      const project = createProject(projectName || template.name, template.loop, {
+      // Calculate total estimated time from all subtasks
+      const totalEstimate = template.tasks.reduce(
+        (sum, t) => sum + (t.estimatedMinutes || 0),
+        0
+      );
+
+      // Create the parent task from the template (this becomes one "loop dot")
+      const parentTask = createTask(projectName || template.name, template.loop, {
         description: template.description,
-        icon: template.icon,
+        estimateMinutes: totalEstimate > 0 ? totalEstimate : undefined,
+        status: "todo",
+        source: "generated",
       });
 
-      // Create tasks from template
-      const newTasks = template.tasks.map((templateTask, index) =>
+      // Create subtasks linked to the parent task
+      const subtasks = template.tasks.map((templateTask, index) =>
         createTask(templateTask.title, template.loop, {
           description: templateTask.description,
           estimateMinutes: templateTask.estimatedMinutes,
-          projectId: project.id,
+          parentId: parentTask.id, // Link to parent task
           order: templateTask.order || index,
           status: "todo",
           source: "generated",
@@ -1295,10 +1303,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
       return {
         ...state,
-        projects: [...state.projects, project],
         tasks: {
           ...state.tasks,
-          items: [...state.tasks.items, ...newTasks],
+          items: [...state.tasks.items, parentTask, ...subtasks],
         },
       };
     }

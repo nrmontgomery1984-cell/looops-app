@@ -283,7 +283,7 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
 
         <div className="template-use-form">
           <label>
-            Project name (optional):
+            Task name (optional):
             <input
               type="text"
               value={customName}
@@ -296,7 +296,7 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
               className="template-use-btn"
               onClick={() => handleUseTemplate(selectedTemplate)}
             >
-              Create Project with Tasks
+              Create Task with Subtasks
             </button>
             {isCustomTemplate(selectedTemplate) && (
               <>
