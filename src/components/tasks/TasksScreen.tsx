@@ -1,6 +1,6 @@
 // Main Tasks screen with Inbox, Today, Upcoming views (Todoist-style)
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Task,
   Project,
@@ -198,8 +198,35 @@ export function TasksScreen({
     setMobileSidebarOpen(false); // Close mobile sidebar after selection
   };
 
+  // Track mobile state reactively
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  );
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Mobile-specific inline styles to fix positioning - bypasses CSS conflicts
+  const mobileStyles: React.CSSProperties = isMobile ? {
+    position: 'fixed',
+    top: '56px',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'var(--color-bg)',
+    zIndex: 999,
+    overflow: 'hidden',
+  } : {};
+
   return (
-    <div className="tasks-screen">
+    <div className="tasks-screen" style={mobileStyles}>
       {/* Mobile Sidebar Overlay */}
       {mobileSidebarOpen && (
         <div className="tasks-sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />

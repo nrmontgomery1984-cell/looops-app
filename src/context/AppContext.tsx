@@ -5,8 +5,10 @@ import React, {
   useContext,
   useReducer,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
+import { markUserChange } from "../hooks/useFirebaseSync";
 import {
   LoopId,
   LoopStateType,
@@ -1336,13 +1338,25 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
   };
 }
 
+// Actions that are NOT user-initiated (system/sync actions)
+// These don't count as "user made a change" for sync purposes
+const SYSTEM_ACTIONS = new Set([
+  'HYDRATE',
+  // Health (fetched from API)
+  'SET_HEALTH_SUMMARY', 'SET_HEALTH_LOADING', 'SET_HEALTH_ERROR',
+  // Calendar (fetched from API)
+  'SET_CALENDAR_EVENTS', 'SET_CALENDAR_CALENDARS', 'SET_CALENDAR_LOADING', 'SET_CALENDAR_ERROR',
+  // UI state (not persisted to cloud)
+  'SET_ACTIVE_TAB', 'SELECT_LOOP', 'SET_VIEW_MODE', 'OPEN_MODAL', 'CLOSE_MODAL',
+]);
+
 // Provider
 export function AppProvider({ children }: { children: ReactNode }) {
   // Track if this is the initial mount
   const isInitialMount = React.useRef(true);
 
   // Initialize state from localStorage synchronously
-  const [state, dispatch] = useReducer(appReducer, defaultState, (initial) => {
+  const [state, baseDispatch] = useReducer(appReducer, defaultState, (initial) => {
     try {
       const savedStateRaw = localStorage.getItem(STORAGE_KEYS.APP_STATE);
       if (savedStateRaw) {
@@ -1354,6 +1368,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     return initial;
   });
+
+  // Wrap dispatch to mark user changes for non-system actions
+  const dispatch = useCallback((action: AppAction) => {
+    console.log('[AppContext] Dispatch:', action.type, SYSTEM_ACTIONS.has(action.type) ? '(system)' : '(USER)');
+    // If this is a user action (not HYDRATE or system sync), mark it
+    if (!SYSTEM_ACTIONS.has(action.type)) {
+      markUserChange();
+    }
+    baseDispatch(action);
+  }, []);
 
   // Persist to localStorage on state change (skip initial mount)
   useEffect(() => {

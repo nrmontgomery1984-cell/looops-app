@@ -77,10 +77,13 @@ export async function saveAppState(userId: string, state: object): Promise<boole
     console.log('[Firebase] Saving state for user:', userId);
     const docRef = doc(db, APP_STATE_COLLECTION, userId);
     // Clean undefined values before saving to Firestore
+    // Preserve updatedAt if already set by the caller
+    const stateWithTimestamp = state as any;
     const cleanedState = removeUndefined({
       ...state,
-      updatedAt: new Date().toISOString(),
+      updatedAt: stateWithTimestamp.updatedAt || new Date().toISOString(),
     });
+    console.log('[Firebase] Saving with updatedAt:', cleanedState.updatedAt);
     await setDoc(docRef, cleanedState, { merge: true });
     console.log('[Firebase] State saved successfully for user:', userId);
     return true;
@@ -125,10 +128,16 @@ export function subscribeToAppState(
 
   console.log('[Firebase] Subscribing to updates for user:', userId);
   const docRef = doc(db, APP_STATE_COLLECTION, userId);
-  return onSnapshot(docRef, (docSnap) => {
+  // Include metadata changes to see cache vs server source
+  return onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
+    const source = docSnap.metadata.fromCache ? 'LOCAL CACHE' : 'SERVER';
+    const hasPending = docSnap.metadata.hasPendingWrites;
+    console.log('[Firebase] Snapshot from:', source, 'hasPendingWrites:', hasPending);
+
     if (docSnap.exists()) {
       const data = docSnap.data();
-      console.log('[Firebase] Snapshot received, updatedAt:', (data as any)?.updatedAt);
+      const taskCount = (data as any)?.tasks?.items?.length || 0;
+      console.log('[Firebase] Snapshot data - tasks:', taskCount, 'updatedAt:', (data as any)?.updatedAt);
       callback(data);
     } else {
       console.log('[Firebase] Snapshot received but no document exists');

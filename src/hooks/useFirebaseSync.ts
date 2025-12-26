@@ -16,19 +16,19 @@ interface SyncStatus {
   lastSynced: string | null;
   error: string | null;
   userId: string | null;
-  isInitialLoadComplete: boolean;
 }
 
-// Debounce helper
-function debounce<T extends (...args: any[]) => any>(
-  fn: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
+// Global flag - user has made a change this session
+let userHasMadeChange = false;
+let hasLoggedChange = false;
+
+// Call this before dispatching any user action
+export function markUserChange() {
+  if (!userHasMadeChange && !hasLoggedChange) {
+    hasLoggedChange = true;
+    console.log('[Sync] User made change - saves will be enabled');
+  }
+  userHasMadeChange = true;
 }
 
 export function useFirebaseSync(
@@ -41,198 +41,166 @@ export function useFirebaseSync(
     lastSynced: null,
     error: null,
     userId: null,
-    isInitialLoadComplete: false,
   });
 
   const userRef = useRef<User | null>(null);
-  const unsubscribeRef = useRef<Unsubscribe | null>(null);
-  const isInitialMount = useRef(true);
-  const lastSyncedState = useRef<string>('');
-  const ignoringOwnSaveUntil = useRef<number>(0); // Timestamp to ignore remote updates until
-  const hasLoadedFromCloud = useRef(false); // Track if we've loaded cloud data
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSavingRef = useRef(false);
+  const lastSavedStateRef = useRef<string>('');
 
-  // Store callback in ref to avoid re-running effect when callback changes
   const onRemoteUpdateRef = useRef(onRemoteUpdate);
   onRemoteUpdateRef.current = onRemoteUpdate;
 
-  // Sign in and set up subscription - only run once
+  // Auth and subscription setup
   useEffect(() => {
     if (!isFirebaseConfigured()) {
-      console.log('Firebase not configured, skipping cloud sync');
-      // Mark as complete since there's nothing to sync
-      setSyncStatus((prev) => ({ ...prev, isInitialLoadComplete: true }));
+      console.log('[Sync] Firebase not configured');
       return;
     }
 
-    let authUnsubscribe: Unsubscribe | null = null;
-    let masterTimeoutId: NodeJS.Timeout | null = null;
-    let isComplete = false;
-    let currentSubscribeUnsubscribe: Unsubscribe | null = null;
+    let unsubscribeFirestore: Unsubscribe | null = null;
 
-    // Helper to mark complete only once
-    const markComplete = (reason: string) => {
-      if (!isComplete) {
-        isComplete = true;
-        console.log(`Initial load complete: ${reason}`);
-        setSyncStatus((prev) => ({ ...prev, isInitialLoadComplete: true }));
+    const authUnsubscribe = onAuthChange(async (user) => {
+      console.log('[Sync] Auth:', user ? user.uid : 'none');
+
+      // Cleanup old subscription
+      if (unsubscribeFirestore) {
+        unsubscribeFirestore();
+        unsubscribeFirestore = null;
       }
-    };
 
-    // Master timeout - no matter what happens, mark complete after 3 seconds
-    masterTimeoutId = setTimeout(() => {
-      markComplete('master timeout (3s)');
-    }, 3000);
+      userRef.current = user;
 
-    const initAuth = async () => {
-      // Listen for auth changes - this fires on every auth state change (login, logout, user switch)
-      authUnsubscribe = onAuthChange(async (user) => {
-        console.log('Auth state changed:', user ? `User ${user.uid} (${user.email || 'anonymous'})` : 'No user');
+      if (!user) {
+        setSyncStatus(prev => ({ ...prev, userId: null }));
+        return;
+      }
 
-        // Clean up previous subscription when user changes
-        if (currentSubscribeUnsubscribe) {
-          currentSubscribeUnsubscribe();
-          currentSubscribeUnsubscribe = null;
+      setSyncStatus(prev => ({ ...prev, userId: user.uid }));
+
+      // Reset the flag on login - fresh session
+      userHasMadeChange = false;
+      console.log('[Sync] Fresh session - saves disabled until user action');
+
+      try {
+        // Load initial state
+        const cloudState = await loadAppState(user.uid);
+        console.log('[Sync] Load result:', cloudState ? 'has data' : 'null/empty');
+        if (cloudState) {
+          console.log('[Sync] Loaded cloud state, tasks:', (cloudState as any)?.tasks?.items?.length || 0);
+          lastSavedStateRef.current = JSON.stringify(cloudState);
+          onRemoteUpdateRef.current(cloudState as Partial<AppState>);
+          console.log('[Sync] Dispatched HYDRATE');
         }
 
-        userRef.current = user;
-
-        if (user) {
-          setSyncStatus((prev) => ({ ...prev, userId: user.uid, error: null }));
-
-          try {
-            // Race the Firestore load against a 2 second timeout
-            const loadPromise = loadAppState(user.uid);
-            const timeoutPromise = new Promise<null>((resolve) => {
-              setTimeout(() => resolve(null), 2000);
-            });
-
-            const cloudState = await Promise.race([loadPromise, timeoutPromise]);
-            if (cloudState) {
-              console.log('Loaded state from cloud for user:', user.uid);
-              hasLoadedFromCloud.current = true;
-              // Set lastSyncedState BEFORE updating to prevent immediate re-save
-              lastSyncedState.current = JSON.stringify(cloudState);
-              // Set a brief cooldown to prevent saving the hydrated state back
-              ignoringOwnSaveUntil.current = Date.now() + 2000;
-              onRemoteUpdateRef.current(cloudState as Partial<AppState>);
-            } else {
-              console.log('No cloud state found for user:', user.uid);
-              // No cloud state yet - real-time listener will accept any incoming data
-              hasLoadedFromCloud.current = false;
-            }
-
-            // Subscribe to real-time updates (non-blocking)
-            currentSubscribeUnsubscribe = subscribeToAppState(user.uid, (remoteState) => {
-              if (!remoteState) return;
-
-              // Ignore updates for a short time after we save (our own echoes)
-              // BUT: if we never loaded cloud data, ALWAYS accept updates (they're from other devices)
-              const now = Date.now();
-              if (now < ignoringOwnSaveUntil.current && hasLoadedFromCloud.current) {
-                console.log('[Sync] Ignoring remote update - within save cooldown window (own echo)');
-                return;
-              }
-
-              console.log('Received remote update for user:', user.uid);
-              hasLoadedFromCloud.current = true; // Now we have cloud data
-              lastSyncedState.current = JSON.stringify(remoteState);
-              // Set cooldown to prevent immediate re-save of this data
-              ignoringOwnSaveUntil.current = Date.now() + 3000;
-              onRemoteUpdateRef.current(remoteState as Partial<AppState>);
-            });
-            unsubscribeRef.current = currentSubscribeUnsubscribe;
-          } catch (error) {
-            console.error('Error loading cloud state:', error);
-            setSyncStatus((prev) => ({ ...prev, error: 'Failed to load from cloud' }));
+        // Subscribe to updates
+        unsubscribeFirestore = subscribeToAppState(user.uid, (remoteState) => {
+          console.log('[Sync] Snapshot callback fired');
+          if (!remoteState) {
+            console.log('[Sync] No remote state in snapshot');
+            return;
           }
 
-          markComplete('Firestore load done');
-        } else {
-          setSyncStatus((prev) => ({ ...prev, userId: null }));
-          markComplete('no user');
-        }
-      });
+          const remoteStr = JSON.stringify(remoteState);
+          const remoteTasks = (remoteState as any)?.tasks?.items?.length || 0;
+          console.log('[Sync] Snapshot has', remoteTasks, 'tasks');
 
-      // Don't automatically sign in anonymously - let the user choose to sign in
-      // This prevents creating orphan anonymous accounts
-    };
+          if (remoteStr === lastSavedStateRef.current) {
+            console.log('[Sync] Ignoring echo (same as lastSaved)');
+            return;
+          }
 
-    initAuth();
+          console.log('[Sync] NEW remote update - applying HYDRATE');
+          lastSavedStateRef.current = remoteStr;
+          onRemoteUpdateRef.current(remoteState as Partial<AppState>);
+        });
+
+      } catch (error) {
+        console.error('[Sync] Error:', error);
+        setSyncStatus(prev => ({ ...prev, error: 'Sync error' }));
+      }
+    });
 
     return () => {
-      if (masterTimeoutId) clearTimeout(masterTimeoutId);
       authUnsubscribe?.();
-      if (currentSubscribeUnsubscribe) currentSubscribeUnsubscribe();
-      unsubscribeRef.current?.();
+      unsubscribeFirestore?.();
     };
-  }, []); // Empty dependency array - only run once
+  }, []);
 
-  // Debounced save function
-  const debouncedSave = useCallback(
-    debounce(async (userId: string, stateToSave: object) => {
-      console.log('[Sync] Debounced save executing for user:', userId);
-      setSyncStatus((prev) => ({ ...prev, isSyncing: true, error: null }));
+  // Save function
+  const doSave = useCallback(async (userId: string, stateToSave: object) => {
+    if (isSavingRef.current) return;
 
-      const stateJson = JSON.stringify(stateToSave);
-      lastSyncedState.current = stateJson;
+    isSavingRef.current = true;
+    setSyncStatus(prev => ({ ...prev, isSyncing: true }));
 
-      // Set cooldown to ignore our own update echoing back from Firestore
-      ignoringOwnSaveUntil.current = Date.now() + 3000; // Ignore for 3 seconds
+    const stateStr = JSON.stringify(stateToSave);
+    const success = await saveAppState(userId, stateToSave);
 
-      const success = await saveAppState(userId, stateToSave);
+    isSavingRef.current = false;
 
-      if (success) {
-        console.log('[Sync] Save completed successfully');
-        setSyncStatus((prev) => ({
-          ...prev,
-          isSyncing: false,
-          lastSynced: new Date().toISOString(),
-        }));
-      } else {
-        console.log('[Sync] Save failed');
-        // Clear cooldown on failure so we can receive updates
-        ignoringOwnSaveUntil.current = 0;
-        setSyncStatus((prev) => ({
-          ...prev,
-          isSyncing: false,
-          error: 'Failed to sync',
-        }));
-      }
-    }, 1000), // 1 second debounce
-    []
-  );
+    if (success) {
+      lastSavedStateRef.current = stateStr;
+      setSyncStatus(prev => ({
+        ...prev,
+        isSyncing: false,
+        lastSynced: new Date().toISOString(),
+      }));
+      console.log('[Sync] Saved');
+    } else {
+      setSyncStatus(prev => ({ ...prev, isSyncing: false, error: 'Save failed' }));
+    }
+  }, []);
 
-  // Sync state to cloud when it changes
+  // Watch for state changes
   useEffect(() => {
-    // Skip initial mount
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      console.log('[Sync] Skipping initial mount save');
+    if (!userRef.current || !isFirebaseConfigured()) return;
+
+    // THE KEY CHECK: Only save if user has made a change
+    if (!userHasMadeChange) {
+      console.log('[Sync] No user change yet - skip save');
       return;
     }
 
-    // Skip if no user or Firebase not configured
-    if (!userRef.current) {
-      return;
+    const stateStr = JSON.stringify(state);
+    if (stateStr === lastSavedStateRef.current) return;
+
+    // Clear existing timer
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
     }
 
-    if (!isFirebaseConfigured()) {
-      return;
-    }
+    const userId = userRef.current.uid;
+    console.log('[Sync] Scheduling save');
 
-    // Skip if we're in the cooldown window (state change from our own save echoing back)
-    const now = Date.now();
-    if (now < ignoringOwnSaveUntil.current) {
-      console.log('[Sync] Skipping save - within cooldown window');
-      return;
-    }
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
 
-    // Save to cloud (debounced)
-    console.log('[Sync] Triggering debounced save for user:', userRef.current.uid);
-    debouncedSave(userRef.current.uid, state);
-  }, [state, debouncedSave]);
+      // Double-check flag
+      if (!userHasMadeChange) {
+        console.log('[Sync] Save cancelled - no user change');
+        return;
+      }
 
-  return syncStatus;
+      const currentStr = JSON.stringify(state);
+      if (currentStr === lastSavedStateRef.current) {
+        console.log('[Sync] Already in sync');
+        return;
+      }
+
+      console.log('[Sync] Saving now');
+      doSave(userId, state);
+    }, 2000);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [state, doSave]);
+
+  return { ...syncStatus, isInitialLoadComplete: true };
 }
 
 export default useFirebaseSync;

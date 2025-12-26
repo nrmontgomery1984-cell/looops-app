@@ -16,5 +16,8 @@ const firebaseConfig = {
 // Use singleton pattern - only initialize if no apps exist
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+
+// Use default Firestore (memory cache only - no persistent cache that causes stale data issues)
 export const db = getFirestore(app);
+
 export default app;

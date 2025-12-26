@@ -3553,7 +3553,7 @@ body.modal-open {
   /* Tasks screen mobile - full screen takeover */
   .tasks-screen {
     position: fixed !important;
-    top: 0 !important;
+    top: 56px !important; /* Start below mobile header */
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
@@ -3561,10 +3561,8 @@ body.modal-open {
     flex-direction: column !important;
     margin: 0 !important;
     padding: 0 !important;
-    padding-top: 56px !important;
     width: 100vw !important;
-    height: 100vh !important;
-    height: 100dvh !important;
+    height: auto !important;
     background: var(--color-bg) !important;
     z-index: 999 !important;
     overflow: hidden !important;
@@ -19181,10 +19179,17 @@ body.modal-open {
 
 /* ========== MOBILE TASKS SCREEN FIX - MUST BE LAST ========== */
 @media (max-width: 768px) {
+  /* Override app-main padding when tasks screen is shown */
+  .app-main:has(.tasks-screen) {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
   /* Full-screen takeover: position from viewport top, add padding for header */
   .tasks-screen {
     position: fixed !important;
-    top: 0 !important;
+    top: 56px !important; /* Start below mobile header */
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
@@ -19192,14 +19197,16 @@ body.modal-open {
     flex-direction: column !important;
     margin: 0 !important;
     padding: 0 !important;
-    padding-top: 56px !important; /* Space for mobile header */
     width: 100vw !important;
-    height: 100vh !important;
-    height: 100dvh !important;
+    height: auto !important;
     background: var(--color-bg) !important;
     z-index: 999 !important; /* Just below mobile header (z-index 1000) */
     overflow: hidden !important;
     box-sizing: border-box !important;
+  }
+
+  .tasks-screen > * {
+    margin-top: 0 !important;
   }
 
   .tasks-main {
@@ -19207,17 +19214,33 @@ body.modal-open {
     display: flex !important;
     flex-direction: column !important;
     padding: 0 !important;
+    margin: 0 !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     min-height: 0 !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
+  .tasks-main > * {
+    margin-top: 0 !important;
+  }
+
   .tasks-header {
     padding: 12px !important;
+    margin: 0 !important;
     background: var(--color-surface) !important;
     border-bottom: 1px solid var(--color-border) !important;
     flex: 0 0 auto !important;
+  }
+
+  .task-list-container {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .task-list-input {
+    padding: 12px !important;
+    margin: 0 !important;
   }
 
   /* Task list should fill remaining space */
@@ -19226,7 +19249,8 @@ body.modal-open {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     min-height: 0 !important;
-    padding-bottom: 80px !important; /* Space for FAB */
+    padding: 0 12px 80px 12px !important; /* Space for FAB */
+    margin: 0 !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
