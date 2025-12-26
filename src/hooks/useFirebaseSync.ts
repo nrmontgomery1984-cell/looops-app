@@ -119,8 +119,9 @@ export function useFirebaseSync(
                 const remoteJson = JSON.stringify(remoteState);
                 if (remoteJson !== lastSyncedState.current) {
                   console.log('Received remote update for user:', user.uid);
-                  onRemoteUpdateRef.current(remoteState as Partial<AppState>);
+                  // Update lastSyncedState BEFORE dispatching to avoid immediate re-save
                   lastSyncedState.current = remoteJson;
+                  onRemoteUpdateRef.current(remoteState as Partial<AppState>);
                 }
               }
             });
@@ -154,6 +155,7 @@ export function useFirebaseSync(
   // Debounced save function
   const debouncedSave = useCallback(
     debounce(async (userId: string, stateToSave: object) => {
+      console.log('[Sync] Debounced save executing for user:', userId);
       setSyncStatus((prev) => ({ ...prev, isSyncing: true, error: null }));
 
       const stateJson = JSON.stringify(stateToSave);
@@ -162,12 +164,14 @@ export function useFirebaseSync(
       const success = await saveAppState(userId, stateToSave);
 
       if (success) {
+        console.log('[Sync] Save completed successfully');
         setSyncStatus((prev) => ({
           ...prev,
           isSyncing: false,
           lastSynced: new Date().toISOString(),
         }));
       } else {
+        console.log('[Sync] Save failed');
         setSyncStatus((prev) => ({
           ...prev,
           isSyncing: false,
