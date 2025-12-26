@@ -48,6 +48,7 @@ export function useFirebaseSync(
   const unsubscribeRef = useRef<Unsubscribe | null>(null);
   const isInitialMount = useRef(true);
   const lastSyncedState = useRef<string>('');
+  const ignoringOwnSaveUntil = useRef<number>(0); // Timestamp to ignore remote updates until
 
   // Store callback in ref to avoid re-running effect when callback changes
   const onRemoteUpdateRef = useRef(onRemoteUpdate);
@@ -114,33 +115,19 @@ export function useFirebaseSync(
             }
 
             // Subscribe to real-time updates (non-blocking)
-            // Use a flag to ignore updates triggered by our own saves
-            let ignoringOwnUpdate = false;
             currentSubscribeUnsubscribe = subscribeToAppState(user.uid, (remoteState) => {
-              if (remoteState && !ignoringOwnUpdate) {
-                // Remove updatedAt from comparison since it changes on every save
-                const { updatedAt: _remoteUpdated, ...remoteWithoutTimestamp } = remoteState as any;
-                const remoteJson = JSON.stringify(remoteWithoutTimestamp);
+              if (!remoteState) return;
 
-                // Parse lastSyncedState and remove updatedAt for comparison
-                let lastWithoutTimestamp = '';
-                try {
-                  const parsed = JSON.parse(lastSyncedState.current || '{}');
-                  const { updatedAt: _lastUpdated, ...rest } = parsed;
-                  lastWithoutTimestamp = JSON.stringify(rest);
-                } catch {
-                  lastWithoutTimestamp = '';
-                }
-
-                if (remoteJson !== lastWithoutTimestamp) {
-                  console.log('Received remote update for user:', user.uid);
-                  // Update lastSyncedState BEFORE dispatching to avoid immediate re-save
-                  lastSyncedState.current = JSON.stringify(remoteState);
-                  onRemoteUpdateRef.current(remoteState as Partial<AppState>);
-                } else {
-                  console.log('[Sync] Ignoring remote update - matches local state');
-                }
+              // Ignore updates for 2 seconds after we save (our own echoes)
+              const now = Date.now();
+              if (now < ignoringOwnSaveUntil.current) {
+                console.log('[Sync] Ignoring remote update - within save cooldown window');
+                return;
               }
+
+              console.log('Received remote update for user:', user.uid);
+              lastSyncedState.current = JSON.stringify(remoteState);
+              onRemoteUpdateRef.current(remoteState as Partial<AppState>);
             });
             unsubscribeRef.current = currentSubscribeUnsubscribe;
           } catch (error) {
@@ -176,8 +163,10 @@ export function useFirebaseSync(
       setSyncStatus((prev) => ({ ...prev, isSyncing: true, error: null }));
 
       const stateJson = JSON.stringify(stateToSave);
-      // Update lastSyncedState BEFORE saving to prevent loop from real-time listener
       lastSyncedState.current = stateJson;
+
+      // Set cooldown to ignore our own update echoing back from Firestore
+      ignoringOwnSaveUntil.current = Date.now() + 3000; // Ignore for 3 seconds
 
       const success = await saveAppState(userId, stateToSave);
 
@@ -190,13 +179,15 @@ export function useFirebaseSync(
         }));
       } else {
         console.log('[Sync] Save failed');
+        // Clear cooldown on failure so we can receive updates
+        ignoringOwnSaveUntil.current = 0;
         setSyncStatus((prev) => ({
           ...prev,
           isSyncing: false,
           error: 'Failed to sync',
         }));
       }
-    }, 1000), // 1 second debounce (reduced from 2s)
+    }, 1000), // 1 second debounce
     []
   );
 
