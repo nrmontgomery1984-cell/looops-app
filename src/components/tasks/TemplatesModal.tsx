@@ -1,4 +1,4 @@
-// Templates Modal - Browse, use, and create task templates
+// Templates Modal - Browse, use, create, and edit task templates
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
@@ -10,7 +10,7 @@ interface TemplatesModalProps {
   onClose: () => void;
 }
 
-type ViewMode = 'list' | 'detail' | 'create';
+type ViewMode = 'list' | 'detail' | 'create' | 'edit';
 
 export function TemplatesModal({ onClose }: TemplatesModalProps) {
   const { state, dispatch } = useApp();
@@ -19,13 +19,14 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
   const [customName, setCustomName] = useState('');
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
 
-  // Create template form state
-  const [newTemplateName, setNewTemplateName] = useState('');
-  const [newTemplateDescription, setNewTemplateDescription] = useState('');
-  const [newTemplateLoop, setNewTemplateLoop] = useState<LoopId>('Maintenance');
-  const [newTemplateCategory, setNewTemplateCategory] = useState('Custom');
-  const [newTemplateIcon, setNewTemplateIcon] = useState('📋');
-  const [newTemplateTasks, setNewTemplateTasks] = useState<TaskTemplateItem[]>([
+  // Create/Edit template form state
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [formTemplateName, setFormTemplateName] = useState('');
+  const [formTemplateDescription, setFormTemplateDescription] = useState('');
+  const [formTemplateLoop, setFormTemplateLoop] = useState<LoopId>('Maintenance');
+  const [formTemplateCategory, setFormTemplateCategory] = useState('Custom');
+  const [formTemplateIcon, setFormTemplateIcon] = useState('📋');
+  const [formTemplateTasks, setFormTemplateTasks] = useState<TaskTemplateItem[]>([
     { title: '', order: 1 }
   ]);
 
@@ -56,51 +57,67 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
     }
   };
 
+  const handleEditTemplate = (template: TaskTemplate) => {
+    // Populate form with existing template data
+    setEditingTemplateId(template.id);
+    setFormTemplateName(template.name);
+    setFormTemplateDescription(template.description || '');
+    setFormTemplateLoop(template.loop);
+    setFormTemplateCategory(template.category);
+    setFormTemplateIcon(template.icon || '📋');
+    setFormTemplateTasks(template.tasks.map(t => ({
+      title: t.title,
+      order: t.order,
+      estimatedMinutes: t.estimatedMinutes,
+    })));
+    setViewMode('edit');
+  };
+
   const handleAddTask = () => {
-    setNewTemplateTasks([
-      ...newTemplateTasks,
-      { title: '', order: newTemplateTasks.length + 1 }
+    setFormTemplateTasks([
+      ...formTemplateTasks,
+      { title: '', order: formTemplateTasks.length + 1 }
     ]);
   };
 
   const handleRemoveTask = (index: number) => {
-    if (newTemplateTasks.length > 1) {
-      const updated = newTemplateTasks.filter((_, i) => i !== index);
+    if (formTemplateTasks.length > 1) {
+      const updated = formTemplateTasks.filter((_, i) => i !== index);
       // Re-order remaining tasks
-      setNewTemplateTasks(updated.map((t, i) => ({ ...t, order: i + 1 })));
+      setFormTemplateTasks(updated.map((t, i) => ({ ...t, order: i + 1 })));
     }
   };
 
   const handleTaskChange = (index: number, field: keyof TaskTemplateItem, value: string | number) => {
-    const updated = [...newTemplateTasks];
+    const updated = [...formTemplateTasks];
     if (field === 'title') {
       updated[index] = { ...updated[index], title: value as string };
     } else if (field === 'estimatedMinutes') {
       updated[index] = { ...updated[index], estimatedMinutes: value as number };
     }
-    setNewTemplateTasks(updated);
+    setFormTemplateTasks(updated);
   };
 
-  const handleCreateTemplate = () => {
+  const handleSaveTemplate = () => {
     // Validate
-    if (!newTemplateName.trim()) {
+    if (!formTemplateName.trim()) {
       alert('Please enter a template name');
       return;
     }
 
-    const validTasks = newTemplateTasks.filter(t => t.title.trim());
+    const validTasks = formTemplateTasks.filter(t => t.title.trim());
     if (validTasks.length === 0) {
       alert('Please add at least one task');
       return;
     }
 
-    const newTemplate: TaskTemplate = {
-      id: `custom-${Date.now()}`,
-      name: newTemplateName.trim(),
-      description: newTemplateDescription.trim() || undefined,
-      loop: newTemplateLoop,
-      category: newTemplateCategory.trim() || 'Custom',
-      icon: newTemplateIcon || '📋',
+    const templateData: TaskTemplate = {
+      id: editingTemplateId || `custom-${Date.now()}`,
+      name: formTemplateName.trim(),
+      description: formTemplateDescription.trim() || undefined,
+      loop: formTemplateLoop,
+      category: formTemplateCategory.trim() || 'Custom',
+      icon: formTemplateIcon || '📋',
       tasks: validTasks.map((t, i) => ({
         title: t.title.trim(),
         order: i + 1,
@@ -108,20 +125,27 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
       })),
     };
 
-    dispatch({ type: 'ADD_CUSTOM_TEMPLATE', payload: newTemplate });
+    if (editingTemplateId) {
+      // Update existing template
+      dispatch({ type: 'UPDATE_CUSTOM_TEMPLATE', payload: templateData });
+    } else {
+      // Create new template
+      dispatch({ type: 'ADD_CUSTOM_TEMPLATE', payload: templateData });
+    }
 
     // Reset form and go back to list
-    resetCreateForm();
+    resetForm();
     setViewMode('list');
   };
 
-  const resetCreateForm = () => {
-    setNewTemplateName('');
-    setNewTemplateDescription('');
-    setNewTemplateLoop('Maintenance');
-    setNewTemplateCategory('Custom');
-    setNewTemplateIcon('📋');
-    setNewTemplateTasks([{ title: '', order: 1 }]);
+  const resetForm = () => {
+    setEditingTemplateId(null);
+    setFormTemplateName('');
+    setFormTemplateDescription('');
+    setFormTemplateLoop('Maintenance');
+    setFormTemplateCategory('Custom');
+    setFormTemplateIcon('📋');
+    setFormTemplateTasks([{ title: '', order: 1 }]);
   };
 
   const formatTime = (minutes: number): string => {
@@ -139,7 +163,10 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
     <div className="templates-list">
       <button
         className="create-template-btn"
-        onClick={() => setViewMode('create')}
+        onClick={() => {
+          resetForm();
+          setViewMode('create');
+        }}
       >
         + Create Custom Template
       </button>
@@ -272,12 +299,20 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
               Create Project with Tasks
             </button>
             {isCustomTemplate(selectedTemplate) && (
-              <button
-                className="template-delete-btn"
-                onClick={() => handleDeleteTemplate(selectedTemplate.id)}
-              >
-                Delete Template
-              </button>
+              <>
+                <button
+                  className="template-edit-btn"
+                  onClick={() => handleEditTemplate(selectedTemplate)}
+                >
+                  Edit Template
+                </button>
+                <button
+                  className="template-delete-btn"
+                  onClick={() => handleDeleteTemplate(selectedTemplate.id)}
+                >
+                  Delete
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -285,19 +320,23 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
     );
   };
 
-  const renderCreateView = () => (
+  const renderFormView = (isEdit: boolean) => (
     <div className="template-create">
       <button
         className="template-back-btn"
         onClick={() => {
-          resetCreateForm();
-          setViewMode('list');
+          resetForm();
+          if (isEdit && selectedTemplate) {
+            setViewMode('detail');
+          } else {
+            setViewMode('list');
+          }
         }}
       >
-        &larr; Back to templates
+        &larr; {isEdit ? 'Back to template' : 'Back to templates'}
       </button>
 
-      <h3>Create Custom Template</h3>
+      <h3>{isEdit ? 'Edit Template' : 'Create Custom Template'}</h3>
 
       <div className="template-create-form">
         <div className="form-row">
@@ -305,8 +344,8 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
             Template Name *
             <input
               type="text"
-              value={newTemplateName}
-              onChange={(e) => setNewTemplateName(e.target.value)}
+              value={formTemplateName}
+              onChange={(e) => setFormTemplateName(e.target.value)}
               placeholder="e.g., Morning Routine"
             />
           </label>
@@ -317,8 +356,8 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
             Description
             <input
               type="text"
-              value={newTemplateDescription}
-              onChange={(e) => setNewTemplateDescription(e.target.value)}
+              value={formTemplateDescription}
+              onChange={(e) => setFormTemplateDescription(e.target.value)}
               placeholder="Brief description of this template"
             />
           </label>
@@ -330,8 +369,8 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
               Icon
               <input
                 type="text"
-                value={newTemplateIcon}
-                onChange={(e) => setNewTemplateIcon(e.target.value)}
+                value={formTemplateIcon}
+                onChange={(e) => setFormTemplateIcon(e.target.value)}
                 placeholder="📋"
                 maxLength={2}
                 className="icon-input"
@@ -343,8 +382,8 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
             <label>
               Loop
               <select
-                value={newTemplateLoop}
-                onChange={(e) => setNewTemplateLoop(e.target.value as LoopId)}
+                value={formTemplateLoop}
+                onChange={(e) => setFormTemplateLoop(e.target.value as LoopId)}
               >
                 {ALL_LOOPS.map((loop) => (
                   <option key={loop} value={loop}>{loop}</option>
@@ -358,8 +397,8 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
               Category
               <input
                 type="text"
-                value={newTemplateCategory}
-                onChange={(e) => setNewTemplateCategory(e.target.value)}
+                value={formTemplateCategory}
+                onChange={(e) => setFormTemplateCategory(e.target.value)}
                 placeholder="Custom"
               />
             </label>
@@ -369,7 +408,7 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
         <div className="template-tasks-section">
           <h4>Tasks *</h4>
           <div className="template-tasks-list">
-            {newTemplateTasks.map((task, index) => (
+            {formTemplateTasks.map((task, index) => (
               <div key={index} className="template-task-row">
                 <span className="task-number">{index + 1}.</span>
                 <input
@@ -391,7 +430,7 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
                   type="button"
                   className="task-remove-btn"
                   onClick={() => handleRemoveTask(index)}
-                  disabled={newTemplateTasks.length === 1}
+                  disabled={formTemplateTasks.length === 1}
                 >
                   &times;
                 </button>
@@ -409,9 +448,9 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
 
         <button
           className="template-save-btn"
-          onClick={handleCreateTemplate}
+          onClick={handleSaveTemplate}
         >
-          Save Template
+          {isEdit ? 'Update Template' : 'Save Template'}
         </button>
       </div>
     </div>
@@ -430,7 +469,8 @@ export function TemplatesModal({ onClose }: TemplatesModalProps) {
         <div className="templates-modal-content">
           {viewMode === 'list' && renderListView()}
           {viewMode === 'detail' && renderDetailView()}
-          {viewMode === 'create' && renderCreateView()}
+          {viewMode === 'create' && renderFormView(false)}
+          {viewMode === 'edit' && renderFormView(true)}
         </div>
       </div>
     </div>
