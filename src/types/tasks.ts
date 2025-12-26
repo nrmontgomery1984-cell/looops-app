@@ -4,6 +4,23 @@ import { LoopId, LoopStateType, Priority, TaskStatus, Duration } from "./core";
 import { ArchetypeId } from "./identity";
 import { LoopState } from "./loops";
 
+// Time tracking entry for detailed time logs
+export type TimeEntry = {
+  id: string;
+  startTime: string; // ISO timestamp
+  endTime?: string; // ISO timestamp (undefined if timer is running)
+  durationMinutes?: number; // Calculated when timer stops
+  note?: string; // Optional note about what was done
+};
+
+// Active timer state (stored in app state, not on task)
+export type ActiveTimer = {
+  taskId: string;
+  startTime: string; // ISO timestamp
+  pausedAt?: string; // If paused, when it was paused
+  accumulatedSeconds: number; // Total seconds before current session (for pause/resume)
+};
+
 // Recurrence types
 export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
@@ -82,6 +99,7 @@ export type Task = {
   // Time tracking
   estimateMinutes?: number;
   actualMinutes?: number;
+  timeEntries?: TimeEntry[]; // Detailed time tracking history
 
   // Metadata
   createdAt: string;

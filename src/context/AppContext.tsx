@@ -68,7 +68,7 @@ import {
 import { STORAGE_KEYS } from "../storage";
 import { findTemplateById, BUILT_IN_TEMPLATES } from "../data/taskTemplates";
 import { TaskTemplate } from "../types/taskTemplates";
-import { createTask } from "../types/tasks";
+import { createTask, ActiveTimer, TimeEntry } from "../types/tasks";
 import { createProject } from "../types/projects";
 
 // User profile type
@@ -167,6 +167,9 @@ export type AppState = {
   // Custom task templates
   customTemplates: TaskTemplate[];
 
+  // Active task timer (only one can run at a time)
+  activeTimer: ActiveTimer | null;
+
   // UI State
   ui: {
     activeTab: TabId;
@@ -256,6 +259,8 @@ const defaultState: AppState = {
   directionalDocument: null,
   // Custom Templates
   customTemplates: [],
+  // Active Timer
+  activeTimer: null,
   ui: {
     activeTab: "today",
     selectedLoop: null,
@@ -356,8 +361,15 @@ export type AppAction =
   | { type: "UPDATE_JOURNAL_ENTRY"; payload: JournalEntry }
   | { type: "DELETE_JOURNAL_ENTRY"; payload: string }
 
-  // Timer actions
+  // Timer actions (Pomodoro-style sessions)
   | { type: "ADD_TIMER_SESSION"; payload: TimerSession }
+
+  // Task Timer actions (time tracking for tasks)
+  | { type: "START_TASK_TIMER"; payload: string } // taskId
+  | { type: "PAUSE_TASK_TIMER" }
+  | { type: "RESUME_TASK_TIMER" }
+  | { type: "STOP_TASK_TIMER"; payload?: { note?: string } }
+  | { type: "CANCEL_TASK_TIMER" }
 
   // Dashboard actions
   | { type: "UPDATE_DASHBOARD"; payload: LoopDashboard }
@@ -962,12 +974,142 @@ function appReducer(state: AppState, action: AppAction): AppState {
         journal: state.journal.filter((j) => j.id !== action.payload),
       };
 
-    // Timer Sessions
+    // Timer Sessions (Pomodoro-style)
     case "ADD_TIMER_SESSION":
       return {
         ...state,
         timerSessions: [...state.timerSessions, action.payload],
       };
+
+    // Task Timer (time tracking)
+    case "START_TASK_TIMER": {
+      const taskId = action.payload;
+      const now = new Date().toISOString();
+
+      // If there's already a timer running, stop it first
+      if (state.activeTimer && state.activeTimer.taskId !== taskId) {
+        // Save the previous timer's time entry
+        const prevTimer = state.activeTimer;
+        const prevTask = state.tasks.items.find(t => t.id === prevTimer.taskId);
+        if (prevTask) {
+          const elapsedSeconds = prevTimer.pausedAt
+            ? prevTimer.accumulatedSeconds
+            : prevTimer.accumulatedSeconds + Math.floor((Date.now() - new Date(prevTimer.startTime).getTime()) / 1000);
+          const durationMinutes = Math.round(elapsedSeconds / 60);
+
+          const timeEntry: TimeEntry = {
+            id: `te_${Date.now()}`,
+            startTime: prevTimer.startTime,
+            endTime: now,
+            durationMinutes,
+          };
+
+          const updatedPrevTask = {
+            ...prevTask,
+            timeEntries: [...(prevTask.timeEntries || []), timeEntry],
+            actualMinutes: (prevTask.actualMinutes || 0) + durationMinutes,
+          };
+
+          return {
+            ...state,
+            tasks: {
+              ...state.tasks,
+              items: state.tasks.items.map(t => t.id === prevTask.id ? updatedPrevTask : t),
+            },
+            activeTimer: {
+              taskId,
+              startTime: now,
+              accumulatedSeconds: 0,
+            },
+          };
+        }
+      }
+
+      return {
+        ...state,
+        activeTimer: {
+          taskId,
+          startTime: now,
+          accumulatedSeconds: 0,
+        },
+      };
+    }
+
+    case "PAUSE_TASK_TIMER": {
+      if (!state.activeTimer || state.activeTimer.pausedAt) return state;
+
+      const now = new Date().toISOString();
+      const elapsed = Math.floor((Date.now() - new Date(state.activeTimer.startTime).getTime()) / 1000);
+
+      return {
+        ...state,
+        activeTimer: {
+          ...state.activeTimer,
+          pausedAt: now,
+          accumulatedSeconds: state.activeTimer.accumulatedSeconds + elapsed,
+        },
+      };
+    }
+
+    case "RESUME_TASK_TIMER": {
+      if (!state.activeTimer || !state.activeTimer.pausedAt) return state;
+
+      return {
+        ...state,
+        activeTimer: {
+          ...state.activeTimer,
+          startTime: new Date().toISOString(),
+          pausedAt: undefined,
+        },
+      };
+    }
+
+    case "STOP_TASK_TIMER": {
+      if (!state.activeTimer) return state;
+
+      const timer = state.activeTimer;
+      const task = state.tasks.items.find(t => t.id === timer.taskId);
+      if (!task) {
+        return { ...state, activeTimer: null };
+      }
+
+      const now = new Date().toISOString();
+      const elapsedSeconds = timer.pausedAt
+        ? timer.accumulatedSeconds
+        : timer.accumulatedSeconds + Math.floor((Date.now() - new Date(timer.startTime).getTime()) / 1000);
+      const durationMinutes = Math.round(elapsedSeconds / 60);
+
+      // Only save if at least 1 minute was tracked
+      if (durationMinutes < 1) {
+        return { ...state, activeTimer: null };
+      }
+
+      const timeEntry: TimeEntry = {
+        id: `te_${Date.now()}`,
+        startTime: timer.startTime,
+        endTime: now,
+        durationMinutes,
+        note: action.payload?.note,
+      };
+
+      const updatedTask = {
+        ...task,
+        timeEntries: [...(task.timeEntries || []), timeEntry],
+        actualMinutes: (task.actualMinutes || 0) + durationMinutes,
+      };
+
+      return {
+        ...state,
+        tasks: {
+          ...state.tasks,
+          items: state.tasks.items.map(t => t.id === task.id ? updatedTask : t),
+        },
+        activeTimer: null,
+      };
+    }
+
+    case "CANCEL_TASK_TIMER":
+      return { ...state, activeTimer: null };
 
     // Dashboards
     case "UPDATE_DASHBOARD":
@@ -1417,6 +1559,8 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
     directionalDocument: savedState.directionalDocument ?? defaultState.directionalDocument,
     // Custom Templates - persists
     customTemplates: savedState.customTemplates ?? defaultState.customTemplates,
+    // Active Timer - persists (allows resuming timer across sessions)
+    activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
   };
 }

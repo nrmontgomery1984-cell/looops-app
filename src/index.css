@@ -10728,6 +10728,25 @@ body.modal-open {
   border-color: var(--color-red);
 }
 
+/* Generic section in modal */
+.task-detail-section {
+  margin-bottom: 20px;
+}
+
+.task-detail-section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.task-detail-section h4 svg {
+  color: var(--color-text-secondary);
+}
+
 /* Subtasks in modal */
 .task-detail-subtasks {
   margin-bottom: 20px;
@@ -17858,6 +17877,289 @@ body.modal-open {
 .timer-btn.reset:hover {
   background: var(--color-surface-hover);
   color: var(--color-text);
+}
+
+/* ========== Task Timer - Time Tracking ========== */
+.task-timer {
+  padding: 16px;
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.timer-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.task-timer .timer-time {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  color: var(--color-text);
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+
+.task-timer .timer-time.running {
+  color: var(--color-success);
+}
+
+.task-timer .timer-time.paused {
+  color: var(--color-warning);
+  animation: pulse-timer 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-timer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.timer-estimate {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+}
+
+.task-timer .timer-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.task-timer .timer-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: auto;
+  height: auto;
+}
+
+.task-timer .timer-btn.start {
+  background: var(--color-success);
+  color: white;
+  border: none;
+}
+
+.task-timer .timer-btn.start:hover {
+  background: #16a34a;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.task-timer .timer-btn.pause {
+  background: var(--color-warning);
+  color: white;
+  border: none;
+}
+
+.task-timer .timer-btn.pause:hover {
+  background: #ca8a04;
+  transform: none;
+}
+
+.task-timer .timer-btn.resume {
+  background: var(--color-success);
+  color: white;
+  border: none;
+}
+
+.task-timer .timer-btn.resume:hover {
+  background: #16a34a;
+  transform: none;
+}
+
+.task-timer .timer-btn.stop {
+  background: var(--color-error);
+  color: white;
+  border: none;
+}
+
+.task-timer .timer-btn.stop:hover {
+  background: #dc2626;
+  transform: none;
+}
+
+.task-timer .timer-btn.cancel {
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border: 1px solid var(--color-border);
+  padding: 8px;
+}
+
+.task-timer .timer-btn.cancel:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+  transform: none;
+}
+
+/* Timer Summary */
+.timer-summary {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.timer-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.timer-summary-header span:first-child {
+  color: var(--color-text-secondary);
+}
+
+.timer-total {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.timer-progress {
+  height: 4px;
+  background: var(--color-bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.timer-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.timer-entries {
+  font-size: 12px;
+}
+
+.timer-entries details {
+  cursor: pointer;
+}
+
+.timer-entries summary {
+  color: var(--color-text-tertiary);
+  padding: 4px 0;
+}
+
+.timer-entries summary:hover {
+  color: var(--color-text-secondary);
+}
+
+.timer-entries ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+}
+
+.timer-entries li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.timer-entries li:last-child {
+  border-bottom: none;
+}
+
+.timer-entries .entry-time {
+  font-weight: 500;
+  color: var(--color-text);
+  min-width: 50px;
+}
+
+.timer-entries .entry-date {
+  color: var(--color-text-tertiary);
+  flex: 1;
+}
+
+.timer-entries .entry-note {
+  color: var(--color-text-secondary);
+  font-style: italic;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact Timer (for task lists) */
+.timer-compact-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.timer-compact-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border-color: var(--color-text-tertiary);
+}
+
+.timer-compact-btn.has-time {
+  color: var(--color-text-secondary);
+}
+
+.timer-compact-active {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timer-compact-time {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.timer-compact-time.running {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--color-success);
+}
+
+.timer-compact-time.paused {
+  background: rgba(234, 179, 8, 0.15);
+  color: var(--color-warning);
+  animation: pulse-timer 1.5s ease-in-out infinite;
+}
+
+.timer-compact-active .timer-compact-btn {
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+}
+
+.timer-compact-active .timer-compact-btn:hover {
+  background: var(--color-bg-secondary);
+}
+
+.timer-compact-active .timer-compact-btn.stop {
+  color: var(--color-error);
+}
+
+.timer-compact-active .timer-compact-btn.stop:hover {
+  background: rgba(239, 68, 68, 0.15);
 }
 
 /* ========== Calendar Widget - Month View ========== */
