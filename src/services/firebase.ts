@@ -91,18 +91,25 @@ export async function saveAppState(userId: string, state: object): Promise<boole
 }
 
 export async function loadAppState(userId: string): Promise<object | null> {
-  if (!db) return null;
+  if (!db) {
+    console.error('[Firebase] No db instance, cannot load');
+    return null;
+  }
 
   try {
+    console.log('[Firebase] Loading state for user:', userId);
     const docRef = doc(db, APP_STATE_COLLECTION, userId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      return docSnap.data();
+      const data = docSnap.data();
+      console.log('[Firebase] Loaded state, updatedAt:', (data as any)?.updatedAt);
+      return data;
     }
+    console.log('[Firebase] No document found for user:', userId);
     return null;
   } catch (error) {
-    console.error('Error loading app state from Firestore:', error);
+    console.error('[Firebase] Error loading app state from Firestore:', error);
     return null;
   }
 }
@@ -111,17 +118,24 @@ export function subscribeToAppState(
   userId: string,
   callback: (state: object | null) => void
 ): Unsubscribe | null {
-  if (!db) return null;
+  if (!db) {
+    console.error('[Firebase] No db instance, cannot subscribe');
+    return null;
+  }
 
+  console.log('[Firebase] Subscribing to updates for user:', userId);
   const docRef = doc(db, APP_STATE_COLLECTION, userId);
   return onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
-      callback(docSnap.data());
+      const data = docSnap.data();
+      console.log('[Firebase] Snapshot received, updatedAt:', (data as any)?.updatedAt);
+      callback(data);
     } else {
+      console.log('[Firebase] Snapshot received but no document exists');
       callback(null);
     }
   }, (error) => {
-    console.error('Error subscribing to app state:', error);
+    console.error('[Firebase] Error subscribing to app state:', error);
     callback(null);
   });
 }
