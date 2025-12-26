@@ -41,15 +41,37 @@ export function onAuthChange(callback: (user: User | null) => void): Unsubscribe
 // Firestore helpers for app state
 const APP_STATE_COLLECTION = 'users';
 
+// Recursively remove undefined values from an object (Firestore doesn't accept undefined)
+function removeUndefined(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefined);
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefined(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export async function saveAppState(userId: string, state: object): Promise<boolean> {
   if (!db) return false;
 
   try {
     const docRef = doc(db, APP_STATE_COLLECTION, userId);
-    await setDoc(docRef, {
+    // Clean undefined values before saving to Firestore
+    const cleanedState = removeUndefined({
       ...state,
       updatedAt: new Date().toISOString(),
-    }, { merge: true });
+    });
+    await setDoc(docRef, cleanedState, { merge: true });
     return true;
   } catch (error) {
     console.error('Error saving app state to Firestore:', error);

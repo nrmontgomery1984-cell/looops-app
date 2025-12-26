@@ -8,27 +8,34 @@ import {
   LOOP_DEFINITIONS,
   LOOP_COLORS,
   LoopStateType,
+  ArchetypeId,
 } from "../../types";
 import { Goal } from "../../types";
 import { StateSelector } from "../common";
-import { getStateDisplayName } from "../../engines/stateEngine";
+import { getRandomMotivation, celebrateCompletion } from "../../engines/voiceEngine";
 
 type WeeklyPlanningProps = {
   loopStates: Record<LoopId, { currentState: LoopStateType }>;
   tasks: Task[];
   goals: Goal[];
+  archetype?: ArchetypeId;
   onLoopStateChange: (loopId: LoopId, state: LoopStateType) => void;
   onTaskUpdate: (task: Task) => void;
   onComplete: () => void;
 };
 
-type PlanningStep = "review" | "states" | "priorities" | "schedule" | "complete";
+type PlanningStep = "review" | "reflect" | "states" | "priorities" | "schedule" | "complete";
 
 const STEPS: { id: PlanningStep; title: string; description: string }[] = [
   {
     id: "review",
     title: "Review Last Week",
     description: "Celebrate wins and learn from challenges",
+  },
+  {
+    id: "reflect",
+    title: "Reflect & Learn",
+    description: "What worked? What needs adjustment?",
   },
   {
     id: "states",
@@ -52,16 +59,39 @@ const STEPS: { id: PlanningStep; title: string; description: string }[] = [
   },
 ];
 
+// Reflection prompts for guided thinking
+const REFLECTION_PROMPTS = [
+  "What's one thing that went better than expected last week?",
+  "What drained your energy the most? Can you reduce it this week?",
+  "What habit or system would make next week easier?",
+  "Is there anything you're avoiding that you need to face?",
+  "What would make this week feel successful?",
+];
+
 export function WeeklyPlanning({
   loopStates,
   tasks,
   goals,
+  archetype,
   onLoopStateChange,
   onTaskUpdate,
   onComplete,
 }: WeeklyPlanningProps) {
   const [currentStep, setCurrentStep] = useState<PlanningStep>("review");
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
+  const [reflections, setReflections] = useState<Record<number, string>>({});
+  const [weeklyIntention, setWeeklyIntention] = useState<string>("");
+
+  // Get archetype-specific motivation for this session
+  const [motivationPhrase] = useState(() =>
+    archetype ? getRandomMotivation(archetype) : "Let's make this week count."
+  );
+
+  // Pick 3 random prompts for this session
+  const [activePrompts] = useState(() => {
+    const shuffled = [...REFLECTION_PROMPTS].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
+  });
 
   // Get last week's completed tasks
   const lastWeekCompleted = useMemo(() => {
@@ -177,6 +207,84 @@ export function WeeklyPlanning({
                   ))}
                 </ul>
               </>
+            )}
+          </div>
+        );
+
+      case "reflect":
+        return (
+          <div className="weekly-step-content">
+            <p className="weekly-step-intro">
+              Take a moment to reflect on last week. These insights will guide your planning.
+            </p>
+
+            <div className="weekly-reflection-prompts">
+              {activePrompts.map((prompt, idx) => (
+                <div key={idx} className="weekly-reflection-prompt">
+                  <label className="weekly-reflection-label">{prompt}</label>
+                  <textarea
+                    className="weekly-reflection-input"
+                    placeholder="Type your thoughts..."
+                    value={reflections[idx] || ""}
+                    onChange={(e) => setReflections(prev => ({ ...prev, [idx]: e.target.value }))}
+                    rows={2}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="weekly-intention-section">
+              <h4>Weekly Intention</h4>
+              <p className="weekly-intention-hint">
+                In one sentence, what would make this week successful?
+              </p>
+              <textarea
+                className="weekly-intention-input"
+                placeholder="This week I will..."
+                value={weeklyIntention}
+                onChange={(e) => setWeeklyIntention(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            {/* Quick insights based on last week */}
+            {lastWeekCompleted.length > 0 && (
+              <div className="weekly-insights">
+                <h4>Insights from Last Week</h4>
+                <div className="weekly-insights-list">
+                  {/* Find the loop with most completions */}
+                  {(() => {
+                    const topLoop = ALL_LOOPS.reduce((best, loopId) => {
+                      const count = loopStats[loopId].completed;
+                      return count > (loopStats[best]?.completed || 0) ? loopId : best;
+                    }, ALL_LOOPS[0]);
+                    const topCount = loopStats[topLoop].completed;
+
+                    return topCount > 0 ? (
+                      <div className="weekly-insight">
+                        <span className="weekly-insight-icon">🏆</span>
+                        <span>Your strongest loop was <strong>{LOOP_DEFINITIONS[topLoop].name}</strong> with {topCount} tasks completed</span>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Find loop that might need attention */}
+                  {(() => {
+                    const neglectedLoop = ALL_LOOPS.find(loopId =>
+                      loopId !== "Meaning" &&
+                      loopStats[loopId].completed === 0 &&
+                      loopStats[loopId].pending > 0
+                    );
+
+                    return neglectedLoop ? (
+                      <div className="weekly-insight">
+                        <span className="weekly-insight-icon">💡</span>
+                        <span><strong>{LOOP_DEFINITIONS[neglectedLoop].name}</strong> has pending tasks but no completions - consider adjusting its state</span>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
             )}
           </div>
         );
@@ -327,11 +435,19 @@ export function WeeklyPlanning({
         );
 
       case "complete":
+        // Get archetype-specific celebration message
+        const celebrationMessage = archetype
+          ? celebrateCompletion(archetype, `${lastWeekCompleted.length} tasks completed`)
+          : "Great work this week!";
+
         return (
           <div className="weekly-step-content weekly-complete">
             <div className="weekly-complete-icon">🎯</div>
             <h3>You're All Set!</h3>
-            <p>Your week is planned and ready to go.</p>
+            <p className="weekly-complete-motivation">{motivationPhrase}</p>
+            {lastWeekCompleted.length > 0 && (
+              <p className="weekly-complete-celebration">{celebrationMessage}</p>
+            )}
 
             <div className="weekly-complete-summary">
               <div className="weekly-summary-item">

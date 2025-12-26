@@ -1,55 +1,12 @@
 // Sleep & Readiness Widget - Fitbit sleep and readiness data
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { getHealthStatusColor, formatSleepHours } from "../../types";
-
-interface SleepData {
-  sleepDurationHours: number;
-  sleepScore: number | null;
-  restingHeartRate: number | null;
-  scores?: {
-    readiness: number | null;
-    sleep: number | null;
-  };
-}
-
-interface WeeklyData {
-  sleepDurationHours: number;
-}
+import { useHealthData } from "../../hooks/useHealthData";
 
 export function SleepReadinessWidget() {
-  const [data, setData] = useState<SleepData | null>(null);
-  const [weeklyAvg, setWeeklyAvg] = useState<WeeklyData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/health/summary");
-      const result = await response.json();
-
-      if (result.source === "local" || result.data === null) {
-        setError("Connect Fitbit via IFTTT");
-        setData(null);
-      } else {
-        setData(result.data.today);
-        setWeeklyAvg(result.data.weeklyAvg);
-      }
-    } catch {
-      setError("Server offline");
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data: healthData, isLoading, error, refetch } = useHealthData();
+  const data = healthData?.today;
+  const weeklyAvg = healthData?.weeklyAvg;
 
   if (isLoading && !data) {
     return (
@@ -65,7 +22,7 @@ export function SleepReadinessWidget() {
       <div className="fitbit-widget fitbit-widget--error">
         <span className="fitbit-error-icon">😴</span>
         <p>{error}</p>
-        <button className="fitbit-retry-btn" onClick={fetchData}>Retry</button>
+        <button className="fitbit-retry-btn" onClick={refetch}>Retry</button>
       </div>
     );
   }

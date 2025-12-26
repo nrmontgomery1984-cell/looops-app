@@ -9,9 +9,8 @@ import {
   UserPrototype,
   LoopStateType,
   ALL_LOOPS,
-  TIMEFRAME_ORDER,
+  DirectionalDocument,
 } from "../types";
-import { ARCHETYPE_DEFINITIONS } from "../data/archetypes";
 
 // Goal template for suggestions
 export type GoalTemplate = {
@@ -22,7 +21,6 @@ export type GoalTemplate = {
   timeframe: GoalTimeframe;
   archetypeAffinity: Partial<Record<ArchetypeId, number>>; // 0-1 score
   suggestedMetrics?: { name: string; unit: string; suggestedTarget: number }[];
-  decompositionHints?: string[]; // Hints for breaking down
 };
 
 // Annual goal suggestion based on archetype and loop state
@@ -46,12 +44,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Workouts per week", unit: "sessions", suggestedTarget: 4 },
       { name: "Body fat percentage", unit: "%", suggestedTarget: 15 },
     ],
-    decompositionHints: [
-      "Q1: Build foundation (3x/week habit)",
-      "Q2: Increase intensity",
-      "Q3: Specialize (strength/cardio/flexibility)",
-      "Q4: Maintain and optimize",
-    ],
   },
   {
     id: "health_sleep_optimize",
@@ -63,12 +55,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Hours of sleep", unit: "hours", suggestedTarget: 7.5 },
       { name: "Sleep quality score", unit: "score", suggestedTarget: 85 },
-    ],
-    decompositionHints: [
-      "Month 1: Track baseline",
-      "Month 2-3: Optimize environment",
-      "Month 4-6: Establish routine",
-      "Month 7-12: Maintain consistency",
     ],
   },
   {
@@ -82,12 +68,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Home-cooked meals", unit: "per week", suggestedTarget: 15 },
       { name: "Water intake", unit: "liters/day", suggestedTarget: 3 },
     ],
-    decompositionHints: [
-      "Q1: Meal planning habit",
-      "Q2: Eliminate processed foods",
-      "Q3: Optimize macros",
-      "Q4: Intuitive eating mastery",
-    ],
   },
   {
     id: "health_mental_resilience",
@@ -99,12 +79,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Meditation sessions", unit: "per week", suggestedTarget: 5 },
       { name: "Stress level (1-10)", unit: "avg", suggestedTarget: 4 },
-    ],
-    decompositionHints: [
-      "Q1: Daily meditation habit",
-      "Q2: Stress triggers identification",
-      "Q3: Coping strategies development",
-      "Q4: Sustainable practice integration",
     ],
   },
 
@@ -120,12 +94,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Months of expenses saved", unit: "months", suggestedTarget: 6 },
       { name: "Monthly savings rate", unit: "%", suggestedTarget: 20 },
     ],
-    decompositionHints: [
-      "Month 1: Calculate target amount",
-      "Month 2-4: Save month 1-2",
-      "Month 5-8: Save month 3-4",
-      "Month 9-12: Save month 5-6",
-    ],
   },
   {
     id: "wealth_income_growth",
@@ -137,12 +105,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Income increase", unit: "%", suggestedTarget: 20 },
       { name: "New skills acquired", unit: "skills", suggestedTarget: 3 },
-    ],
-    decompositionHints: [
-      "Q1: Skill gap analysis + learning plan",
-      "Q2: Skill development",
-      "Q3: Apply/negotiate/launch",
-      "Q4: Optimize and scale",
     ],
   },
   {
@@ -156,12 +118,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Debt remaining", unit: "$", suggestedTarget: 0 },
       { name: "Monthly debt payment", unit: "$", suggestedTarget: 1000 },
     ],
-    decompositionHints: [
-      "Month 1: List all debts, choose strategy (avalanche/snowball)",
-      "Q1-Q2: Attack highest priority debt",
-      "Q3: Tackle remaining debts",
-      "Q4: Stay debt-free, build savings",
-    ],
   },
   {
     id: "wealth_invest_consistently",
@@ -173,12 +129,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Monthly investment", unit: "$", suggestedTarget: 500 },
       { name: "Investment knowledge score", unit: "1-10", suggestedTarget: 8 },
-    ],
-    decompositionHints: [
-      "Q1: Education + account setup",
-      "Q2: Start small, automate",
-      "Q3: Increase contributions",
-      "Q4: Diversify and optimize",
     ],
   },
 
@@ -194,12 +144,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Family dinners per week", unit: "dinners", suggestedTarget: 5 },
       { name: "Weekend activities together", unit: "per month", suggestedTarget: 4 },
     ],
-    decompositionHints: [
-      "Q1: Establish weekly family rituals",
-      "Q2: Plan quarterly family adventures",
-      "Q3: Deep relationship building",
-      "Q4: Holiday traditions + reflection",
-    ],
   },
   {
     id: "family_parenting_level_up",
@@ -212,12 +156,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "1-on-1 time per child", unit: "hours/week", suggestedTarget: 3 },
       { name: "Parenting books read", unit: "books", suggestedTarget: 4 },
     ],
-    decompositionHints: [
-      "Q1: Assess + set parenting values",
-      "Q2: Implement new approaches",
-      "Q3: Address challenges",
-      "Q4: Celebrate growth",
-    ],
   },
   {
     id: "family_relationship_strengthen",
@@ -229,12 +167,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Date nights per month", unit: "dates", suggestedTarget: 4 },
       { name: "Relationship satisfaction", unit: "1-10", suggestedTarget: 9 },
-    ],
-    decompositionHints: [
-      "Q1: Establish weekly date night",
-      "Q2: Communication improvement focus",
-      "Q3: Shared adventure/project",
-      "Q4: Future planning together",
     ],
   },
 
@@ -250,12 +182,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Key projects delivered", unit: "projects", suggestedTarget: 3 },
       { name: "Performance review rating", unit: "1-5", suggestedTarget: 4.5 },
     ],
-    decompositionHints: [
-      "Q1: Identify target + build plan",
-      "Q2: Execute high-visibility projects",
-      "Q3: Build relationships + advocate",
-      "Q4: Push for promotion/transition",
-    ],
   },
   {
     id: "work_skill_mastery",
@@ -267,12 +193,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Learning hours", unit: "hours", suggestedTarget: 200 },
       { name: "Skill certifications", unit: "certs", suggestedTarget: 2 },
-    ],
-    decompositionHints: [
-      "Q1: Foundation building (50 hrs)",
-      "Q2: Intermediate practice (50 hrs)",
-      "Q3: Advanced application (50 hrs)",
-      "Q4: Mastery demonstration (50 hrs)",
     ],
   },
   {
@@ -286,12 +206,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Hours invested", unit: "hours", suggestedTarget: 300 },
       { name: "Users/customers", unit: "people", suggestedTarget: 100 },
     ],
-    decompositionHints: [
-      "Q1: Ideation + validation",
-      "Q2: MVP development",
-      "Q3: Launch + iterate",
-      "Q4: Scale or pivot",
-    ],
   },
   {
     id: "work_productivity_system",
@@ -303,12 +217,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Deep work hours per week", unit: "hours", suggestedTarget: 20 },
       { name: "Tasks completed per week", unit: "tasks", suggestedTarget: 30 },
-    ],
-    decompositionHints: [
-      "Q1: Audit + design system",
-      "Q2: Implement core habits",
-      "Q3: Optimize and automate",
-      "Q4: Maintain and refine",
     ],
   },
 
@@ -324,12 +232,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Practice hours per week", unit: "hours", suggestedTarget: 5 },
       { name: "Skill level improvement", unit: "1-10", suggestedTarget: 8 },
     ],
-    decompositionHints: [
-      "Q1: Choose hobby + beginner phase",
-      "Q2: Consistent practice routine",
-      "Q3: Push comfort zone",
-      "Q4: Share/perform/exhibit",
-    ],
   },
   {
     id: "fun_adventure_seeking",
@@ -342,12 +244,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "New experiences", unit: "experiences", suggestedTarget: 24 },
       { name: "Major trips", unit: "trips", suggestedTarget: 3 },
     ],
-    decompositionHints: [
-      "Q1: Monthly new experiences",
-      "Q2: Spring adventure trip",
-      "Q3: Summer exploration",
-      "Q4: Year-end bucket list push",
-    ],
   },
   {
     id: "fun_social_connection",
@@ -359,12 +255,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Close friend meetups", unit: "per month", suggestedTarget: 4 },
       { name: "New meaningful connections", unit: "people", suggestedTarget: 6 },
-    ],
-    decompositionHints: [
-      "Q1: Reconnect with old friends",
-      "Q2: Regular social rituals",
-      "Q3: Deepen key friendships",
-      "Q4: Expand network intentionally",
     ],
   },
 
@@ -380,12 +270,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Rooms decluttered", unit: "rooms", suggestedTarget: 8 },
       { name: "Home satisfaction", unit: "1-10", suggestedTarget: 9 },
     ],
-    decompositionHints: [
-      "Q1: Deep declutter (1 room/week)",
-      "Q2: Organization systems",
-      "Q3: Aesthetic improvements",
-      "Q4: Maintenance routines",
-    ],
   },
   {
     id: "maintenance_systems_automate",
@@ -397,12 +281,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Recurring tasks automated", unit: "tasks", suggestedTarget: 10 },
       { name: "Weekly admin time", unit: "hours", suggestedTarget: 2 },
-    ],
-    decompositionHints: [
-      "Q1: Audit all recurring tasks",
-      "Q2: Automate finances + bills",
-      "Q3: Automate home maintenance",
-      "Q4: Optimize and maintain",
     ],
   },
 
@@ -418,12 +296,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Clarity score", unit: "1-10", suggestedTarget: 9 },
       { name: "Purpose-aligned decisions", unit: "%", suggestedTarget: 80 },
     ],
-    decompositionHints: [
-      "Q1: Deep reflection + exploration",
-      "Q2: Test hypotheses through action",
-      "Q3: Refine and commit",
-      "Q4: Align life with purpose",
-    ],
   },
   {
     id: "meaning_spiritual_practice",
@@ -435,12 +307,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
     suggestedMetrics: [
       { name: "Daily practice streak", unit: "days", suggestedTarget: 300 },
       { name: "Inner peace score", unit: "1-10", suggestedTarget: 8 },
-    ],
-    decompositionHints: [
-      "Q1: Explore practices, find fit",
-      "Q2: Establish daily ritual",
-      "Q3: Deepen through study",
-      "Q4: Integration into all life",
     ],
   },
   {
@@ -454,12 +320,6 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Legacy project hours", unit: "hours", suggestedTarget: 200 },
       { name: "People impacted", unit: "people", suggestedTarget: 100 },
     ],
-    decompositionHints: [
-      "Q1: Define legacy vision",
-      "Q2: Take first major action",
-      "Q3: Build momentum",
-      "Q4: Reflect and plan next year",
-    ],
   },
   {
     id: "meaning_wisdom_cultivation",
@@ -472,45 +332,55 @@ export const GOAL_TEMPLATES: GoalTemplate[] = [
       { name: "Books read", unit: "books", suggestedTarget: 24 },
       { name: "Journal entries", unit: "entries", suggestedTarget: 150 },
     ],
-    decompositionHints: [
-      "Q1: Reading foundation + journaling habit",
-      "Q2: Dialogue with others",
-      "Q3: Apply learnings",
-      "Q4: Synthesize and teach",
-    ],
   },
 ];
 
-// Generate goal suggestions based on user prototype and loop states
+// Generate goal suggestions based on user prototype, loop states, and directional document
 export function generateGoalSuggestions(
-  prototype: UserPrototype,
+  prototype: UserPrototype | null,
   loopStates: Record<LoopId, LoopStateType>,
   existingGoals: GoalHierarchy,
+  directionalDocument?: DirectionalDocument | null,
   count: number = 10
 ): GoalSuggestion[] {
-  const { archetypeBlend } = prototype;
+  const archetypeBlend = prototype?.archetypeBlend;
+  const hasValidArchetype = archetypeBlend?.primary && archetypeBlend?.secondary;
+  const hasDirections = directionalDocument && directionalDocument.status !== "draft";
+
   const suggestions: GoalSuggestion[] = [];
 
   // Get existing annual goal loop coverage
   const existingLoops = new Set(existingGoals.annual.map((g) => g.loop));
 
+  // Get loop priority ranking if available
+  const loopPriorityRanking = directionalDocument?.core?.tradeoffPriorities?.loopPriorityRanking || [];
+
   for (const template of GOAL_TEMPLATES) {
-    // Skip if loop already has annual goal
-    if (existingLoops.has(template.loop)) continue;
+    // Calculate base score
+    let baseScore = 50; // Start with neutral score when no archetype
 
-    // Calculate archetype affinity score
-    let archetypeScore = 0;
-    const primaryAffinity = template.archetypeAffinity[archetypeBlend.primary] || 0;
-    const secondaryAffinity = template.archetypeAffinity[archetypeBlend.secondary] || 0;
-    const tertiaryAffinity = archetypeBlend.tertiary
-      ? template.archetypeAffinity[archetypeBlend.tertiary] || 0
-      : 0;
+    // Reduce priority for loops that already have annual goals
+    if (existingLoops.has(template.loop)) {
+      baseScore = 20; // Lower priority but still show as option
+    }
 
-    // Weighted by archetype blend scores
-    archetypeScore =
-      primaryAffinity * (archetypeBlend.scores[archetypeBlend.primary] / 100) * 0.5 +
-      secondaryAffinity * (archetypeBlend.scores[archetypeBlend.secondary] / 100) * 0.35 +
-      tertiaryAffinity * (archetypeBlend.tertiary ? archetypeBlend.scores[archetypeBlend.tertiary] / 100 : 0) * 0.15;
+    if (hasValidArchetype) {
+      // Calculate archetype affinity score
+      const primaryAffinity = template.archetypeAffinity[archetypeBlend.primary] || 0;
+      const secondaryAffinity = template.archetypeAffinity[archetypeBlend.secondary] || 0;
+      const tertiaryAffinity = archetypeBlend.tertiary
+        ? template.archetypeAffinity[archetypeBlend.tertiary] || 0
+        : 0;
+
+      // Weighted by archetype blend scores
+      baseScore =
+        primaryAffinity * (archetypeBlend.scores[archetypeBlend.primary] / 100) * 0.5 +
+        secondaryAffinity * (archetypeBlend.scores[archetypeBlend.secondary] / 100) * 0.35 +
+        tertiaryAffinity * (archetypeBlend.tertiary ? archetypeBlend.scores[archetypeBlend.tertiary] / 100 : 0) * 0.15;
+
+      // Scale to 0-100
+      baseScore = baseScore * 100;
+    }
 
     // Boost score based on loop state (BUILD loops get priority)
     const loopState = loopStates[template.loop];
@@ -530,15 +400,83 @@ export function generateGoalSuggestions(
         break;
     }
 
-    const relevanceScore = Math.round(archetypeScore * stateMultiplier * 100);
+    let relevanceScore = Math.round(baseScore * stateMultiplier);
+
+    // Apply directional document boosts if available
+    let directionalReasoning: string[] = [];
+
+    if (hasDirections && directionalDocument) {
+      const loopDirections = directionalDocument.loops[template.loop];
+
+      // Loop priority ranking boost: +28 for top loop, -4 per rank
+      if (loopPriorityRanking.length > 0) {
+        const priorityIndex = loopPriorityRanking.indexOf(template.loop);
+        if (priorityIndex !== -1) {
+          const priorityBoost = 28 - (priorityIndex * 4);
+          relevanceScore += priorityBoost;
+          if (priorityIndex === 0) {
+            directionalReasoning.push(`${template.loop} is your top priority loop`);
+          } else if (priorityIndex <= 2) {
+            directionalReasoning.push(`${template.loop} is one of your top 3 priorities`);
+          }
+        }
+      }
+
+      if (loopDirections) {
+        // Dissatisfaction gap boost: up to +20 based on (100 - currentSatisfaction)
+        const dissatisfactionGap = 100 - loopDirections.currentSatisfaction;
+        const dissatisfactionBoost = Math.round((dissatisfactionGap / 100) * 20);
+        relevanceScore += dissatisfactionBoost;
+        if (dissatisfactionGap >= 50) {
+          directionalReasoning.push(`Low satisfaction in ${template.loop} (${loopDirections.currentSatisfaction}%)`);
+        }
+
+        // Allocation gap boost: up to +15 based on (desired - current)
+        const allocationGap = loopDirections.desiredAllocation - loopDirections.currentAllocation;
+        if (allocationGap > 0) {
+          const allocationBoost = Math.round((allocationGap / 50) * 15);
+          relevanceScore += allocationBoost;
+          if (allocationGap >= 20) {
+            directionalReasoning.push(`You want more time in ${template.loop} (+${allocationGap}%)`);
+          }
+        }
+
+        // Season-based adjustment
+        switch (loopDirections.currentSeason) {
+          case "building":
+            relevanceScore += 10;
+            directionalReasoning.push(`${template.loop} is in a building season`);
+            break;
+          case "maintaining":
+            // No adjustment
+            break;
+          case "recovering":
+            relevanceScore -= 5;
+            break;
+          case "hibernating":
+            relevanceScore -= 10;
+            break;
+        }
+      }
+    }
+
+    // Cap at 100
+    relevanceScore = Math.min(100, Math.max(0, relevanceScore));
 
     // Generate reasoning
-    const reasoning = generateReasoning(
-      template,
-      archetypeBlend.primary,
-      archetypeBlend.secondary,
-      loopState
-    );
+    let reasoning = hasValidArchetype
+      ? generateReasoning(
+          template,
+          archetypeBlend.primary,
+          archetypeBlend.secondary,
+          loopState
+        )
+      : generateStateBasedReasoning(template, loopState);
+
+    // Append directional reasoning if available
+    if (directionalReasoning.length > 0) {
+      reasoning = directionalReasoning.join(". ") + ". " + reasoning;
+    }
 
     suggestions.push({
       template,
@@ -551,6 +489,33 @@ export function generateGoalSuggestions(
   return suggestions.sort((a, b) => b.relevanceScore - a.relevanceScore).slice(0, count);
 }
 
+// Generate reasoning based on loop state only (fallback when no archetype)
+function generateStateBasedReasoning(
+  template: GoalTemplate,
+  loopState: LoopStateType
+): string {
+  const parts: string[] = [];
+
+  switch (loopState) {
+    case "BUILD":
+      parts.push(`Your ${template.loop} loop is in BUILD mode - perfect time for ambitious goals`);
+      break;
+    case "MAINTAIN":
+      parts.push(`A steady goal for your ${template.loop} loop while maintaining`);
+      break;
+    case "RECOVER":
+      parts.push(`A gentle option as your ${template.loop} loop recovers`);
+      break;
+    case "HIBERNATE":
+      parts.push(`Consider when your ${template.loop} loop is ready to grow`);
+      break;
+  }
+
+  parts.push("Complete the identity questionnaire for personalized recommendations");
+
+  return parts.join(". ");
+}
+
 // Generate human-readable reasoning for a suggestion
 function generateReasoning(
   template: GoalTemplate,
@@ -558,7 +523,6 @@ function generateReasoning(
   secondaryArchetype: ArchetypeId,
   loopState: LoopStateType
 ): string {
-  const primaryDef = ARCHETYPE_DEFINITIONS.find((a) => a.id === primaryArchetype);
   const primaryAffinity = template.archetypeAffinity[primaryArchetype] || 0;
   const secondaryAffinity = template.archetypeAffinity[secondaryArchetype] || 0;
 
@@ -584,7 +548,7 @@ function generateReasoning(
 // Create a goal from a template
 export function createGoalFromTemplate(
   template: GoalTemplate,
-  userId: string,
+  _userId: string,
   customTitle?: string,
   customDescription?: string
 ): Goal {
@@ -592,7 +556,7 @@ export function createGoalFromTemplate(
   const endOfYear = new Date(now.getFullYear(), 11, 31);
 
   return {
-    id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: `goal_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     title: customTitle || template.title,
     description: customDescription || template.description,
     loop: template.loop,
@@ -603,7 +567,7 @@ export function createGoalFromTemplate(
     startDate: now.toISOString(),
     targetDate: endOfYear.toISOString(),
     metrics: template.suggestedMetrics?.map((m) => ({
-      id: `metric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `metric_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
       name: m.name,
       unit: m.unit,
       target: m.suggestedTarget,
@@ -615,10 +579,8 @@ export function createGoalFromTemplate(
 }
 
 // Decompose an annual goal into quarterly goals
-export function decomposeAnnualToQuarterly(
-  annualGoal: Goal,
-  template?: GoalTemplate
-): Goal[] {
+// Creates empty quarterly milestones for the user to customize
+export function decomposeAnnualToQuarterly(annualGoal: Goal): Goal[] {
   const quarterlyGoals: Goal[] = [];
   const now = new Date();
   const year = now.getFullYear();
@@ -630,20 +592,11 @@ export function decomposeAnnualToQuarterly(
     { name: "Q4", start: new Date(year, 9, 1), end: new Date(year, 11, 31) },
   ];
 
-  const hints = template?.decompositionHints || [
-    "Foundation and planning",
-    "Building momentum",
-    "Pushing through challenges",
-    "Finishing strong",
-  ];
-
   quarters.forEach((quarter, index) => {
-    const hint = hints[index] || `${quarter.name} milestone`;
-
     quarterlyGoals.push({
-      id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_q${index + 1}`,
-      title: `${quarter.name}: ${hint}`,
-      description: `${quarter.name} milestone for: ${annualGoal.title}`,
+      id: `goal_${Date.now()}_${Math.random().toString(36).slice(2, 11)}_q${index + 1}`,
+      title: `${quarter.name} milestone`,
+      description: `Define your ${quarter.name} milestone for: ${annualGoal.title}`,
       loop: annualGoal.loop,
       timeframe: "quarterly",
       parentGoalId: annualGoal.id,
@@ -661,6 +614,7 @@ export function decomposeAnnualToQuarterly(
 }
 
 // Decompose a quarterly goal into monthly goals
+// Creates empty monthly milestones for the user to customize
 export function decomposeQuarterlyToMonthly(quarterlyGoal: Goal): Goal[] {
   const monthlyGoals: Goal[] = [];
   const now = new Date();
@@ -685,9 +639,9 @@ export function decomposeQuarterlyToMonthly(quarterlyGoal: Goal): Goal[] {
 
   months.forEach((month, index) => {
     monthlyGoals.push({
-      id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_m${index + 1}`,
-      title: `${month.name}: Progress on ${quarterlyGoal.title}`,
-      description: `Monthly milestone for: ${quarterlyGoal.title}`,
+      id: `goal_${Date.now()}_${Math.random().toString(36).slice(2, 11)}_m${index + 1}`,
+      title: `${month.name} milestone`,
+      description: `Define your ${month.name} milestone for: ${quarterlyGoal.title}`,
       loop: quarterlyGoal.loop,
       timeframe: "monthly",
       parentGoalId: quarterlyGoal.id,

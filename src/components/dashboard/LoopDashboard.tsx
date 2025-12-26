@@ -27,6 +27,7 @@ import { HealthWidget } from "./HealthWidget";
 import { CalendarWidget as GoogleCalendarWidget } from "./CalendarWidget";
 import { SpotifyWidget } from "./SpotifyWidget";
 import { WealthWidget } from "./WealthWidget";
+import { BudgetWidget } from "./BudgetWidget";
 import { MediaWidget } from "./MediaWidget";
 import { SleepReadinessWidget } from "./SleepReadinessWidget";
 import { ActivityWidget } from "./ActivityWidget";
@@ -53,6 +54,7 @@ interface LoopDashboardProps {
   babysitterSessions: BabysitterSession[];
   // Actions
   onCompleteTask: (taskId: string) => void;
+  onSelectTask: (taskId: string) => void;
   onCompleteHabit: (habitId: string, date: string) => void;
   onUncompleteHabit: (habitId: string, date: string) => void;
   onUpdateDashboard: (dashboard: LoopDashboardType) => void;
@@ -81,6 +83,7 @@ export function LoopDashboard({
   caregivers,
   babysitterSessions,
   onCompleteTask,
+  onSelectTask,
   onCompleteHabit,
   onUncompleteHabit,
   onUpdateDashboard,
@@ -126,6 +129,7 @@ export function LoopDashboard({
           <TasksWidget
             tasks={loopTasks}
             onComplete={onCompleteTask}
+            onSelect={onSelectTask}
             limit={config.settings.limit as number || 5}
           />
         );
@@ -217,6 +221,9 @@ export function LoopDashboard({
 
       case "wealth":
         return <WealthWidget />;
+
+      case "budget":
+        return <BudgetWidget />;
 
       case "media":
         return <MediaWidget />;
@@ -441,10 +448,12 @@ function WidgetPicker({
 function TasksWidget({
   tasks,
   onComplete,
+  onSelect,
   limit,
 }: {
   tasks: Task[];
   onComplete: (taskId: string) => void;
+  onSelect: (taskId: string) => void;
   limit: number;
 }) {
   const displayTasks = tasks.slice(0, limit);
@@ -452,10 +461,13 @@ function TasksWidget({
   return (
     <div className="tasks-widget">
       {displayTasks.map(task => (
-        <div key={task.id} className="tasks-widget-item">
+        <div key={task.id} className="tasks-widget-item" onClick={() => onSelect(task.id)}>
           <button
             className="tasks-widget-check"
-            onClick={() => onComplete(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onComplete(task.id);
+            }}
           >
             ○
           </button>

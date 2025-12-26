@@ -2,6 +2,7 @@
 
 import { LoopId, LoopStateType, Priority, TaskStatus, Duration } from "./core";
 import { ArchetypeId } from "./identity";
+import { LoopState } from "./loops";
 
 // Recurrence types
 export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly" | "custom";
@@ -226,6 +227,103 @@ export function sortTasksByPriority(tasks: Task[]): Task[] {
     // Otherwise sort by priority number (1 is highest)
     return a.priority - b.priority;
   });
+}
+
+// Type for loop states - can be either full LoopState objects or just the state type
+type LoopStatesInput = Record<LoopId, LoopState> | Record<LoopId, LoopStateType>;
+
+// State weight multipliers for prioritization
+// BUILD loops get highest priority boost, HIBERNATE gets deprioritized
+const STATE_PRIORITY_WEIGHTS: Record<LoopStateType, number> = {
+  BUILD: 0.5,      // Boost priority (multiply by 0.5 to reduce sort value)
+  MAINTAIN: 1.0,   // Normal priority
+  RECOVER: 1.2,    // Slightly lower priority
+  HIBERNATE: 2.0,  // Much lower priority (can still do, but not urgent)
+};
+
+// Helper to get the current state from either format
+function getLoopCurrentState(
+  loopStates: LoopStatesInput,
+  loopId: LoopId
+): LoopStateType {
+  const state = loopStates[loopId];
+  if (typeof state === "string") {
+    return state as LoopStateType;
+  }
+  return (state as LoopState).currentState;
+}
+
+// Calculate state-adjusted priority score
+// Lower scores = higher priority
+export function calculateStatePriority(
+  task: Task,
+  loopStates: LoopStatesInput
+): number {
+  const basePriority = task.priority;
+
+  // Priority 0 (Someday) always goes last
+  if (basePriority === 0) return 100;
+
+  const loopState = getLoopCurrentState(loopStates, task.loop);
+  const stateWeight = STATE_PRIORITY_WEIGHTS[loopState] || 1.0;
+
+  // Additional boost if task matches the loop's required state
+  let stateMatchBonus = 0;
+  if (task.requiredState) {
+    if (task.requiredState === loopState) {
+      // Perfect match: task is designed for current state
+      stateMatchBonus = -0.5;
+    } else if (task.requiredState === "BUILD" && loopState !== "BUILD") {
+      // BUILD tasks in non-BUILD loops should wait
+      stateMatchBonus = 1.0;
+    }
+  }
+
+  return basePriority * stateWeight + stateMatchBonus;
+}
+
+// Sort tasks by state-adjusted priority
+export function sortTasksByStatePriority(
+  tasks: Task[],
+  loopStates: LoopStatesInput
+): Task[] {
+  return [...tasks].sort((a, b) => {
+    const priorityA = calculateStatePriority(a, loopStates);
+    const priorityB = calculateStatePriority(b, loopStates);
+
+    // If priorities are equal, maintain stability by comparing original priority
+    if (priorityA === priorityB) {
+      return (a.priority || 4) - (b.priority || 4);
+    }
+
+    return priorityA - priorityB;
+  });
+}
+
+// Get a human-readable explanation of why a task has its priority
+export function getPriorityExplanation(
+  task: Task,
+  loopStates: LoopStatesInput
+): string {
+  const loopState = getLoopCurrentState(loopStates, task.loop);
+  const basePriority = task.priority;
+
+  if (basePriority === 0) return "Someday task";
+
+  const priorityLabel = basePriority === 1 ? "urgent" : basePriority === 2 ? "high" : basePriority === 3 ? "normal" : "low";
+
+  switch (loopState) {
+    case "BUILD":
+      return `${priorityLabel} priority, boosted (${task.loop} in BUILD mode)`;
+    case "MAINTAIN":
+      return `${priorityLabel} priority (${task.loop} in MAINTAIN mode)`;
+    case "RECOVER":
+      return `${priorityLabel} priority, reduced (${task.loop} in RECOVER mode)`;
+    case "HIBERNATE":
+      return `${priorityLabel} priority, optional (${task.loop} hibernating)`;
+    default:
+      return `${priorityLabel} priority`;
+  }
 }
 
 // Calculate the next due date based on recurrence pattern

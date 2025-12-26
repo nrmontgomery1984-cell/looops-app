@@ -1,71 +1,47 @@
 // Health Widget - Display Fitbit data for Health loop
-// Data comes from Google Sheets (populated via IFTTT)
-// TODO: Widget styling needs redesign (noted for future pass)
+// Data comes from Fitbit API or Google Sheets (via IFTTT)
 
 import React, { useEffect, useState } from "react";
 import {
   HealthSummary,
-  HealthScores,
   getHealthStatusColor,
   formatSteps,
   formatSleepHours,
-  HEALTH_THRESHOLDS,
 } from "../../types";
+import { useHealthData } from "../../hooks/useHealthData";
 
 interface HealthWidgetProps {
   onHealthLoaded?: (summary: HealthSummary) => void;
 }
 
 export function HealthWidget({ onHealthLoaded }: HealthWidgetProps) {
-  const [summary, setSummary] = useState<HealthSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: healthData, isLoading, error, refetch } = useHealthData();
   const [lastSynced, setLastSynced] = useState<string | null>(null);
 
-  const fetchHealthData = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/health/summary");
-      const result = await response.json();
-
-      if (result.source === "local" || result.data === null) {
-        // Server not configured, show placeholder
-        setError("Health data not configured. Connect Fitbit at /api/fitbit/auth");
-        setSummary(null);
-      } else {
-        // Normalize data from different sources (Fitbit API vs Google Sheets)
-        const normalizedData: HealthSummary = {
-          today: result.data.today ? {
-            ...result.data.today,
-            id: result.data.today.id || `health_${result.data.today.date}`,
-            mindfulnessMinutes: result.data.today.mindfulnessMinutes || 0,
-            syncedAt: result.data.today.syncedAt || new Date().toISOString(),
-          } : null,
-          weeklyAvg: result.data.weeklyAvg || null,
-          weeklyData: result.data.weeklyData || [],
-          mindfulnessStreak: result.data.mindfulnessStreak || 0,
-        };
-        setSummary(normalizedData);
-        setLastSynced(new Date().toISOString());
-        onHealthLoaded?.(normalizedData);
-      }
-    } catch (err) {
-      // Server not running, show offline state
-      setError("Health server offline. Run: cd server && npm run dev");
-      setSummary(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Convert hook data to HealthSummary format
+  const summary: HealthSummary | null = healthData ? {
+    today: healthData.today ? {
+      ...healthData.today,
+      id: `health_${healthData.today.date}`,
+      syncedAt: new Date().toISOString(),
+      scores: healthData.today.scores || {
+        steps: null,
+        sleep: null,
+        activity: null,
+        readiness: null,
+      },
+    } : null,
+    weeklyAvg: healthData.weeklyAvg,
+    weeklyData: healthData.weeklyData,
+    mindfulnessStreak: healthData.mindfulnessStreak,
+  } as HealthSummary : null;
 
   useEffect(() => {
-    fetchHealthData();
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchHealthData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    if (summary) {
+      setLastSynced(new Date().toISOString());
+      onHealthLoaded?.(summary);
+    }
+  }, [healthData]);
 
   if (isLoading && !summary) {
     return (
@@ -81,7 +57,7 @@ export function HealthWidget({ onHealthLoaded }: HealthWidgetProps) {
       <div className="health-widget health-widget--error">
         <span className="health-error-icon">⚠️</span>
         <p className="health-error-message">{error}</p>
-        <button className="health-btn" onClick={fetchHealthData}>
+        <button className="health-btn" onClick={refetch}>
           Retry
         </button>
       </div>
@@ -177,7 +153,7 @@ export function HealthWidget({ onHealthLoaded }: HealthWidgetProps) {
         </span>
         <button
           className="health-sync-btn"
-          onClick={fetchHealthData}
+          onClick={refetch}
           disabled={isLoading}
         >
           {isLoading ? "..." : "↻"}

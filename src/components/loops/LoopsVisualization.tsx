@@ -345,13 +345,16 @@ export function LoopsVisualization({
 
       {/* Selected loop detail */}
       {selectedLoop && (
-        <LoopDetailPanel
-          loopId={selectedLoop}
-          loopStates={loopStates}
-          tasks={tasks}
-          onClose={() => onSelectLoop(null)}
-          onSelectTask={onSelectTask}
-        />
+        <>
+          <div className="loop-detail-backdrop" onClick={() => onSelectLoop(null)} />
+          <LoopDetailPanel
+            loopId={selectedLoop}
+            loopStates={loopStates}
+            tasks={tasks}
+            onClose={() => onSelectLoop(null)}
+            onSelectTask={onSelectTask}
+          />
+        </>
       )}
     </div>
   );

@@ -5,6 +5,14 @@ import React, { useEffect, useState } from "react";
 
 const API_BASE = "/api/spotify";
 
+function getSpotifyTokens(): { access_token: string } | null {
+  try {
+    const stored = localStorage.getItem('looops_spotify_tokens');
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return null;
+}
+
 interface Track {
   id: string;
   name: string;
@@ -62,19 +70,41 @@ export function SpotifyWidget() {
   }, [isConnected]);
 
   const checkStatus = async () => {
+    const tokens = getSpotifyTokens();
+    if (tokens?.access_token) {
+      setIsConnected(true);
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/status`);
+      const res = await fetch(`${API_BASE}?action=status`);
       const data = await res.json();
-      setIsConnected(data.configured);
+      setIsConnected(data.configured && !!tokens);
     } catch {
       setIsConnected(false);
     }
   };
 
   const fetchSummary = async () => {
+    const tokens = getSpotifyTokens();
+    if (!tokens?.access_token) {
+      setIsConnected(false);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/summary`);
+      const res = await fetch(`${API_BASE}?action=summary`, {
+        headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+      });
       const data = await res.json();
+
+      if (data.needsReauth) {
+        localStorage.removeItem('looops_spotify_tokens');
+        setIsConnected(false);
+        setLoading(false);
+        return;
+      }
 
       if (data.source === "spotify" && data.data) {
         setSummary(data.data);
@@ -87,16 +117,8 @@ export function SpotifyWidget() {
     }
   };
 
-  const handleConnect = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/auth`);
-      const data = await res.json();
-      if (data.authUrl) {
-        window.open(data.authUrl, "_blank");
-      }
-    } catch (err) {
-      console.error("Failed to get auth URL:", err);
-    }
+  const handleConnect = () => {
+    window.location.href = '/api/oauth?provider=spotify&action=auth';
   };
 
   // Not connected state

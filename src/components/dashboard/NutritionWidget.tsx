@@ -1,5 +1,6 @@
 // Nutrition Widget - Calories, water, weight tracking
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useHealthData } from "../../hooks/useHealthData";
 
 interface NutritionData {
   caloriesIn: number;
@@ -9,58 +10,19 @@ interface NutritionData {
   weightUnit?: string;
 }
 
-interface WeeklyData {
-  caloriesIn: number;
-  weight?: number;
-}
-
 export function NutritionWidget() {
-  const [data, setData] = useState<NutritionData | null>(null);
-  const [weeklyAvg, setWeeklyAvg] = useState<WeeklyData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: healthData, isLoading, error, refetch } = useHealthData();
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
+  // Map health data to nutrition fields
+  const data: NutritionData | null = healthData?.today ? {
+    caloriesIn: healthData.today.caloriesIn || 0,
+    caloriesBurned: healthData.today.caloriesBurned || 0,
+    waterOz: healthData.today.waterOz || 0,
+    weight: healthData.today.weightKg ? healthData.today.weightKg * 2.205 : undefined,
+    weightUnit: "lbs",
+  } : null;
 
-    try {
-      const response = await fetch("/api/health/summary");
-      const result = await response.json();
-
-      if (result.source === "local" || result.data === null) {
-        setError("Connect Fitbit via IFTTT");
-        setData(null);
-      } else {
-        // Map the health data to nutrition fields
-        const today = result.data.today;
-        setData({
-          caloriesIn: today.caloriesIn || 0,
-          caloriesBurned: today.caloriesBurned || 0,
-          waterOz: today.waterOz || 0,
-          weight: today.weight,
-          weightUnit: today.weightUnit || "lbs",
-        });
-        if (result.data.weeklyAvg) {
-          setWeeklyAvg({
-            caloriesIn: result.data.weeklyAvg.caloriesIn || 0,
-            weight: result.data.weeklyAvg.weight,
-          });
-        }
-      }
-    } catch {
-      setError("Server offline");
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const weeklyAvg = healthData?.weeklyAvg;
 
   if (isLoading && !data) {
     return (
@@ -76,7 +38,7 @@ export function NutritionWidget() {
       <div className="fitbit-widget fitbit-widget--error">
         <span className="fitbit-error-icon">🥗</span>
         <p>{error}</p>
-        <button className="fitbit-retry-btn" onClick={fetchData}>Retry</button>
+        <button className="fitbit-retry-btn" onClick={refetch}>Retry</button>
       </div>
     );
   }
@@ -152,12 +114,12 @@ export function NutritionWidget() {
       </div>
 
       {/* Weekly Trend */}
-      {weeklyAvg && weeklyAvg.weight && data.weight && (
+      {weeklyAvg && (weeklyAvg as any).weight && data.weight && (
         <div className="fitbit-footer">
           <span className="fitbit-avg">
-            {data.weight > weeklyAvg.weight ? "↑" : data.weight < weeklyAvg.weight ? "↓" : "→"}
+            {data.weight > (weeklyAvg as any).weight ? "↑" : data.weight < (weeklyAvg as any).weight ? "↓" : "→"}
             {" "}
-            {Math.abs(data.weight - weeklyAvg.weight).toFixed(1)} {data.weightUnit} vs avg
+            {Math.abs(data.weight - (weeklyAvg as any).weight).toFixed(1)} {data.weightUnit} vs avg
           </span>
         </div>
       )}

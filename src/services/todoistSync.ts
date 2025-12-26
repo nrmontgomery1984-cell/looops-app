@@ -48,14 +48,46 @@ export async function checkTodoistStatus(): Promise<{
 }
 
 /**
+ * Get Todoist access token from localStorage
+ */
+function getTodoistToken(): string | null {
+  try {
+    const stored = localStorage.getItem('looops_todoist_tokens');
+    if (stored) {
+      const tokens = JSON.parse(stored);
+      return tokens.access_token || null;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
+
+/**
  * Full sync from Todoist
  */
 export async function syncFromTodoist(): Promise<TodoistSyncResult | null> {
   try {
-    const res = await fetch(`${API_BASE}/sync`);
+    const token = getTodoistToken();
+    if (!token) {
+      console.log("No Todoist token found. Connect Todoist in Integrations.");
+      return null;
+    }
+
+    const res = await fetch(`${API_BASE}/sync`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
     const data = await res.json();
 
     if (data.source === "local" || !data.data) {
+      return null;
+    }
+
+    // Handle token expiration
+    if (data.needsReauth) {
+      localStorage.removeItem('looops_todoist_tokens');
       return null;
     }
 
@@ -71,7 +103,12 @@ export async function syncFromTodoist(): Promise<TodoistSyncResult | null> {
  */
 export async function getTodayTasks(): Promise<TodoistTask[] | null> {
   try {
-    const res = await fetch(`${API_BASE}/tasks/today`);
+    const token = getTodoistToken();
+    if (!token) return null;
+
+    const res = await fetch(`${API_BASE}/tasks/today`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
     const data = await res.json();
 
     if (data.source === "local" || !data.data) {
@@ -90,7 +127,12 @@ export async function getTodayTasks(): Promise<TodoistTask[] | null> {
  */
 export async function getTasksByLoop(loop: LoopId): Promise<TodoistTask[] | null> {
   try {
-    const res = await fetch(`${API_BASE}/tasks/loop/${loop}`);
+    const token = getTodoistToken();
+    if (!token) return null;
+
+    const res = await fetch(`${API_BASE}/tasks/loop/${loop}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
     const data = await res.json();
 
     if (data.source === "local" || !data.data) {

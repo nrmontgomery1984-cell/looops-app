@@ -23,6 +23,7 @@ export type WidgetType =
   | "google_calendar"
   | "spotify"
   | "wealth"
+  | "budget"
   | "media"
   | "sleep_readiness"
   | "activity"
@@ -247,6 +248,15 @@ export const WIDGET_DEFINITIONS: Record<WidgetType, WidgetDefinition> = {
     defaultSettings: {
       period: 30,
     },
+  },
+  budget: {
+    type: "budget",
+    name: "Budget",
+    description: "Monthly budget tracking and spending categories",
+    icon: "📊",
+    defaultSize: "large",
+    availableSizes: ["medium", "large", "full"],
+    defaultSettings: {},
   },
   media: {
     type: "media",

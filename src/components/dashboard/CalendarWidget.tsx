@@ -1,11 +1,10 @@
 // Calendar Widget - Displays Google Calendar events
 // Shows today's events and upcoming events for the loop
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../../context";
 import {
   CalendarEvent,
-  CalendarInfo,
   LoopId,
   formatEventTime,
   formatEventDuration,
@@ -16,6 +15,19 @@ import {
 
 const API_BASE = "/api";
 
+// Get stored Google Calendar tokens
+function getCalendarTokens(): { access_token: string } | null {
+  try {
+    const stored = localStorage.getItem('looops_google_calendar_tokens');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
+
 interface CalendarWidgetProps {
   loop?: LoopId;
   daysAhead?: number;
@@ -23,7 +35,7 @@ interface CalendarWidgetProps {
 
 export function CalendarWidget({ loop, daysAhead = 7 }: CalendarWidgetProps) {
   const { state, dispatch } = useApp();
-  const { events, calendars, loading, error, lastFetched } = state.calendar;
+  const { events, loading, error, lastFetched } = state.calendar;
 
   const [view, setView] = useState<"today" | "upcoming">("today");
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
@@ -42,7 +54,15 @@ export function CalendarWidget({ loop, daysAhead = 7 }: CalendarWidgetProps) {
 
   const checkStatus = async () => {
     try {
-      const res = await fetch(`${API_BASE}/calendar/status`);
+      const tokens = getCalendarTokens();
+      if (!tokens?.access_token) {
+        setIsConnected(false);
+        return;
+      }
+      // We have tokens, check if backend is configured
+      const res = await fetch(`${API_BASE}/calendar?action=status`, {
+        headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+      });
       const data = await res.json();
       setIsConnected(data.configured);
     } catch (err) {
@@ -51,19 +71,34 @@ export function CalendarWidget({ loop, daysAhead = 7 }: CalendarWidgetProps) {
   };
 
   const fetchEvents = async () => {
+    const tokens = getCalendarTokens();
+    if (!tokens?.access_token) {
+      setIsConnected(false);
+      return;
+    }
+
     dispatch({ type: "SET_CALENDAR_LOADING", payload: true });
 
     try {
+      const headers = { 'Authorization': `Bearer ${tokens.access_token}` };
+
       // Fetch events
-      const eventsRes = await fetch(`${API_BASE}/calendar/week`);
+      const eventsRes = await fetch(`${API_BASE}/calendar?action=week`, { headers });
       const eventsData = await eventsRes.json();
+
+      // Handle token expiration
+      if (eventsData.needsReauth) {
+        localStorage.removeItem('looops_google_calendar_tokens');
+        setIsConnected(false);
+        return;
+      }
 
       if (eventsData.source === "google" && eventsData.data) {
         dispatch({ type: "SET_CALENDAR_EVENTS", payload: eventsData.data });
       }
 
       // Fetch calendars list
-      const calendarsRes = await fetch(`${API_BASE}/calendar/calendars`);
+      const calendarsRes = await fetch(`${API_BASE}/calendar?action=calendars`, { headers });
       const calendarsData = await calendarsRes.json();
 
       if (calendarsData.source === "google" && calendarsData.data) {
@@ -77,16 +112,9 @@ export function CalendarWidget({ loop, daysAhead = 7 }: CalendarWidgetProps) {
     }
   };
 
-  const handleConnect = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/calendar/auth`);
-      const data = await res.json();
-      if (data.authUrl) {
-        window.open(data.authUrl, "_blank");
-      }
-    } catch (err) {
-      console.error("Failed to get auth URL:", err);
-    }
+  const handleConnect = () => {
+    // Redirect to consolidated OAuth endpoint
+    window.location.href = '/api/oauth?provider=google_calendar&action=auth';
   };
 
   // Filter events for this loop if specified

@@ -1,6 +1,6 @@
 // Task detail/edit modal (Todoist-style)
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Task,
   Project,
@@ -11,6 +11,9 @@ import {
   ALL_LOOPS,
   LOOP_DEFINITIONS,
   LOOP_COLORS,
+  RecurrencePattern,
+  RECURRENCE_PRESETS,
+  getRecurrenceLabel,
 } from "../../types";
 
 type TaskDetailModalProps = {
@@ -52,6 +55,43 @@ export function TaskDetailModal({
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Recurrence state
+  const [recurrencePreset, setRecurrencePreset] = useState<string>(() => {
+    if (!task.recurrence) return "";
+    // Try to match existing recurrence to a preset
+    const match = RECURRENCE_PRESETS.find(p => {
+      const r = task.recurrence!;
+      if (p.pattern.frequency !== r.frequency) return false;
+      if (p.pattern.interval !== r.interval) return false;
+      if (p.pattern.daysOfWeek && r.daysOfWeek) {
+        return JSON.stringify(p.pattern.daysOfWeek.sort()) === JSON.stringify(r.daysOfWeek.sort());
+      }
+      return !p.pattern.daysOfWeek && !r.daysOfWeek;
+    });
+    return match ? match.id : "custom";
+  });
+  const [customDays, setCustomDays] = useState<number[]>(task.recurrence?.daysOfWeek || []);
+  const [showCustomDays, setShowCustomDays] = useState(recurrencePreset === "custom" && (task.recurrence?.daysOfWeek?.length || 0) > 0);
+
+  // Build recurrence pattern from state
+  const getRecurrencePattern = (): RecurrencePattern | undefined => {
+    if (!recurrencePreset) return undefined;
+
+    if (recurrencePreset === "custom") {
+      if (customDays.length > 0) {
+        return {
+          frequency: "weekly",
+          interval: 1,
+          daysOfWeek: customDays,
+        };
+      }
+      return undefined;
+    }
+
+    const preset = RECURRENCE_PRESETS.find(p => p.id === recurrencePreset);
+    return preset?.pattern;
+  };
+
   const handleSave = () => {
     const updatedTask: Task = {
       ...task,
@@ -66,6 +106,7 @@ export function TaskDetailModal({
       estimateMinutes: estimateMinutes ? parseInt(estimateMinutes) : undefined,
       requiredState: requiredState || undefined,
       labels: selectedLabels.length > 0 ? selectedLabels : undefined,
+      recurrence: getRecurrencePattern(),
       updatedAt: new Date().toISOString(),
     };
     onSave(updatedTask);
@@ -307,6 +348,75 @@ export function TaskDetailModal({
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
+
+            {/* Recurrence */}
+            <div className="property-row">
+              <label>
+                <svg viewBox="0 0 24 24" fill="currentColor" className="property-icon">
+                  <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+                </svg>
+                Repeat
+              </label>
+              <select
+                value={recurrencePreset}
+                onChange={(e) => {
+                  setRecurrencePreset(e.target.value);
+                  if (e.target.value === "custom") {
+                    setShowCustomDays(true);
+                  } else {
+                    setShowCustomDays(false);
+                    setCustomDays([]);
+                  }
+                }}
+              >
+                <option value="">Does not repeat</option>
+                {RECURRENCE_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+                <option value="custom">Custom days...</option>
+              </select>
+            </div>
+
+            {/* Custom days picker */}
+            {showCustomDays && (
+              <div className="property-row property-row-days">
+                <label>
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="property-icon">
+                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" />
+                  </svg>
+                  Days
+                </label>
+                <div className="days-picker">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => (
+                    <button
+                      key={day}
+                      type="button"
+                      className={`day-btn ${customDays.includes(idx) ? "active" : ""}`}
+                      onClick={() => {
+                        setCustomDays(prev =>
+                          prev.includes(idx)
+                            ? prev.filter(d => d !== idx)
+                            : [...prev, idx].sort((a, b) => a - b)
+                        );
+                      }}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Show current recurrence if set */}
+            {task.recurrence && (
+              <div className="property-row recurrence-info">
+                <span className="recurrence-badge">
+                  🔄 {getRecurrenceLabel(task.recurrence)}
+                </span>
+              </div>
+            )}
 
             {/* Time estimate */}
             <div className="property-row">

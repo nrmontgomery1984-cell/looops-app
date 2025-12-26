@@ -10,23 +10,23 @@ import {
   ALL_LOOPS,
   LOOP_COLORS,
   LOOP_DEFINITIONS,
+  DirectionalDocument,
 } from "../../types";
 import {
   generateGoalSuggestions,
   createGoalFromTemplate,
   decomposeAnnualToQuarterly,
   GoalSuggestion,
-  GoalTemplate,
-  GOAL_TEMPLATES,
 } from "../../engines/goalEngine";
 import { GoalSuggestionCard } from "./GoalSuggestionCard";
 
 type WizardStep = "intro" | "suggestions" | "customize" | "decompose" | "review";
 
 type AnnualGoalsWizardProps = {
-  prototype: UserPrototype;
+  prototype: UserPrototype | null;
   loopStates: Record<LoopId, LoopStateType>;
   existingGoals: GoalHierarchy;
+  directionalDocument?: DirectionalDocument | null;
   onComplete: (goals: Goal[]) => void;
   onCancel: () => void;
 };
@@ -35,19 +35,23 @@ export function AnnualGoalsWizard({
   prototype,
   loopStates,
   existingGoals,
+  directionalDocument,
   onComplete,
   onCancel,
 }: AnnualGoalsWizardProps) {
+  // Guard against missing archetypeBlend
+  const hasValidArchetype = prototype?.archetypeBlend?.primary && prototype?.archetypeBlend?.secondary;
+
   const [step, setStep] = useState<WizardStep>("intro");
   const [selectedSuggestions, setSelectedSuggestions] = useState<GoalSuggestion[]>([]);
   const [customGoals, setCustomGoals] = useState<Goal[]>([]);
   const [activeLoop, setActiveLoop] = useState<LoopId | null>(null);
   const [showDecomposition, setShowDecomposition] = useState<Record<string, boolean>>({});
 
-  // Generate suggestions based on prototype
+  // Generate suggestions based on prototype and directional document
   const suggestions = useMemo(() => {
-    return generateGoalSuggestions(prototype, loopStates, existingGoals, 20);
-  }, [prototype, loopStates, existingGoals]);
+    return generateGoalSuggestions(prototype, loopStates, existingGoals, directionalDocument, 20);
+  }, [prototype, loopStates, existingGoals, directionalDocument]);
 
   // Group suggestions by loop
   const suggestionsByLoop = useMemo(() => {
@@ -88,7 +92,7 @@ export function AnnualGoalsWizard({
         (g) => g.title === suggestion.template.title
       );
       if (existing) return existing;
-      return createGoalFromTemplate(suggestion.template, prototype.userId);
+      return createGoalFromTemplate(suggestion.template, prototype?.userId || "anonymous");
     });
     setCustomGoals(goals);
     return goals;
@@ -123,10 +127,7 @@ export function AnnualGoalsWizard({
         customGoals.forEach((goal) => {
           allGoals.push(goal);
           if (showDecomposition[goal.id]) {
-            const template = GOAL_TEMPLATES.find(
-              (t) => t.title === goal.title
-            );
-            const quarterlyGoals = decomposeAnnualToQuarterly(goal, template);
+            const quarterlyGoals = decomposeAnnualToQuarterly(goal);
             // Update parent with child IDs
             goal.childGoalIds = quarterlyGoals.map((q) => q.id);
             allGoals.push(...quarterlyGoals);
@@ -159,28 +160,37 @@ export function AnnualGoalsWizard({
     <div className="wizard-step wizard-step--intro">
       <div className="wizard-step__icon">🎯</div>
       <h2 className="wizard-step__title">Set Your Annual Goals</h2>
-      <p className="wizard-step__description">
-        Based on your <strong>{prototype.archetypeBlend.name}</strong> archetype,
-        we'll suggest goals that align with your natural strengths and values.
-      </p>
+      {hasValidArchetype ? (
+        <>
+          <p className="wizard-step__description">
+            Based on your <strong>{prototype.archetypeBlend.name}</strong> archetype,
+            we'll suggest goals that align with your natural strengths and values.
+          </p>
 
-      <div className="wizard-intro__archetype">
-        <div className="wizard-intro__archetype-blend">
-          <div className="wizard-intro__archetype-primary">
-            {prototype.archetypeBlend.primary}
-            <span className="wizard-intro__archetype-score">
-              {prototype.archetypeBlend.scores[prototype.archetypeBlend.primary]}%
-            </span>
+          <div className="wizard-intro__archetype">
+            <div className="wizard-intro__archetype-blend">
+              <div className="wizard-intro__archetype-primary">
+                {prototype.archetypeBlend.primary}
+                <span className="wizard-intro__archetype-score">
+                  {prototype.archetypeBlend.scores[prototype.archetypeBlend.primary]}%
+                </span>
+              </div>
+              <span className="wizard-intro__archetype-separator">+</span>
+              <div className="wizard-intro__archetype-secondary">
+                {prototype.archetypeBlend.secondary}
+                <span className="wizard-intro__archetype-score">
+                  {prototype.archetypeBlend.scores[prototype.archetypeBlend.secondary]}%
+                </span>
+              </div>
+            </div>
           </div>
-          <span className="wizard-intro__archetype-separator">+</span>
-          <div className="wizard-intro__archetype-secondary">
-            {prototype.archetypeBlend.secondary}
-            <span className="wizard-intro__archetype-score">
-              {prototype.archetypeBlend.scores[prototype.archetypeBlend.secondary]}%
-            </span>
-          </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <p className="wizard-step__description">
+          Let's set some goals based on your current loop states.
+          Complete the identity questionnaire to get personalized suggestions.
+        </p>
+      )}
 
       <div className="wizard-intro__loops">
         <h3>Your Loop States</h3>
@@ -391,15 +401,13 @@ export function AnnualGoalsWizard({
     <div className="wizard-step wizard-step--decompose">
       <h2 className="wizard-step__title">Break Down Your Goals</h2>
       <p className="wizard-step__description">
-        Choose which goals to decompose into quarterly milestones.
+        Create quarterly milestones to track progress. You'll customize each milestone after creation.
       </p>
 
       <div className="wizard-decompose__list">
         {customGoals.map((goal) => {
           const color = LOOP_COLORS[goal.loop];
           const def = LOOP_DEFINITIONS[goal.loop];
-          const template = GOAL_TEMPLATES.find((t) => t.title === goal.title);
-          const quarterlyGoals = decomposeAnnualToQuarterly(goal, template);
           const isExpanded = showDecomposition[goal.id];
 
           return (
@@ -429,22 +437,33 @@ export function AnnualGoalsWizard({
                     }))
                   }
                 >
-                  {isExpanded ? "Hide Quarters" : "Show Quarters"}
+                  {isExpanded ? "Skip Quarters" : "Add Quarters"}
                 </button>
               </div>
 
               {isExpanded && (
                 <div className="wizard-decompose__quarters">
-                  {quarterlyGoals.map((q, idx) => (
-                    <div key={q.id} className="wizard-decompose__quarter">
-                      <span className="wizard-decompose__quarter-label">
-                        Q{idx + 1}
-                      </span>
-                      <span className="wizard-decompose__quarter-title">
-                        {q.title}
-                      </span>
+                  <p className="wizard-decompose__hint">
+                    4 quarterly milestones will be created. Edit their titles after setup to define your specific plan.
+                  </p>
+                  <div className="wizard-decompose__quarter-list">
+                    <div className="wizard-decompose__quarter">
+                      <span className="wizard-decompose__quarter-label">Q1</span>
+                      <span className="wizard-decompose__quarter-title">Jan - Mar milestone</span>
                     </div>
-                  ))}
+                    <div className="wizard-decompose__quarter">
+                      <span className="wizard-decompose__quarter-label">Q2</span>
+                      <span className="wizard-decompose__quarter-title">Apr - Jun milestone</span>
+                    </div>
+                    <div className="wizard-decompose__quarter">
+                      <span className="wizard-decompose__quarter-label">Q3</span>
+                      <span className="wizard-decompose__quarter-title">Jul - Sep milestone</span>
+                    </div>
+                    <div className="wizard-decompose__quarter">
+                      <span className="wizard-decompose__quarter-label">Q4</span>
+                      <span className="wizard-decompose__quarter-title">Oct - Dec milestone</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

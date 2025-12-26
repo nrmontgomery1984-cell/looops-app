@@ -1,5 +1,5 @@
-// Goal Breakdown Wizard - Smart goal decomposition with context-aware suggestions
-// Enhanced with archetype-aware personalization
+// Goal Breakdown Wizard - Manual goal decomposition with customizable milestones
+// User defines their own milestones for maximum flexibility
 
 import React, { useState, useMemo } from "react";
 import {
@@ -9,24 +9,15 @@ import {
   LOOP_DEFINITIONS,
   getNextTimeframe,
   Task,
-  UserPrototype,
 } from "../../types";
-import {
-  generateSmartBreakdown,
-  generatePersonalizedBreakdown,
-  getArchetypeBreakdownHints,
-  BreakdownSuggestion,
-} from "../../engines/breakdownEngine";
-import {
-  BREAKDOWN_STRATEGIES,
-  getRandomMotivation,
-} from "../../engines/voiceEngine";
-import { useApp } from "../../context";
 
-type WizardSuggestion = BreakdownSuggestion & {
+type WizardSuggestion = {
+  id: string;
+  title: string;
+  customTitle: string;
+  targetDate: string;
   selected: boolean;
   addToLoop: boolean;
-  customTitle: string;
 };
 
 type GoalBreakdownWizardProps = {
@@ -46,13 +37,82 @@ function getTimeframeLabel(timeframe: GoalTimeframe): string {
   }
 }
 
-// Get effort badge color
-function getEffortColor(effort: "low" | "medium" | "high"): string {
-  switch (effort) {
-    case "low": return "#73A58C";    // Sage
-    case "medium": return "#F4B942"; // Amber
-    case "high": return "#F27059";   // Coral
+// Progress phases for breaking down goals
+const PROGRESS_PHASES = {
+  quarterly: [
+    { phase: "Foundation", description: "Set up systems and establish baseline" },
+    { phase: "Build momentum", description: "Take consistent action and track progress" },
+    { phase: "Push through", description: "Overcome obstacles and stay committed" },
+    { phase: "Finish strong", description: "Complete the goal and celebrate" },
+  ],
+  monthly: [
+    { phase: "Plan & prepare", description: "Define approach and gather resources" },
+    { phase: "Execute", description: "Take action and build habits" },
+    { phase: "Review & adjust", description: "Evaluate progress and refine" },
+  ],
+  weekly: [
+    { phase: "Quick win", description: "Start with an easy action" },
+    { phase: "Core work", description: "Focus on the main task" },
+    { phase: "Deepen", description: "Go deeper or expand scope" },
+    { phase: "Consolidate", description: "Lock in progress" },
+  ],
+};
+
+// Get milestone target dates based on timeframe
+function getMilestoneDefaults(_parentGoal: Goal, timeframe: GoalTimeframe): { title: string; targetDate: string }[] {
+  const now = new Date();
+  const milestones: { title: string; targetDate: string }[] = [];
+
+  if (timeframe === "quarterly") {
+    const year = now.getFullYear();
+    const phases = PROGRESS_PHASES.quarterly;
+    const quarters = [
+      { label: "Q1", period: "Jan-Mar", end: `${year}-03-31` },
+      { label: "Q2", period: "Apr-Jun", end: `${year}-06-30` },
+      { label: "Q3", period: "Jul-Sep", end: `${year}-09-30` },
+      { label: "Q4", period: "Oct-Dec", end: `${year}-12-31` },
+    ];
+    quarters.forEach((q, idx) => {
+      milestones.push({
+        title: `${q.label}: ${phases[idx].phase}`,
+        targetDate: q.end
+      });
+    });
+  } else if (timeframe === "monthly") {
+    const phases = PROGRESS_PHASES.monthly;
+    for (let i = 0; i < 3; i++) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() + i + 1);
+      date.setDate(0); // Last day of month
+      const monthName = date.toLocaleDateString("en-US", { month: "long" });
+      milestones.push({
+        title: `${monthName}: ${phases[i].phase}`,
+        targetDate: date.toISOString().split("T")[0]
+      });
+    }
+  } else if (timeframe === "weekly") {
+    const phases = PROGRESS_PHASES.weekly;
+    for (let i = 0; i < 4; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + ((i + 1) * 7));
+      milestones.push({
+        title: `Week ${i + 1}: ${phases[i].phase}`,
+        targetDate: date.toISOString().split("T")[0]
+      });
+    }
+  } else if (timeframe === "daily") {
+    for (let i = 1; i <= 7; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + i);
+      const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+      milestones.push({
+        title: `${dayName}: [Your action]`,
+        targetDate: date.toISOString().split("T")[0]
+      });
+    }
   }
+
+  return milestones;
 }
 
 export function GoalBreakdownWizard({
@@ -60,11 +120,6 @@ export function GoalBreakdownWizard({
   onCreateGoals,
   onClose,
 }: GoalBreakdownWizardProps) {
-  const { state } = useApp();
-  const prototype = state.user.prototype;
-  const archetype = prototype?.archetypeBlend?.primary;
-  const strategy = archetype ? BREAKDOWN_STRATEGIES[archetype] : null;
-
   const nextTimeframe = getNextTimeframe(parentGoal.timeframe);
 
   if (!nextTimeframe) {
@@ -84,45 +139,25 @@ export function GoalBreakdownWizard({
     );
   }
 
-  // Generate smart suggestions - personalized if prototype exists
+  // Generate empty placeholder milestones for user to customize
   const initialSuggestions = useMemo(() => {
-    let smartSuggestions: BreakdownSuggestion[];
+    const defaults = getMilestoneDefaults(parentGoal, nextTimeframe);
 
-    if (prototype) {
-      // Use personalized breakdown with archetype awareness
-      const personalized = generatePersonalizedBreakdown(parentGoal, prototype, nextTimeframe);
-      smartSuggestions = personalized.milestones.map((m, idx) => ({
-        id: `breakdown_${idx}_${Date.now()}`,
-        title: m.title,
-        description: m.description,
-        actionVerb: m.actionVerb,
-        targetDate: m.targetDate || new Date().toISOString().split("T")[0],
-        estimatedEffort: m.effort,
-        keyActions: m.keyActions.map(a => a.action),
-        motivationalNote: m.motivationalNote,
-      }));
-    } else {
-      // Fallback to generic breakdown
-      smartSuggestions = generateSmartBreakdown(parentGoal, nextTimeframe);
-    }
-
-    return smartSuggestions.map((s, idx) => ({
-      ...s,
+    return defaults.map((m, idx) => ({
+      id: `milestone_${idx}_${Date.now()}`,
+      title: m.title,
+      customTitle: m.title,
+      targetDate: m.targetDate,
       selected: idx < 4, // Pre-select first 4
-      addToLoop: idx === 0, // Add first one to loop by default
-      customTitle: s.title,
+      addToLoop: false,
     }));
-  }, [parentGoal, nextTimeframe, prototype]);
+  }, [parentGoal, nextTimeframe]);
 
   const [suggestions, setSuggestions] = useState<WizardSuggestion[]>(initialSuggestions);
   const [customTitle, setCustomTitle] = useState("");
-  const [showKeyActions, setShowKeyActions] = useState<string | null>(null);
 
   const loopColor = LOOP_COLORS[parentGoal.loop];
   const loopDef = LOOP_DEFINITIONS[parentGoal.loop];
-
-  // Get archetype-specific hints
-  const archetypeHints = archetype ? getArchetypeBreakdownHints(parentGoal, archetype) : null;
 
   const selectedCount = suggestions.filter((s) => s.selected).length;
   const addToLoopCount = suggestions.filter((s) => s.selected && s.addToLoop).length;
@@ -165,11 +200,7 @@ export function GoalBreakdownWizard({
         id: `custom_${Date.now()}`,
         title: customTitle.trim(),
         customTitle: customTitle.trim(),
-        description: `Custom milestone for: ${parentGoal.title}`,
-        actionVerb: "Complete",
         targetDate: nextWeek.toISOString().split("T")[0],
-        estimatedEffort: "medium",
-        keyActions: ["Define success criteria", "Take action", "Review results"],
         selected: true,
         addToLoop: false,
       },
@@ -184,9 +215,9 @@ export function GoalBreakdownWizard({
 
     // Create goals
     const newGoals: Goal[] = selectedSuggestions.map((s, idx) => ({
-      id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `goal_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
       title: s.customTitle || s.title,
-      description: s.description,
+      description: `Milestone for: ${parentGoal.title}`,
       loop: parentGoal.loop,
       timeframe: nextTimeframe,
       parentGoalId: parentGoal.id,
@@ -205,11 +236,11 @@ export function GoalBreakdownWizard({
       .map((s, idx) => {
         const goalId = newGoals.find((g) => g.title === (s.customTitle || s.title))?.id;
         return {
-          id: `task_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `task_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 11)}`,
           title: s.customTitle || s.title,
-          description: s.keyActions ? `Key actions:\n• ${s.keyActions.join("\n• ")}` : `Goal: ${parentGoal.title}`,
+          description: `Goal: ${parentGoal.title}`,
           loop: parentGoal.loop,
-          priority: s.estimatedEffort === "high" ? 1 : s.estimatedEffort === "medium" ? 2 : 3,
+          priority: 2,
           status: "todo" as const,
           order: idx,
           dueDate: s.targetDate,
@@ -248,30 +279,10 @@ export function GoalBreakdownWizard({
           <span className="goal-breakdown-to">{getTimeframeLabel(nextTimeframe)}</span>
         </div>
 
-        {/* Archetype-aware breakdown context */}
-        {strategy && (
-          <div className="goal-breakdown-archetype-context">
-            <div className="goal-breakdown-archetype-badge">
-              Breaking down as a <strong>{archetype}</strong>
-            </div>
-            <p className="goal-breakdown-archetype-approach">
-              {strategy.approachName}: {strategy.description}
-            </p>
-            <p className="goal-breakdown-motivation">
-              "{getRandomMotivation(archetype!)}"
-            </p>
-          </div>
-        )}
-
         <div className="goal-breakdown-suggestions">
-          <h3>
-            {strategy ? `${archetype}'s` : "Smart"} {getTimeframeLabel(nextTimeframe)} Milestones
-          </h3>
+          <h3>{getTimeframeLabel(nextTimeframe)} Milestones</h3>
           <p className="goal-breakdown-hint">
-            {archetypeHints
-              ? archetypeHints[1] // Show the phase style hint
-              : "These milestones are tailored to your goal type."
-            } Edit titles or add your own.
+            Edit titles to define your specific milestones, or add custom ones below.
           </p>
 
           <div className="goal-breakdown-list">
@@ -297,42 +308,18 @@ export function GoalBreakdownWizard({
                         value={suggestion.customTitle}
                         onChange={(e) => updateTitle(suggestion.id, e.target.value)}
                         className="goal-breakdown-item-title"
-                        placeholder="Milestone title..."
+                        placeholder="Enter your milestone..."
                       />
-                      <span
-                        className="goal-breakdown-effort-badge"
-                        style={{ backgroundColor: getEffortColor(suggestion.estimatedEffort) }}
-                        title={`${suggestion.estimatedEffort} effort`}
-                      >
-                        {suggestion.estimatedEffort === "high" ? "!" : suggestion.estimatedEffort === "medium" ? "~" : "·"}
-                      </span>
                     </div>
 
                     <div className="goal-breakdown-item-meta">
-                      <span className="goal-breakdown-item-verb">{suggestion.actionVerb}</span>
                       <span className="goal-breakdown-item-date">
                         Due: {new Date(suggestion.targetDate + "T12:00:00").toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
                         })}
                       </span>
-                      {suggestion.keyActions && suggestion.keyActions.length > 0 && (
-                        <button
-                          className="goal-breakdown-show-actions"
-                          onClick={() => setShowKeyActions(showKeyActions === suggestion.id ? null : suggestion.id)}
-                        >
-                          {showKeyActions === suggestion.id ? "Hide" : "Show"} actions
-                        </button>
-                      )}
                     </div>
-
-                    {showKeyActions === suggestion.id && suggestion.keyActions && (
-                      <ul className="goal-breakdown-key-actions">
-                        {suggestion.keyActions.map((action, idx) => (
-                          <li key={idx}>{action}</li>
-                        ))}
-                      </ul>
-                    )}
                   </div>
                 </div>
 

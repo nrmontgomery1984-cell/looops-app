@@ -4,6 +4,21 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Exclude the api folder from Vite - these are Vercel serverless functions
+  server: {
+    watch: {
+      ignored: ['**/api/**'],
+    },
+  },
+  build: {
+    rollupOptions: {
+      external: [/googleapis/],
+    },
+  },
+  optimizeDeps: {
+    exclude: ['googleapis'],
+    entries: ['src/**/*.{ts,tsx}'], // Only analyze src folder
+  },
   plugins: [
     react(),
     VitePWA({

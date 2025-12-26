@@ -14,7 +14,10 @@ import {
   getSpotifyAuthUrl,
   IntegrationStatus,
   FitbitHealthData,
+  TodoistSyncTask,
 } from "../../services/integrations";
+import { useApp } from "../../context";
+import { Task, LoopId } from "../../types";
 
 // Icons for each integration
 const FitbitIcon = () => (
@@ -182,7 +185,37 @@ function IntegrationCard({
   );
 }
 
+// Convert Todoist task to app Task format
+function convertTodoistTask(todoistTask: TodoistSyncTask): Task {
+  const validLoops: LoopId[] = ['Health', 'Wealth', 'Family', 'Work', 'Fun', 'Maintenance', 'Meaning'];
+  const loop = validLoops.includes(todoistTask.loop as LoopId)
+    ? (todoistTask.loop as LoopId)
+    : 'Work';
+
+  return {
+    id: `todoist_${todoistTask.id}`,
+    title: todoistTask.title,
+    description: todoistTask.description || undefined,
+    loop,
+    priority: todoistTask.priority as 1 | 2 | 3 | 4,
+    status: 'todo',
+    dueDate: todoistTask.dueDate || undefined,
+    recurrence: todoistTask.isRecurring
+      ? { frequency: 'custom' as const, interval: 1 }
+      : undefined,
+    labels: todoistTask.labels,
+    source: 'todoist',
+    externalId: todoistTask.id,
+    externalUrl: todoistTask.url,
+    createdAt: todoistTask.createdAt,
+    updatedAt: new Date().toISOString(),
+    order: todoistTask.order,
+    parentId: todoistTask.parentId ? `todoist_${todoistTask.parentId}` : undefined,
+  };
+}
+
 export function IntegrationsScreen() {
+  const { state, dispatch } = useApp();
   const [statuses, setStatuses] = useState<{
     fitbit: IntegrationStatus | null;
     todoist: IntegrationStatus | null;
@@ -251,8 +284,21 @@ export function IntegrationsScreen() {
     setSyncingService("todoist");
     try {
       const result = await syncTodoist();
-      if (result.success) {
+      if (result.success && result.tasks) {
+        // Convert Todoist tasks to app format
+        const convertedTasks = result.tasks.map(convertTodoistTask);
+
+        // Merge with existing tasks:
+        // - Keep non-Todoist tasks as-is
+        // - Replace Todoist tasks with fresh data
+        const nonTodoistTasks = state.tasks.items.filter((t: Task) => t.source !== 'todoist');
+        const mergedTasks = [...nonTodoistTasks, ...convertedTasks];
+
+        // Update task store
+        dispatch({ type: 'SET_TASKS', payload: mergedTasks });
+
         setTodoistTaskCount(result.taskCount || 0);
+        console.log(`Synced ${convertedTasks.length} Todoist tasks`);
       }
     } catch (error) {
       console.error("Todoist sync failed:", error);

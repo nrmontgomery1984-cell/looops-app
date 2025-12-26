@@ -1,7 +1,6 @@
-// Calendar View - Monthly calendar with tasks
-
-import React, { useState, useMemo } from "react";
-import { Task, LoopId, LOOP_DEFINITIONS, LOOP_COLORS, LoopStateType } from "../../types";
+// Calendar View - Shows Google Calendar events and tasks side-by-side per day
+import { useState, useEffect } from "react";
+import { Task, LoopId, LoopStateType, LOOP_DEFINITIONS, LOOP_COLORS } from "../../types";
 
 type CalendarViewProps = {
   tasks: Task[];
@@ -11,242 +10,225 @@ type CalendarViewProps = {
   onAddTask: (date: string) => void;
 };
 
-// Get urgency color for a task based on due date
-function getTaskUrgencyColor(task: Task, referenceDate: Date): string {
-  if (!task.dueDate) return "#737390"; // Navy Gray
+interface CalendarEvent {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  allDay: boolean;
+  location?: string;
+  calendarName: string;
+  color?: string;
+}
 
+function getCalendarTokens(): { access_token: string } | null {
+  try {
+    const stored = localStorage.getItem('looops_google_calendar_tokens');
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return null;
+}
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function getTaskUrgencyColor(task: Task): string {
+  if (!task.dueDate) return "#737390";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const dueDate = new Date(task.dueDate);
   dueDate.setHours(0, 0, 0, 0);
-  referenceDate.setHours(0, 0, 0, 0);
-  const daysDiff = Math.floor((dueDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysDiff = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysDiff < 0) return "#F27059"; // Overdue - Coral
+  if (daysDiff === 0) return "#F4B942"; // Today - Amber
+  return "#73A58C"; // Future - Sage
+}
 
-  if (daysDiff < 0) return "#F27059"; // Coral - overdue
-  if (daysDiff <= 3) return "#F4B942"; // Amber - soon
-  return "#73A58C"; // Sage - ok
+function getPriorityLabel(priority: number): string {
+  switch (priority) {
+    case 1: return "P1";
+    case 2: return "P2";
+    case 3: return "P3";
+    case 4: return "P4";
+    default: return "";
+  }
 }
 
 export function CalendarView({
   tasks,
   loopStates,
   onSelectTask,
-  onSelectDate,
   onAddTask,
 }: CalendarViewProps) {
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Get calendar data for the current month
-  const calendarData = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
+  useEffect(() => {
+    checkConnectionAndFetch();
+  }, []);
 
-    // First day of month
-    const firstDay = new Date(year, month, 1);
-    // Last day of month
-    const lastDay = new Date(year, month + 1, 0);
-
-    // Start from Sunday of the week containing the first day
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - startDate.getDay());
-
-    // End on Saturday of the week containing the last day
-    const endDate = new Date(lastDay);
-    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-
-    const weeks: Date[][] = [];
-    let currentWeek: Date[] = [];
-    const current = new Date(startDate);
-
-    while (current <= endDate) {
-      currentWeek.push(new Date(current));
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-      current.setDate(current.getDate() + 1);
+  const checkConnectionAndFetch = async () => {
+    const tokens = getCalendarTokens();
+    if (!tokens?.access_token) {
+      setIsConnected(false);
+      return;
     }
 
-    return { weeks, month, year };
-  }, [currentMonth]);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/calendar?action=week', {
+        headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+      });
+      const data = await res.json();
+
+      if (data.needsReauth) {
+        localStorage.removeItem('looops_google_calendar_tokens');
+        setIsConnected(false);
+        return;
+      }
+
+      if (data.source === 'google' && data.data) {
+        setEvents(data.data);
+        setIsConnected(true);
+      } else {
+        setIsConnected(false);
+      }
+    } catch {
+      setIsConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConnect = () => {
+    window.location.href = '/api/oauth?provider=google_calendar&action=auth';
+  };
+
+  // Group events by date
+  const eventsByDate: Record<string, CalendarEvent[]> = {};
+  events.forEach(event => {
+    const dateKey = event.startTime.split('T')[0];
+    if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+    eventsByDate[dateKey].push(event);
+  });
 
   // Group tasks by date
-  const tasksByDate = useMemo(() => {
-    const map: Record<string, Task[]> = {};
-    tasks.forEach((task) => {
-      if (task.dueDate && task.status !== "done" && task.status !== "dropped") {
-        const dateKey = task.dueDate.split("T")[0];
-        if (!map[dateKey]) map[dateKey] = [];
-        map[dateKey].push(task);
-      }
-    });
-    return map;
-  }, [tasks]);
+  const tasksByDate: Record<string, Task[]> = {};
+  const activeTasks = tasks.filter(t => t.status !== 'done' && t.status !== 'dropped');
+  activeTasks.forEach(task => {
+    if (task.dueDate) {
+      const dateKey = task.dueDate.split('T')[0];
+      if (!tasksByDate[dateKey]) tasksByDate[dateKey] = [];
+      tasksByDate[dateKey].push(task);
+    }
+  });
 
-  // Navigate months
-  const goToPrevMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
+  // Sort tasks within each day by priority
+  Object.keys(tasksByDate).forEach(date => {
+    tasksByDate[date].sort((a, b) => (a.priority || 4) - (b.priority || 4));
+  });
 
-  const goToNextMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
+  // Get next 7 days
+  const today = new Date().toISOString().split('T')[0];
+  const days: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    days.push(d.toISOString().split('T')[0]);
+  }
 
-  const goToToday = () => {
-    setCurrentMonth(new Date());
-    const today = new Date().toISOString().split("T")[0];
-    setSelectedDate(today);
-    onSelectDate(today);
-  };
+  // Get overdue tasks (before today)
+  const overdueTasks = activeTasks.filter(t => {
+    if (!t.dueDate) return false;
+    return t.dueDate.split('T')[0] < today;
+  }).sort((a, b) => (a.priority || 4) - (b.priority || 4));
 
-  // Handle date selection
-  const handleDateClick = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0];
-    setSelectedDate(dateStr);
-    onSelectDate(dateStr);
-  };
+  // Render day content (events + tasks side by side)
+  const renderDayContent = (day: string, isToday: boolean) => {
+    const dayEvents = eventsByDate[day] || [];
+    const dayTasks = tasksByDate[day] || [];
+    const dateObj = new Date(day + 'T12:00:00');
 
-  // Check if date is today
-  const isToday = (date: Date) => {
-    const today = new Date();
+    // Get loop state colors for visual indication
+    const getLoopStateIndicator = (loopId: LoopId) => {
+      const state = loopStates[loopId]?.currentState || 'MAINTAIN';
+      if (state === 'BUILD') return '🔥';
+      if (state === 'RECOVER') return '⚡';
+      if (state === 'HIBERNATE') return '💤';
+      return null;
+    };
+
     return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
-
-  // Check if date is in current month
-  const isCurrentMonth = (date: Date) => {
-    return date.getMonth() === calendarData.month;
-  };
-
-  // Get tasks for selected date
-  const selectedDateTasks = selectedDate ? tasksByDate[selectedDate] || [] : [];
-
-  const today = new Date();
-
-  return (
-    <div className="calendar-view">
-      <div className="calendar-container">
-        {/* Calendar Header */}
-        <div className="calendar-header">
-          <button className="calendar-nav-btn" onClick={goToPrevMonth}>
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-              <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-            </svg>
-          </button>
-          <div className="calendar-title">
-            <h3>
-              {currentMonth.toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}
-            </h3>
-            <button className="calendar-today-btn" onClick={goToToday}>
-              Today
-            </button>
-          </div>
-          <button className="calendar-nav-btn" onClick={goToNextMonth}>
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-              <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" />
-            </svg>
-          </button>
+      <div key={day} className={`calendar-day-row ${isToday ? 'today' : ''}`}>
+        <div className="calendar-day-label">
+          <span className="calendar-day-name">
+            {isToday ? 'Today' : dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
+          </span>
+          <span className="calendar-day-date">
+            {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
         </div>
 
-        {/* Weekday Headers */}
-        <div className="calendar-weekdays">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="calendar-weekday">
-              {day}
+        <div className="calendar-day-content">
+          {/* Events Column */}
+          <div className="calendar-events-column">
+            <div className="calendar-column-header">
+              <span className="calendar-column-icon">📅</span>
+              <span>Events</span>
+              {dayEvents.length > 0 && <span className="calendar-count">{dayEvents.length}</span>}
             </div>
-          ))}
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="calendar-grid">
-          {calendarData.weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="calendar-week">
-              {week.map((date, dayIndex) => {
-                const dateStr = date.toISOString().split("T")[0];
-                const dayTasks = tasksByDate[dateStr] || [];
-                const isSelected = selectedDate === dateStr;
-                const inCurrentMonth = isCurrentMonth(date);
-                const isTodayDate = isToday(date);
-
-                return (
+            {dayEvents.length === 0 ? (
+              <div className="calendar-empty-slot">No events</div>
+            ) : (
+              <div className="calendar-items">
+                {dayEvents.map(event => (
                   <div
-                    key={dayIndex}
-                    className={`calendar-day ${!inCurrentMonth ? "other-month" : ""} ${
-                      isTodayDate ? "today" : ""
-                    } ${isSelected ? "selected" : ""}`}
-                    onClick={() => handleDateClick(date)}
+                    key={event.id}
+                    className="calendar-event-item"
+                    style={{ borderLeftColor: event.color || '#4285f4' }}
                   >
-                    <span className="calendar-day-number">{date.getDate()}</span>
-                    {dayTasks.length > 0 && (
-                      <div className="calendar-day-tasks">
-                        {dayTasks.slice(0, 3).map((task, idx) => (
-                          <div
-                            key={task.id}
-                            className="calendar-task-dot"
-                            style={{
-                              backgroundColor: getTaskUrgencyColor(task, today),
-                            }}
-                            title={task.title}
-                          />
-                        ))}
-                        {dayTasks.length > 3 && (
-                          <span className="calendar-task-more">+{dayTasks.length - 3}</span>
-                        )}
-                      </div>
+                    <div className="calendar-event-time">
+                      {event.allDay ? 'All day' : formatTime(event.startTime)}
+                    </div>
+                    <div className="calendar-event-title">{event.title}</div>
+                    {event.location && (
+                      <div className="calendar-event-location">📍 {event.location}</div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-      {/* Selected Date Panel */}
-      <div className="calendar-detail-panel">
-        {selectedDate ? (
-          <>
-            <div className="calendar-detail-header">
-              <h4>
-                {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </h4>
+          {/* Tasks Column */}
+          <div className="calendar-tasks-column">
+            <div className="calendar-column-header">
+              <span className="calendar-column-icon">✓</span>
+              <span>Tasks</span>
+              {dayTasks.length > 0 && <span className="calendar-count">{dayTasks.length}</span>}
               <button
                 className="calendar-add-btn"
-                onClick={() => onAddTask(selectedDate)}
+                onClick={() => onAddTask(day)}
                 title="Add task"
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                </svg>
-                Add Task
+                +
               </button>
             </div>
-
-            {selectedDateTasks.length === 0 ? (
-              <div className="calendar-detail-empty">
-                <p>No tasks scheduled for this day</p>
-                <button
-                  className="calendar-add-task-btn"
-                  onClick={() => onAddTask(selectedDate)}
-                >
-                  Add a task
+            {dayTasks.length === 0 ? (
+              <div className="calendar-empty-slot">
+                <button className="calendar-add-task-inline" onClick={() => onAddTask(day)}>
+                  + Add task
                 </button>
               </div>
             ) : (
-              <div className="calendar-detail-tasks">
-                {selectedDateTasks.map((task) => {
+              <div className="calendar-items">
+                {dayTasks.map(task => {
                   const loop = LOOP_DEFINITIONS[task.loop];
                   const loopColor = LOOP_COLORS[task.loop];
-                  const urgencyColor = getTaskUrgencyColor(task, today);
+                  const stateIndicator = getLoopStateIndicator(task.loop);
 
                   return (
                     <div
@@ -254,40 +236,265 @@ export function CalendarView({
                       className="calendar-task-item"
                       onClick={() => onSelectTask(task.id)}
                     >
-                      <div
-                        className="calendar-task-urgency"
-                        style={{ backgroundColor: urgencyColor }}
-                      />
-                      <div className="calendar-task-content">
-                        <span className="calendar-task-title">{task.title}</span>
-                        <div className="calendar-task-meta">
-                          <span
-                            className="calendar-task-loop"
-                            style={{
-                              backgroundColor: loopColor.bg,
-                              color: loopColor.text,
-                            }}
-                          >
-                            {loop.icon} {loop.name}
-                          </span>
-                          {task.estimateMinutes && (
-                            <span className="calendar-task-duration">
-                              {task.estimateMinutes}min
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      <span
+                        className="calendar-task-priority"
+                        style={{
+                          backgroundColor: task.priority === 1 ? '#F27059' :
+                                          task.priority === 2 ? '#F4B942' :
+                                          '#737390'
+                        }}
+                      >
+                        {getPriorityLabel(task.priority || 4)}
+                      </span>
+                      <span className="calendar-task-title">{task.title}</span>
+                      <span
+                        className="calendar-task-loop"
+                        style={{ background: loopColor.bg, color: loopColor.text, borderColor: loopColor.border }}
+                      >
+                        {loop.icon}
+                        {stateIndicator && <span className="calendar-task-state">{stateIndicator}</span>}
+                      </span>
                     </div>
                   );
                 })}
               </div>
             )}
-          </>
-        ) : (
-          <div className="calendar-detail-empty">
-            <p>Select a date to see tasks</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Not connected - show prompt but still display tasks
+  if (isConnected === false) {
+    return (
+      <div className="calendar-view calendar-view--no-cal">
+        <div className="calendar-header">
+          <h3>Week View</h3>
+          <button className="calendar-connect-btn-small" onClick={handleConnect}>
+            <span className="calendar-connect-icon-small">📅</span>
+            Connect Google Calendar
+          </button>
+        </div>
+
+        <div className="calendar-week-grid">
+          {/* Overdue section */}
+          {overdueTasks.length > 0 && (
+            <div className="calendar-day-row overdue">
+              <div className="calendar-day-label">
+                <span className="calendar-day-name overdue-label">Overdue</span>
+                <span className="calendar-day-date">{overdueTasks.length} tasks</span>
+              </div>
+              <div className="calendar-day-content">
+                <div className="calendar-events-column calendar-events-column--disabled">
+                  <div className="calendar-column-header">
+                    <span className="calendar-column-icon">📅</span>
+                    <span>Events</span>
+                  </div>
+                  <div className="calendar-empty-slot">Connect calendar</div>
+                </div>
+                <div className="calendar-tasks-column">
+                  <div className="calendar-column-header">
+                    <span className="calendar-column-icon">⚠️</span>
+                    <span>Overdue</span>
+                    <span className="calendar-count overdue">{overdueTasks.length}</span>
+                  </div>
+                  <div className="calendar-items">
+                    {overdueTasks.slice(0, 5).map(task => {
+                      const loop = LOOP_DEFINITIONS[task.loop];
+                      const loopColor = LOOP_COLORS[task.loop];
+                      return (
+                        <div
+                          key={task.id}
+                          className="calendar-task-item overdue"
+                          onClick={() => onSelectTask(task.id)}
+                        >
+                          <span className="calendar-task-priority" style={{ backgroundColor: '#F27059' }}>
+                            {getPriorityLabel(task.priority || 4)}
+                          </span>
+                          <span className="calendar-task-title">{task.title}</span>
+                          <span
+                            className="calendar-task-loop"
+                            style={{ background: loopColor.bg, color: loopColor.text }}
+                          >
+                            {loop.icon}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {overdueTasks.length > 5 && (
+                      <div className="calendar-more-tasks">+{overdueTasks.length - 5} more</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {days.map(day => {
+            const isToday = day === today;
+            const dayTasks = tasksByDate[day] || [];
+            const dateObj = new Date(day + 'T12:00:00');
+
+            return (
+              <div key={day} className={`calendar-day-row ${isToday ? 'today' : ''}`}>
+                <div className="calendar-day-label">
+                  <span className="calendar-day-name">
+                    {isToday ? 'Today' : dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </span>
+                  <span className="calendar-day-date">
+                    {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+                <div className="calendar-day-content">
+                  <div className="calendar-events-column calendar-events-column--disabled">
+                    <div className="calendar-column-header">
+                      <span className="calendar-column-icon">📅</span>
+                      <span>Events</span>
+                    </div>
+                    <div className="calendar-empty-slot">Connect calendar</div>
+                  </div>
+                  <div className="calendar-tasks-column">
+                    <div className="calendar-column-header">
+                      <span className="calendar-column-icon">✓</span>
+                      <span>Tasks</span>
+                      {dayTasks.length > 0 && <span className="calendar-count">{dayTasks.length}</span>}
+                      <button className="calendar-add-btn" onClick={() => onAddTask(day)}>+</button>
+                    </div>
+                    {dayTasks.length === 0 ? (
+                      <div className="calendar-empty-slot">
+                        <button className="calendar-add-task-inline" onClick={() => onAddTask(day)}>
+                          + Add task
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="calendar-items">
+                        {dayTasks.map(task => {
+                          const loop = LOOP_DEFINITIONS[task.loop];
+                          const loopColor = LOOP_COLORS[task.loop];
+                          return (
+                            <div
+                              key={task.id}
+                              className="calendar-task-item"
+                              onClick={() => onSelectTask(task.id)}
+                            >
+                              <span
+                                className="calendar-task-priority"
+                                style={{
+                                  backgroundColor: task.priority === 1 ? '#F27059' :
+                                                  task.priority === 2 ? '#F4B942' :
+                                                  '#737390'
+                                }}
+                              >
+                                {getPriorityLabel(task.priority || 4)}
+                              </span>
+                              <span className="calendar-task-title">{task.title}</span>
+                              <span
+                                className="calendar-task-loop"
+                                style={{ background: loopColor.bg, color: loopColor.text }}
+                              >
+                                {loop.icon}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Loading
+  if (isConnected === null || loading) {
+    return (
+      <div className="calendar-view">
+        <div className="calendar-loading">
+          <div className="spinner" />
+          <span>Loading calendar...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Connected - full view with events and tasks
+  return (
+    <div className="calendar-view">
+      <div className="calendar-header">
+        <h3>Week View</h3>
+        <a
+          href="https://calendar.google.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="calendar-open-btn"
+        >
+          Open Google Calendar ↗
+        </a>
+      </div>
+
+      <div className="calendar-week-grid">
+        {/* Overdue section */}
+        {overdueTasks.length > 0 && (
+          <div className="calendar-day-row overdue">
+            <div className="calendar-day-label">
+              <span className="calendar-day-name overdue-label">Overdue</span>
+              <span className="calendar-day-date">{overdueTasks.length} tasks</span>
+            </div>
+            <div className="calendar-day-content">
+              <div className="calendar-events-column">
+                <div className="calendar-column-header">
+                  <span className="calendar-column-icon">📅</span>
+                  <span>Events</span>
+                </div>
+                <div className="calendar-empty-slot">—</div>
+              </div>
+              <div className="calendar-tasks-column">
+                <div className="calendar-column-header">
+                  <span className="calendar-column-icon">⚠️</span>
+                  <span>Overdue</span>
+                  <span className="calendar-count overdue">{overdueTasks.length}</span>
+                </div>
+                <div className="calendar-items">
+                  {overdueTasks.slice(0, 5).map(task => {
+                    const loop = LOOP_DEFINITIONS[task.loop];
+                    const loopColor = LOOP_COLORS[task.loop];
+                    const stateIndicator = loopStates[task.loop]?.currentState === 'BUILD' ? '🔥' : null;
+                    return (
+                      <div
+                        key={task.id}
+                        className="calendar-task-item overdue"
+                        onClick={() => onSelectTask(task.id)}
+                      >
+                        <span className="calendar-task-priority" style={{ backgroundColor: '#F27059' }}>
+                          {getPriorityLabel(task.priority || 4)}
+                        </span>
+                        <span className="calendar-task-title">{task.title}</span>
+                        <span
+                          className="calendar-task-loop"
+                          style={{ background: loopColor.bg, color: loopColor.text }}
+                        >
+                          {loop.icon}
+                          {stateIndicator}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {overdueTasks.length > 5 && (
+                    <div className="calendar-more-tasks">+{overdueTasks.length - 5} more overdue</div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Each day */}
+        {days.map(day => renderDayContent(day, day === today))}
       </div>
     </div>
   );

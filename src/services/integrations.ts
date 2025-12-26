@@ -199,7 +199,7 @@ export async function getFitbitStatus(): Promise<IntegrationStatus> {
 }
 
 export function getFitbitAuthUrl(): string {
-  return '/api/integrations/fitbit/auth';
+  return '/api/oauth?provider=fitbit&action=auth';
 }
 
 export function disconnectFitbit(): void {
@@ -208,9 +208,21 @@ export function disconnectFitbit(): void {
 
 export async function getFitbitHealth(): Promise<FitbitHealthData | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/fitbit/health`);
+    const tokens = getStoredTokens('fitbit');
+    if (!tokens?.access_token) return null;
+
+    const res = await fetch(`${API_BASE}/api/fitbit/health`, {
+      headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+    });
     if (!res.ok) return null;
     const data = await res.json();
+
+    // Handle token expiration
+    if (data.needsReauth) {
+      clearTokens('fitbit');
+      return null;
+    }
+
     return data.source === "local" ? null : data.data;
   } catch (error) {
     console.error("Failed to fetch Fitbit health:", error);
@@ -261,28 +273,72 @@ export async function getTodoistStatus(): Promise<IntegrationStatus> {
 }
 
 export function getTodoistAuthUrl(): string {
-  return '/api/integrations/todoist/auth';
+  return '/api/oauth?provider=todoist&action=auth';
 }
 
 export function disconnectTodoist(): void {
   clearTokens('todoist');
 }
 
-export async function syncTodoist(): Promise<{
+// Todoist task shape from sync API
+export interface TodoistSyncTask {
+  id: string;
+  todoistId: string;
+  title: string;
+  description: string;
+  loop: string;
+  labels: string[];
+  projectId: string;
+  projectName: string | null;
+  sectionId: string | null;
+  parentId: string | null;
+  priority: number;
+  dueDate: string | null;
+  dueString: string | null;
+  isRecurring: boolean;
+  url: string;
+  order: number;
+  createdAt: string;
+}
+
+export interface TodoistSyncResult {
   success: boolean;
   taskCount?: number;
+  tasks?: TodoistSyncTask[];
+  labels?: Array<{ id: string; name: string; loop: string | null }>;
+  projects?: Array<{ id: string; name: string }>;
   error?: string;
-}> {
+}
+
+export async function syncTodoist(): Promise<TodoistSyncResult> {
   try {
-    const res = await fetch(`${API_BASE}/api/todoist/sync`);
+    const tokens = getStoredTokens('todoist');
+    if (!tokens?.access_token) {
+      return { success: false, error: "Todoist not connected" };
+    }
+
+    const res = await fetch(`${API_BASE}/api/todoist/sync`, {
+      headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+    });
     if (!res.ok) throw new Error("Sync failed");
     const data = await res.json();
+
+    // Handle token expiration
+    if (data.needsReauth) {
+      clearTokens('todoist');
+      return { success: false, error: "Todoist session expired. Please reconnect." };
+    }
+
     if (data.source === "local") {
       return { success: false, error: "Todoist not configured" };
     }
+
     return {
       success: true,
       taskCount: data.data?.tasks?.length || 0,
+      tasks: data.data?.tasks || [],
+      labels: data.data?.labels || [],
+      projects: data.data?.projects || [],
     };
   } catch (error) {
     return { success: false, error: String(error) };
@@ -293,10 +349,15 @@ export async function getTodoistLabels(): Promise<
   Array<{ id: string; name: string; loop: string | null }>
 > {
   try {
-    const res = await fetch(`${API_BASE}/api/todoist/labels`);
+    const tokens = getStoredTokens('todoist');
+    if (!tokens?.access_token) return [];
+
+    const res = await fetch(`${API_BASE}/api/todoist/sync`, {
+      headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+    });
     if (!res.ok) return [];
     const data = await res.json();
-    return data.data || [];
+    return data.data?.labels || [];
   } catch (error) {
     return [];
   }
@@ -333,7 +394,7 @@ export async function getTillerStatus(): Promise<IntegrationStatus> {
 }
 
 export function getTillerAuthUrl(): string {
-  return '/api/integrations/google/auth?service=sheets';
+  return '/api/oauth?provider=google_sheets&action=auth';
 }
 
 export function disconnectTiller(): void {
@@ -411,7 +472,7 @@ export async function getCalendarStatus(): Promise<IntegrationStatus> {
 }
 
 export function getCalendarAuthUrl(): string {
-  return '/api/integrations/google/auth?service=calendar';
+  return '/api/oauth?provider=google_calendar&action=auth';
 }
 
 export function disconnectCalendar(): void {
@@ -449,11 +510,15 @@ export async function getSpotifyStatus(): Promise<IntegrationStatus> {
 }
 
 export function getSpotifyAuthUrl(): string {
-  return '/api/integrations/spotify/auth';
+  return '/api/oauth?provider=spotify&action=auth';
 }
 
 export function disconnectSpotify(): void {
   clearTokens('spotify');
+}
+
+export function getSpotifyTokens(): StoredTokens | null {
+  return getStoredTokens('spotify');
 }
 
 // ============ All Integrations Status ============
@@ -507,6 +572,7 @@ export default {
   // Spotify
   getSpotifyStatus,
   getSpotifyAuthUrl,
+  getSpotifyTokens,
   disconnectSpotify,
   // All
   getAllIntegrationsStatus,

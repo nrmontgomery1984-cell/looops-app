@@ -1,9 +1,23 @@
-// Wealth Widget - Financial data from Tiller Money
+// Wealth Widget - Financial data from Google Sheets
 // Shows net worth, income/expenses, and spending breakdown
 
 import React, { useEffect, useState } from "react";
 
-const API_BASE = "/api/tiller";
+const API_BASE = "/api/sheets";
+
+// Helper to get Google Sheets tokens from localStorage
+function getSheetsToken(): string | null {
+  try {
+    const stored = localStorage.getItem('looops_google_sheets_tokens');
+    if (stored) {
+      const tokens = JSON.parse(stored);
+      return tokens.access_token || null;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
 
 interface IncomeExpenses {
   income: number;
@@ -67,23 +81,36 @@ export function WealthWidget() {
   }, [isConnected]);
 
   const checkStatus = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/status`);
-      const data = await res.json();
-      setIsConnected(data.configured);
-    } catch {
-      setIsConnected(false);
-    }
+    // Check if we have Google Sheets token
+    const token = getSheetsToken();
+    setIsConnected(!!token);
   };
 
   const fetchSummary = async () => {
+    const token = getSheetsToken();
+
     try {
-      const res = await fetch(`${API_BASE}/summary`);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_BASE}/budget`, { headers });
       const data = await res.json();
 
-      if (data.source === "tiller" && data.data) {
+      // Handle token expiration
+      if (data.needsReauth) {
+        localStorage.removeItem('looops_google_sheets_tokens');
+        setIsConnected(false);
+        setError("Google Sheets session expired. Please reconnect.");
+        return;
+      }
+
+      if ((data.source === "tiller" || data.source === "sheets") && data.data) {
         setSummary(data.data);
         setError(null);
+      } else if (data.message) {
+        setError(data.message);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch");
@@ -98,8 +125,8 @@ export function WealthWidget() {
       <div className="wealth-widget wealth-widget--disconnected">
         <div className="wealth-widget-empty">
           <span className="wealth-widget-icon">💰</span>
-          <p>Connect Tiller Money to see your finances</p>
-          <small>Add your Tiller spreadsheet ID to server/.env</small>
+          <p>Connect Google Sheets to see your finances</p>
+          <small>Go to Integrations and connect Google Sheets</small>
         </div>
       </div>
     );

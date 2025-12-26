@@ -1,46 +1,14 @@
 // Meditation Widget - Fitbit mindfulness data for Health loop
-import React, { useEffect, useState } from "react";
-
-interface MeditationData {
-  mindfulnessMinutes: number;
-  mindfulnessStreak: number;
-}
+import React from "react";
+import { useHealthData } from "../../hooks/useHealthData";
 
 export function MeditationWidget() {
-  const [data, setData] = useState<MeditationData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: healthData, isLoading, error, refetch } = useHealthData();
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/health/summary");
-      const result = await response.json();
-
-      if (result.source === "local" || result.data === null) {
-        setError("Connect Fitbit via IFTTT");
-        setData(null);
-      } else {
-        setData({
-          mindfulnessMinutes: result.data.today?.mindfulnessMinutes || 0,
-          mindfulnessStreak: result.data.mindfulnessStreak || 0,
-        });
-      }
-    } catch {
-      setError("Server offline");
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const data = healthData ? {
+    mindfulnessMinutes: healthData.today?.mindfulnessMinutes || 0,
+    mindfulnessStreak: healthData.mindfulnessStreak || 0,
+  } : null;
 
   const handleOpenMeditation = () => {
     // Open Fitbit meditation or a meditation app
@@ -61,7 +29,7 @@ export function MeditationWidget() {
       <div className="meditation-widget meditation-widget--error">
         <span className="meditation-error-icon">🧘</span>
         <p>{error}</p>
-        <button className="meditation-retry-btn" onClick={fetchData}>Retry</button>
+        <button className="meditation-retry-btn" onClick={refetch}>Retry</button>
       </div>
     );
   }

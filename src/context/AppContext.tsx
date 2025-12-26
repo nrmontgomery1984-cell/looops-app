@@ -58,6 +58,10 @@ import {
   MediaState,
   MediaEntry,
   DEFAULT_MEDIA_STATE,
+  // Directional
+  DirectionalDocument,
+  CoreDirections,
+  LoopDirections,
 } from "../types";
 import { STORAGE_KEYS } from "../storage";
 
@@ -151,6 +155,9 @@ export type AppState = {
   // Media (Fun loop)
   media: MediaState;
 
+  // Directional Document (personal direction framework)
+  directionalDocument: DirectionalDocument | null;
+
   // UI State
   ui: {
     activeTab: TabId;
@@ -236,6 +243,8 @@ const defaultState: AppState = {
   calendar: defaultCalendarState,
   // Media
   media: DEFAULT_MEDIA_STATE,
+  // Directional Document
+  directionalDocument: null,
   ui: {
     activeTab: "today",
     selectedLoop: null,
@@ -371,6 +380,11 @@ export type AppAction =
   | { type: "UPDATE_MEDIA_ENTRY"; payload: MediaEntry }
   | { type: "DELETE_MEDIA_ENTRY"; payload: string }
   | { type: "SET_MEDIA_ENTRIES"; payload: MediaEntry[] }
+
+  // Directional Document actions
+  | { type: "SET_DIRECTIONAL_DOCUMENT"; payload: DirectionalDocument | null }
+  | { type: "UPDATE_CORE_DIRECTIONS"; payload: Partial<CoreDirections> }
+  | { type: "UPDATE_LOOP_DIRECTIONS"; payload: { loopId: LoopId; directions: Partial<LoopDirections> } }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -1188,6 +1202,47 @@ function appReducer(state: AppState, action: AppAction): AppState {
         },
       };
 
+    // Directional Document
+    case "SET_DIRECTIONAL_DOCUMENT":
+      return {
+        ...state,
+        directionalDocument: action.payload,
+      };
+
+    case "UPDATE_CORE_DIRECTIONS": {
+      if (!state.directionalDocument) return state;
+      return {
+        ...state,
+        directionalDocument: {
+          ...state.directionalDocument,
+          core: {
+            ...state.directionalDocument.core,
+            ...action.payload,
+          },
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    case "UPDATE_LOOP_DIRECTIONS": {
+      if (!state.directionalDocument) return state;
+      const { loopId, directions } = action.payload;
+      return {
+        ...state,
+        directionalDocument: {
+          ...state.directionalDocument,
+          loops: {
+            ...state.directionalDocument.loops,
+            [loopId]: {
+              ...state.directionalDocument.loops[loopId],
+              ...directions,
+            },
+          },
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
     // Hydration
     case "HYDRATE":
       return { ...state, ...action.payload };
@@ -1275,6 +1330,8 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
       ...defaultState.media,
       ...savedState.media,
     },
+    // Directional Document - persists
+    directionalDocument: savedState.directionalDocument ?? defaultState.directionalDocument,
     ui: defaultState.ui, // Always use fresh UI state
   };
 }
@@ -1430,4 +1487,9 @@ export function useCalendar() {
 export function useMedia() {
   const { state } = useApp();
   return state.media;
+}
+
+export function useDirectionalDocument() {
+  const { state } = useApp();
+  return state.directionalDocument;
 }

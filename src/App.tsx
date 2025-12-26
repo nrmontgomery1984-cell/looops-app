@@ -29,6 +29,7 @@ import {
   WidgetType,
   WIDGET_DEFINITIONS,
   getWidgetGridClass,
+  sortTasksByStatePriority,
 } from "./types";
 import { Sidebar } from "./components/layout";
 import { LoopsVisualization } from "./components/loops";
@@ -37,7 +38,7 @@ import { OnboardingFlow, OnboardingData } from "./components/onboarding";
 import { StateSelector } from "./components/common";
 import { AnnualGoalsWizard, GoalsDashboard, GoalBreakdownWizard } from "./components/goals";
 import { getNextTimeframe } from "./types/goals";
-import { TasksScreen } from "./components/tasks";
+import { TasksScreen, TaskDetailModal } from "./components/tasks";
 import { RoutinesScreen } from "./components/routines";
 import { SystemsScreen } from "./components/systems";
 import { LoopDashboard } from "./components/dashboard";
@@ -49,9 +50,160 @@ import { CalendarWidget as GoogleCalendarWidget } from "./components/dashboard/C
 import { HistoryScreen } from "./components/history";
 import { WeeklyPlanning } from "./components/planning";
 import { IntegrationsScreen } from "./components/integrations";
+import { DirectionalDocumentWizard, DirectionalDocumentView } from "./components/directional";
+import { DirectionalDocument } from "./types/directional";
+import { exportDirectionalDocumentPDF, downloadPDF } from "./services/pdfExport";
+
+// Mock data for previewing completed directional document
+const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
+  id: "mock-preview",
+  userId: "preview-user",
+  createdAt: "2025-01-15T00:00:00Z",
+  updatedAt: "2025-01-20T00:00:00Z",
+  version: 1,
+  status: "complete",
+  completionProgress: 100,
+  core: {
+    identityStatements: ["builder", "mentor", "strategist", "provider", "seeker"],
+    valueSliders: {
+      security_adventure: 4,
+      independence_belonging: 6,
+      achievement_contentment: 7,
+      tradition_innovation: 8,
+      control_flexibility: 5,
+      privacy_openness: 4,
+      efficiency_presence: 6,
+      competition_collaboration: 7,
+    },
+    tradeoffPriorities: {
+      loopPriorityRanking: ["Family", "Health", "Work", "Wealth", "Meaning", "Fun", "Maintenance"],
+      conflictResolutions: [
+        { scenarioId: "career_family", chosenOption: "B", chosenLoop: "Family", timestamp: "2025-01-15T00:00:00Z" },
+        { scenarioId: "health_wealth", chosenOption: "A", chosenLoop: "Health", timestamp: "2025-01-15T00:00:00Z" },
+        { scenarioId: "fun_work", chosenOption: "B", chosenLoop: "Work", timestamp: "2025-01-15T00:00:00Z" },
+        { scenarioId: "maintenance_meaning", chosenOption: "B", chosenLoop: "Meaning", timestamp: "2025-01-15T00:00:00Z" },
+        { scenarioId: "family_health", chosenOption: "A", chosenLoop: "Family", timestamp: "2025-01-15T00:00:00Z" },
+        { scenarioId: "wealth_fun", chosenOption: "B", chosenLoop: "Fun", timestamp: "2025-01-15T00:00:00Z" },
+        { scenarioId: "work_health", chosenOption: "B", chosenLoop: "Health", timestamp: "2025-01-15T00:00:00Z" },
+      ],
+    },
+    resourcePhilosophy: {
+      timeAllocation: { Health: 15, Wealth: 10, Family: 25, Work: 25, Fun: 10, Maintenance: 5, Meaning: 10 },
+      energyManagement: "adaptive",
+      financialApproach: "balanced",
+    },
+  },
+  loops: {
+    Health: {
+      loopId: "Health",
+      thrivingDescription: ["energy_abundant", "sleep_quality", "fitness_capable", "stress_managed"],
+      nonNegotiables: ["sleep_schedule", "daily_movement", "mental_health_practice"],
+      minimumStandards: ["enough_sleep", "some_exercise", "reasonable_eating"],
+      currentAllocation: 12,
+      desiredAllocation: 15,
+      currentSatisfaction: 65,
+      feedsLoops: ["Work", "Family", "Fun"],
+      drawsFromLoops: ["Meaning"],
+      currentSeason: "building",
+    },
+    Wealth: {
+      loopId: "Wealth",
+      thrivingDescription: ["financial_security", "building_goals", "understand_finances", "margin_unexpected"],
+      nonNegotiables: ["bills_on_time", "emergency_fund", "retirement_contributions"],
+      minimumStandards: ["basics_covered", "not_accumulating_debt", "some_savings"],
+      currentAllocation: 10,
+      desiredAllocation: 10,
+      currentSatisfaction: 70,
+      feedsLoops: ["Family", "Fun"],
+      drawsFromLoops: ["Work"],
+      currentSeason: "maintaining",
+    },
+    Family: {
+      loopId: "Family",
+      thrivingDescription: ["connected_healthy", "present_engaged", "quality_time", "shared_memories"],
+      nonNegotiables: ["protected_time", "being_present", "important_events", "date_nights"],
+      minimumStandards: ["kids_needs", "partner_not_neglected", "big_moments"],
+      currentAllocation: 20,
+      desiredAllocation: 25,
+      currentSatisfaction: 75,
+      feedsLoops: ["Meaning", "Fun"],
+      drawsFromLoops: ["Health", "Wealth"],
+      currentSeason: "building",
+    },
+    Work: {
+      loopId: "Work",
+      thrivingDescription: ["meaningful_work", "growing_professionally", "autonomy_agency", "effective_productive"],
+      nonNegotiables: ["clear_boundaries", "delivering_commitments", "continuous_learning"],
+      minimumStandards: ["core_responsibilities", "not_burning_bridges", "staying_employable"],
+      currentAllocation: 30,
+      desiredAllocation: 25,
+      currentSatisfaction: 80,
+      feedsLoops: ["Wealth", "Meaning"],
+      drawsFromLoops: ["Health"],
+      currentSeason: "maintaining",
+    },
+    Fun: {
+      loopId: "Fun",
+      thrivingDescription: ["regular_enjoyment", "engaging_hobbies", "social_outside", "life_has_joy"],
+      nonNegotiables: ["weekly_enjoyment", "maintaining_friendships", "hobbies_for_me"],
+      minimumStandards: ["some_enjoyment", "not_isolated", "one_hobby"],
+      currentAllocation: 8,
+      desiredAllocation: 10,
+      currentSatisfaction: 55,
+      feedsLoops: ["Health", "Family"],
+      drawsFromLoops: ["Wealth"],
+      currentSeason: "recovering",
+    },
+    Maintenance: {
+      loopId: "Maintenance",
+      thrivingDescription: ["organized_functional", "admin_current", "systems_reduce_friction", "routines_handle"],
+      nonNegotiables: ["clean_environment", "bills_paperwork", "calendar_managed"],
+      minimumStandards: ["nothing_critical", "environment_functional", "obligations_met"],
+      currentAllocation: 8,
+      desiredAllocation: 5,
+      currentSatisfaction: 60,
+      feedsLoops: ["Health", "Work"],
+      drawsFromLoops: [],
+      currentSeason: "maintaining",
+    },
+    Meaning: {
+      loopId: "Meaning",
+      thrivingDescription: ["clear_purpose", "contributing_larger", "living_values", "life_significant"],
+      nonNegotiables: ["time_reflection", "aligned_values", "not_drifting"],
+      minimumStandards: ["some_connection", "values_not_compromised", "occasional_reflection"],
+      currentAllocation: 12,
+      desiredAllocation: 10,
+      currentSatisfaction: 70,
+      feedsLoops: ["Health", "Family", "Work"],
+      drawsFromLoops: ["Family"],
+      currentSeason: "building",
+    },
+  },
+  generatedDocument: {
+    summary: "You are a purpose-driven builder who prioritizes family and health while pursuing meaningful work. Your approach balances achievement with presence, valuing innovation while maintaining stability for your loved ones.",
+    keyThemes: [
+      "Family-first decision making",
+      "Health as a foundation for everything else",
+      "Meaningful work over pure career advancement",
+      "Balance between building and enjoying life",
+    ],
+    potentialConflicts: [
+      "Work currently takes more time than desired while Fun is under-allocated",
+      "Building phase in multiple loops may lead to energy strain",
+    ],
+    recommendations: [
+      "Consider reducing work allocation by 5% to invest in Family and Fun",
+      "Fun loop is in recovery - prioritize weekly enjoyment to rebuild",
+      "Your tradeoff choices consistently favor health - protect sleep and exercise routines",
+    ],
+    generatedAt: "2025-01-20T00:00:00Z",
+  },
+};
 import { LoginScreen } from "./components/auth";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { generatePrototype, getArchetypeGreeting, frameTasks } from "./engines";
+import { generateStarterContent, ChallengeId, LifeSeasonId, TransitionId } from "./engines/starterContentEngine";
+import { SystemTemplate } from "./types/systems";
 import { Goal, LoopStateType } from "./types";
 import { getStateDisplayName, getStateColor } from "./engines/stateEngine";
 import {
@@ -66,17 +218,6 @@ import {
   DEMO_PROTOTYPE,
 } from "./data/demoData";
 
-// Mock data for initial tasks (will be replaced by real data)
-const INITIAL_TASKS: Task[] = [
-  { id: "h1", title: "Morning mobility routine", loop: "Health", subLoop: "Exercise", priority: 2, status: "todo", order: 0, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 15, requiredState: "MAINTAIN" },
-  { id: "h2", title: "Meal prep for the week", loop: "Health", subLoop: "Nutrition", priority: 1, status: "todo", order: 1, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 90, requiredState: "BUILD" },
-  { id: "w1", title: "Review monthly budget", loop: "Wealth", subLoop: "Budgeting", priority: 1, status: "todo", order: 2, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 45, requiredState: "MAINTAIN" },
-  { id: "f1", title: "Family dinner - no phones", loop: "Family", subLoop: "Quality Time", priority: 2, status: "todo", order: 3, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 60, requiredState: "MAINTAIN" },
-  { id: "work1", title: "Complete Q4 presentation", loop: "Work", subLoop: "Projects", priority: 1, status: "doing", order: 4, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 120, requiredState: "BUILD" },
-  { id: "fun1", title: "Read for 30 minutes", loop: "Fun", subLoop: "Hobbies", priority: 3, status: "todo", order: 5, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 30, requiredState: "RECOVER" },
-  { id: "m1", title: "Quick kitchen cleanup", loop: "Maintenance", subLoop: "Cleaning", priority: 3, status: "todo", order: 6, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 15, requiredState: "MAINTAIN" },
-  { id: "mean1", title: "Morning journaling", loop: "Meaning", subLoop: "Reflection", priority: 2, status: "todo", order: 7, dueDate: new Date().toISOString().split("T")[0], createdAt: new Date().toISOString(), estimateMinutes: 15, requiredState: "MAINTAIN" },
-];
 
 
 // Main App Content (uses context)
@@ -117,7 +258,8 @@ function AppContent() {
   const [demoDataLoaded, setDemoDataLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<"visual" | "kanban">("visual");
   const [showGoalsWizard, setShowGoalsWizard] = useState(false);
-  const [planningView, setPlanningView] = useState<"states" | "goals" | "weekly">("goals");
+  const [showDirectionalWizard, setShowDirectionalWizard] = useState(false);
+  const [planningView, setPlanningView] = useState<"states" | "goals" | "weekly" | "directions">("goals");
   const [todayViewMode, setTodayViewMode] = useState<"stack" | "calendar">("stack");
   const [todayFilter, setTodayFilter] = useState<LoopId | "all">("all");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -132,6 +274,9 @@ function AppContent() {
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showTodayWidgetPicker, setShowTodayWidgetPicker] = useState(false);
+  const [suggestedSystems, setSuggestedSystems] = useState<SystemTemplate[]>([]);
+  const [showSystemSuggestions, setShowSystemSuggestions] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState<string>("");
   const [todayWidgets, setTodayWidgets] = useState<WidgetConfig[]>(() => {
     const saved = localStorage.getItem("looops-today-widgets");
     if (saved) {
@@ -163,12 +308,6 @@ function AppContent() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
-  // Initialize tasks if empty (only for authenticated mode)
-  useEffect(() => {
-    if (authMode === "authenticated" && tasks.items.length === 0) {
-      dispatch({ type: "SET_TASKS", payload: INITIAL_TASKS });
-    }
-  }, [authMode]);
 
   // Load demo data when in demo mode
   useEffect(() => {
@@ -321,7 +460,7 @@ function AppContent() {
     return `Good ${timeOfDay}, ${name}`;
   }, [user.profile, user.prototype, timeOfDay]);
 
-  // Get today's tasks with archetype framing
+  // Get today's tasks with archetype framing and state-based prioritization
   const todaysTasks = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
     let filtered = tasks.items.filter(
@@ -333,11 +472,9 @@ function AppContent() {
       filtered = frameTasks(filtered, user.prototype.archetypeBlend.primary);
     }
 
-    // Sort by priority and take top 5
-    return filtered
-      .sort((a, b) => (a.priority || 4) - (b.priority || 4))
-      .slice(0, 5);
-  }, [tasks.items, user.prototype]);
+    // Sort by state-adjusted priority (considers loop states) and take top 5
+    return sortTasksByStatePriority(filtered, loops.states).slice(0, 5);
+  }, [tasks.items, user.prototype, loops.states]);
 
   // Handle onboarding completion
   const handleOnboardingComplete = (data: OnboardingData) => {
@@ -361,12 +498,36 @@ function AppContent() {
       data.futureSelf
     );
 
+    // Generate starter content based on onboarding data
+    const starterContent = generateStarterContent({
+      name: data.name,
+      lifeSeason: data.lifeSeason as LifeSeasonId,
+      majorTransition: data.majorTransition as TransitionId,
+      primaryChallenges: data.primaryChallenges as ChallengeId[],
+      loopStates: data.initialLoopStates,
+      archetypePrimary: prototype.archetypeBlend.primary,
+    });
+
+    // Add starter tasks
+    for (const task of starterContent.tasks) {
+      dispatch({ type: "ADD_TASK", payload: task });
+    }
+
+    // Save suggested systems and welcome message
+    setSuggestedSystems(starterContent.suggestedSystems);
+    setWelcomeMessage(starterContent.welcomeMessage);
+
     // Update state
     dispatch({ type: "SET_USER_PROFILE", payload: profile });
     dispatch({ type: "SET_PROTOTYPE", payload: prototype });
     dispatch({ type: "SET_ALL_LOOP_STATES", payload: data.initialLoopStates });
     dispatch({ type: "COMPLETE_ONBOARDING" });
     setShowOnboarding(false);
+
+    // Show system suggestions if we have any
+    if (starterContent.suggestedSystems.length > 0) {
+      setShowSystemSuggestions(true);
+    }
   };
 
   // Handle tab change
@@ -794,6 +955,7 @@ function AppContent() {
               caregivers={state.babysitter.caregivers}
               babysitterSessions={state.babysitter.sessions}
               onCompleteTask={(taskId) => dispatch({ type: "COMPLETE_TASK", payload: taskId })}
+              onSelectTask={(taskId) => dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: taskId } })}
               onCompleteHabit={(habitId, date) => dispatch({ type: "COMPLETE_HABIT", payload: { habitId, date } })}
               onUncompleteHabit={(habitId, date) => dispatch({ type: "UNCOMPLETE_HABIT", payload: { habitId, date } })}
               onUpdateDashboard={(dashboard) => dispatch({ type: "UPDATE_DASHBOARD", payload: dashboard })}
@@ -1015,6 +1177,12 @@ function AppContent() {
                 >
                   Loop States
                 </button>
+                <button
+                  className={`planning-view-btn ${planningView === "directions" ? "active" : ""}`}
+                  onClick={() => setPlanningView("directions")}
+                >
+                  Directions
+                </button>
               </div>
             </div>
 
@@ -1023,6 +1191,7 @@ function AppContent() {
                 loopStates={loops.states}
                 tasks={tasks.items}
                 goals={Object.values(state.goals).flat()}
+                archetype={user.prototype?.archetypeBlend?.primary}
                 onLoopStateChange={handleLoopStateChange}
                 onTaskUpdate={(task) => dispatch({ type: "UPDATE_TASK", payload: task })}
                 onComplete={() => setPlanningView("goals")}
@@ -1036,7 +1205,7 @@ function AppContent() {
                   dispatch({ type: "UPDATE_GOAL", payload: goal });
                 }}
               />
-            ) : (
+            ) : planningView === "states" ? (
               <>
                 <p className="screen-description">
                   Set your loop states for the week ahead. This is your Sunday ritual.
@@ -1068,15 +1237,87 @@ function AppContent() {
                   })}
                 </div>
               </>
+            ) : (
+              /* Directions View */
+              <div className="directions-view">
+                {state.directionalDocument ? (
+                  <DirectionalDocumentView
+                    document={state.directionalDocument}
+                    onEdit={() => setShowDirectionalWizard(true)}
+                    onExportPdf={async () => {
+                      if (state.directionalDocument) {
+                        try {
+                          const userName = user.profile?.name || "User";
+                          const blob = await exportDirectionalDocumentPDF(state.directionalDocument, userName);
+                          downloadPDF(blob, `${userName.toLowerCase().replace(/\s+/g, "-")}-directions.pdf`);
+                        } catch (error) {
+                          console.error("Failed to export PDF:", error);
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="directions-empty">
+                    <h3>Define Your Direction</h3>
+                    <p>
+                      Create your personal direction document to clarify your values,
+                      priorities, and what thriving looks like in each area of your life.
+                    </p>
+                    <button
+                      className="directions-start-btn"
+                      onClick={() => setShowDirectionalWizard(true)}
+                    >
+                      Start Directions Intake
+                    </button>
+
+                    {/* Explainer: How Directions Are Used */}
+                    <div className="directions-explainer">
+                      <h4>How Your Directions Guide Looops</h4>
+                      <div className="directions-explainer__grid">
+                        <div className="directions-explainer__item">
+                          <span className="directions-explainer__icon">🎯</span>
+                          <h5>Smarter Goal Suggestions</h5>
+                          <p>Goals are recommended based on your loop priorities, satisfaction gaps, and current seasons. If Family is your top priority but satisfaction is low, you'll see more Family-focused goals.</p>
+                        </div>
+                        <div className="directions-explainer__item">
+                          <span className="directions-explainer__icon">⚖️</span>
+                          <h5>Tradeoff Guidance</h5>
+                          <p>When conflicts arise between loops, your documented tradeoff decisions help suggest which to prioritize. Your "non-negotiables" are protected even in difficult times.</p>
+                        </div>
+                        <div className="directions-explainer__item">
+                          <span className="directions-explainer__icon">📊</span>
+                          <h5>Progress Tracking</h5>
+                          <p>Your "thriving" vision sets the target, your "minimum standards" define the floor. Track progress against both to see if you're building, maintaining, or need to recover.</p>
+                        </div>
+                        <div className="directions-explainer__item">
+                          <span className="directions-explainer__icon">🔄</span>
+                          <h5>Seasonal Awareness</h5>
+                          <p>Each loop has a season (Building, Maintaining, Recovering, Hibernating). This adjusts expectations - you can't build in all loops simultaneously without burning out.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview with mock data */}
+                    <div className="directions-preview">
+                      <h4>Example: A Completed Direction Document</h4>
+                      <p className="directions-preview__subtitle">This is sample data showing what your document will look like after completing the intake.</p>
+                      <DirectionalDocumentView
+                        document={MOCK_DIRECTIONAL_DOCUMENT}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Goals Wizard Modal */}
-            {showGoalsWizard && user.prototype && (
+            {showGoalsWizard && (
               <div className="modal-overlay">
                 <AnnualGoalsWizard
                   prototype={user.prototype}
                   loopStates={currentLoopStates}
                   existingGoals={state.goals}
+                  directionalDocument={state.directionalDocument}
                   onComplete={(goals) => {
                     // Add all goals to state
                     goals.forEach((goal) => {
@@ -1087,6 +1328,22 @@ function AppContent() {
                   onCancel={() => setShowGoalsWizard(false)}
                 />
               </div>
+            )}
+
+            {/* Directional Document Wizard Modal */}
+            {showDirectionalWizard && (
+              <DirectionalDocumentWizard
+                userId={firebaseUser?.uid || "anonymous"}
+                existingDocument={state.directionalDocument}
+                onComplete={(doc) => {
+                  dispatch({ type: "SET_DIRECTIONAL_DOCUMENT", payload: doc });
+                  setShowDirectionalWizard(false);
+                }}
+                onCancel={() => setShowDirectionalWizard(false)}
+                onSaveProgress={(doc) => {
+                  dispatch({ type: "SET_DIRECTIONAL_DOCUMENT", payload: doc });
+                }}
+              />
             )}
 
             {/* Goal Detail Modal */}
@@ -1627,6 +1884,62 @@ function AppContent() {
         />
       )}
 
+      {/* System Suggestions Modal - shown after onboarding */}
+      {showSystemSuggestions && suggestedSystems.length > 0 && (
+        <div className="modal-overlay">
+          <div className="modal modal-system-suggestions">
+            <div className="modal__header">
+              <h2>Ready to Build a System?</h2>
+              <button className="modal__close" onClick={() => setShowSystemSuggestions(false)}>×</button>
+            </div>
+            <div className="modal__body">
+              {welcomeMessage && (
+                <p className="system-suggestions-welcome">{welcomeMessage}</p>
+              )}
+              <p className="system-suggestions-intro">
+                Based on your challenges, we recommend starting with one of these behavior systems.
+                Each system includes habits, environment tweaks, and strategies to help you succeed.
+              </p>
+              <div className="system-suggestions-list">
+                {suggestedSystems.map((system) => (
+                  <div key={system.id} className="system-suggestion-card">
+                    <div className="system-suggestion-header">
+                      <span className="system-suggestion-loop">{system.loop}</span>
+                      <span className={`system-suggestion-difficulty system-suggestion-difficulty--${system.difficulty}`}>
+                        {system.difficulty}
+                      </span>
+                    </div>
+                    <h3 className="system-suggestion-title">{system.title}</h3>
+                    <p className="system-suggestion-desc">{system.description}</p>
+                    <div className="system-suggestion-meta">
+                      <span className="system-suggestion-duration">{system.estimatedDuration}</span>
+                      <span className="system-suggestion-habits">{system.suggestedHabits.length} habits</span>
+                    </div>
+                    <button
+                      className="system-suggestion-start"
+                      onClick={() => {
+                        // Navigate to systems tab with this template pre-selected
+                        dispatch({ type: "SET_ACTIVE_TAB", payload: "systems" });
+                        setShowSystemSuggestions(false);
+                        // Store the selected template ID for SystemsScreen to pick up
+                        localStorage.setItem("looops-pending-system-template", system.id);
+                      }}
+                    >
+                      Start This System
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="modal__footer">
+              <button className="button" onClick={() => setShowSystemSuggestions(false)}>
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Demo mode indicator */}
       {authMode === "demo" && (
         <div className="demo-banner">
@@ -1634,6 +1947,52 @@ function AppContent() {
           <button onClick={logout} className="demo-banner-logout">Exit Demo</button>
         </div>
       )}
+
+      {/* Global Task Detail Modal - accessible from anywhere */}
+      {ui.modals.taskDetail && (() => {
+        const selectedTask = tasks.items.find(t => t.id === ui.modals.taskDetail);
+        if (!selectedTask) return null;
+
+        const subtasks = tasks.items.filter(t => t.parentId === selectedTask.id);
+
+        return (
+          <TaskDetailModal
+            task={selectedTask}
+            projects={projects}
+            labels={labels}
+            allLabels={labels}
+            subtasks={subtasks}
+            onSave={(task) => dispatch({ type: "UPDATE_TASK", payload: task })}
+            onDelete={(taskId) => dispatch({ type: "DELETE_TASK", payload: taskId })}
+            onClose={() => dispatch({ type: "CLOSE_MODAL", payload: "taskDetail" })}
+            onAddSubtask={(parentId, title) => {
+              const newTask = {
+                id: `task_${Date.now()}`,
+                title,
+                loop: selectedTask.loop,
+                priority: selectedTask.priority,
+                status: "todo" as const,
+                order: tasks.items.length,
+                parentId,
+                createdAt: new Date().toISOString(),
+              };
+              dispatch({ type: "ADD_TASK", payload: newTask });
+            }}
+            onToggleSubtask={(taskId) => {
+              const subtask = tasks.items.find(t => t.id === taskId);
+              if (subtask) {
+                dispatch({
+                  type: "UPDATE_TASK",
+                  payload: {
+                    ...subtask,
+                    status: subtask.status === "done" ? "todo" : "done",
+                  },
+                });
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

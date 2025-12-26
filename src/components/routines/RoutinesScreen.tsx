@@ -356,10 +356,12 @@ function RoutineCard({
             <span className="routine-card-steps">{routine.steps?.length || 0} steps</span>
           </div>
         </div>
-        <div className="routine-card-streak">
-          <span className="routine-streak-fire">🔥</span>
-          <span className="routine-streak-count">{routine.streak.currentStreak}</span>
-        </div>
+        {routine.streak.currentStreak > 0 && (
+          <div className="routine-card-streak">
+            <span className="routine-streak-fire">🔥</span>
+            <span className="routine-streak-count">{routine.streak.currentStreak}</span>
+          </div>
+        )}
       </div>
 
       {/* Loop badges */}
@@ -1244,21 +1246,27 @@ function EditRoutineModal({
           </div>
 
           <div className="routine-edit-stats">
-            <div className="routine-edit-stat">
-              <span className="routine-edit-stat-value">🔥 {routine.streak.currentStreak}</span>
+            <div className="routine-edit-stat routine-edit-stat--streak">
+              <span className="routine-edit-stat-value">
+                <span className="streak-icon">🔥</span>
+                {routine.streak.currentStreak}
+              </span>
               <span className="routine-edit-stat-label">Current Streak</span>
             </div>
-            <div className="routine-edit-stat">
-              <span className="routine-edit-stat-value">{routine.streak.longestStreak}</span>
+            <div className="routine-edit-stat routine-edit-stat--best">
+              <span className="routine-edit-stat-value">
+                <span className="streak-icon">🏆</span>
+                {routine.streak.longestStreak}
+              </span>
               <span className="routine-edit-stat-label">Best Streak</span>
             </div>
             <div className="routine-edit-stat">
               <span className="routine-edit-stat-value">{routine.streak.totalCompletions}</span>
-              <span className="routine-edit-stat-label">Total Done</span>
+              <span className="routine-edit-stat-label">Completions</span>
             </div>
-            <div className="routine-edit-stat">
+            <div className="routine-edit-stat routine-edit-stat--rate">
               <span className="routine-edit-stat-value">{routine.streak.completionRate}%</span>
-              <span className="routine-edit-stat-label">Rate</span>
+              <span className="routine-edit-stat-label">Success Rate</span>
             </div>
           </div>
         </div>
