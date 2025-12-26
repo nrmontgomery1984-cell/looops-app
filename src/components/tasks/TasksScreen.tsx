@@ -226,6 +226,8 @@ export function TasksScreen({
     overflow: 'hidden',
     width: '100vw',
     height: 'calc(100vh - 56px)',
+    // DEBUG: red border to see actual bounds
+    border: '3px solid red',
   } : {};
 
   // Debug: log when mobile styles are applied
