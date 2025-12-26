@@ -183,15 +183,23 @@ export function useFirebaseSync(
     // Skip initial mount
     if (isInitialMount.current) {
       isInitialMount.current = false;
+      console.log('[Sync] Skipping initial mount save');
       return;
     }
 
     // Skip if no user or Firebase not configured
-    if (!userRef.current || !isFirebaseConfigured()) {
+    if (!userRef.current) {
+      console.log('[Sync] No user, skipping save');
+      return;
+    }
+
+    if (!isFirebaseConfigured()) {
+      console.log('[Sync] Firebase not configured, skipping save');
       return;
     }
 
     // Save to cloud (debounced)
+    console.log('[Sync] Triggering debounced save for user:', userRef.current.uid);
     debouncedSave(userRef.current.uid, state);
   }, [state, debouncedSave]);
 

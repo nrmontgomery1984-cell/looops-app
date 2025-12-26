@@ -3,9 +3,15 @@ import { doc, setDoc, getDoc, onSnapshot, Unsubscribe } from 'firebase/firestore
 import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 
-// Check if Firebase is configured
+// Check if Firebase is properly configured (has valid project ID)
 export const isFirebaseConfigured = (): boolean => {
-  return !!auth && !!db;
+  try {
+    // Check if we have a valid Firebase app with a project ID
+    const projectId = auth?.app?.options?.projectId;
+    return !!projectId && projectId.length > 0;
+  } catch {
+    return false;
+  }
 };
 
 // Re-export auth and db for convenience
@@ -62,9 +68,13 @@ function removeUndefined(obj: any): any {
 }
 
 export async function saveAppState(userId: string, state: object): Promise<boolean> {
-  if (!db) return false;
+  if (!db) {
+    console.error('[Firebase] No db instance, cannot save');
+    return false;
+  }
 
   try {
+    console.log('[Firebase] Saving state for user:', userId);
     const docRef = doc(db, APP_STATE_COLLECTION, userId);
     // Clean undefined values before saving to Firestore
     const cleanedState = removeUndefined({
@@ -72,9 +82,10 @@ export async function saveAppState(userId: string, state: object): Promise<boole
       updatedAt: new Date().toISOString(),
     });
     await setDoc(docRef, cleanedState, { merge: true });
+    console.log('[Firebase] State saved successfully for user:', userId);
     return true;
   } catch (error) {
-    console.error('Error saving app state to Firestore:', error);
+    console.error('[Firebase] Error saving app state to Firestore:', error);
     return false;
   }
 }
