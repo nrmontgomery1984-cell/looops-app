@@ -3953,6 +3953,7 @@ body.modal-open {
 .loop-outer-circle {
   fill: var(--color-dark);
   transition: stroke-width 0.2s ease, fill 0.2s ease;
+  /* Let inline styles control stroke color - don't set any default */
 }
 
 /* ========== Outer Meaning Loop (encircles all) ========== */

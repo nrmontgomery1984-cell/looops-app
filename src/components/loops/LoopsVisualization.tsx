@@ -157,7 +157,8 @@ export function LoopsVisualization({
               cy="200"
               r="195"
               fill="none"
-              style={{ stroke: meaningColor, strokeWidth: isMeaningSelected ? 4 : 2 }}
+              stroke={meaningColor}
+              strokeWidth={isMeaningSelected ? 4 : 2}
               opacity={isMeaningSelected || isMeaningHovered ? 0.8 : 0.5}
               filter={isMeaningSelected || isMeaningHovered ? "url(#glow-meaning)" : undefined}
             />
@@ -167,7 +168,9 @@ export function LoopsVisualization({
               cy="200"
               r="185"
               fill="none"
-              style={{ stroke: meaningColor, strokeWidth: 1, strokeDasharray: "8 4" }}
+              stroke={meaningColor}
+              strokeWidth={1}
+              strokeDasharray="8 4"
               opacity="0.3"
             />
             {/* Meaning label at top */}
@@ -237,7 +240,9 @@ export function LoopsVisualization({
                   cy="60"
                   r="54"
                   className="loop-outer-circle"
-                  style={{ stroke: stateColor, strokeWidth: isSelected ? 4 : 2 }}
+                  stroke={stateColor}
+                  strokeWidth={isSelected ? 4 : 2}
+                  style={{ stroke: stateColor }}
                   filter={isSelected || isHovered ? `url(#glow-${loopId})` : undefined}
                 />
 
@@ -247,7 +252,8 @@ export function LoopsVisualization({
                   cy="60"
                   r="48"
                   fill="none"
-                  style={{ stroke: stateColor, strokeWidth: 1 }}
+                  stroke={stateColor}
+                  strokeWidth={1}
                   opacity="0.2"
                 />
 
