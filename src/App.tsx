@@ -647,6 +647,7 @@ function AppContent() {
             <div className="today-header">
               <div className="today-header-main">
                 <h2>{greeting}</h2>
+                <p className="today-subtitle">Your daily command center for tasks, habits, and focus</p>
                 <p className="today-date">
                   {new Date().toLocaleDateString("en-US", {
                     weekday: "long",
@@ -976,7 +977,10 @@ function AppContent() {
         return (
           <div className="screen loops-screen">
             <div className="screen-header">
-              <h2>Your Loops</h2>
+              <div className="screen-header-content">
+                <h2>Your Loops</h2>
+                <p className="screen-description">The seven life domains that make up your personal operating system</p>
+              </div>
               <div className="view-toggle">
                 <button
                   className={`view-toggle-btn ${viewMode === "visual" ? "active" : ""}`}
@@ -1157,7 +1161,10 @@ function AppContent() {
         return (
           <div className="screen planning-screen">
             <div className="planning-header">
-              <h2>Planning</h2>
+              <div className="planning-header-content">
+                <h2>Planning</h2>
+                <p className="screen-description">Set goals, plan your week, adjust loop states, and define your direction</p>
+              </div>
               <div className="planning-view-toggle">
                 <button
                   className={`planning-view-btn ${planningView === "weekly" ? "active" : ""}`}
@@ -1592,7 +1599,10 @@ function AppContent() {
       case "me":
         return (
           <div className="screen profile-screen">
-            <h2>Your Profile</h2>
+            <div className="screen-header">
+              <h2>Your Profile</h2>
+              <p className="screen-description">Manage your account, archetype, and app preferences</p>
+            </div>
 
             {/* Firebase Account Info */}
             {firebaseUser && (

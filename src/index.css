@@ -746,14 +746,34 @@ body.modal-open {
   flex-shrink: 0;
   padding: 16px 24px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   border-bottom: 1px solid var(--color-border);
+  gap: 16px;
 }
 
 .loops-screen .screen-header h2 {
   margin: 0;
   font-size: 20px;
+}
+
+.screen-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.screen-header-content h2 {
+  margin: 0;
+}
+
+/* Generic screen description styling */
+.screen-description {
+  font-size: 14px;
+  color: var(--color-gray-400);
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .loops-screen .loops-viz-container {
@@ -7580,8 +7600,10 @@ body.modal-open {
 
 .goals-dashboard__title-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 16px;
 }
 
@@ -7589,6 +7611,14 @@ body.modal-open {
   font-size: 28px;
   font-weight: 700;
   margin: 0;
+}
+
+.goals-dashboard__subtitle {
+  width: 100%;
+  font-size: 14px;
+  color: var(--color-gray-400);
+  margin: 0;
+  order: 2;
 }
 
 .goals-dashboard__add-btn {
@@ -8009,11 +8039,23 @@ body.modal-open {
 .planning-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .planning-header h2 {
+  margin: 0;
+}
+
+.planning-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.planning-header-content h2 {
   margin: 0;
 }
 
@@ -8791,9 +8833,16 @@ body.modal-open {
 .today-header-main h2 {
   font-size: 32px;
   font-weight: 700;
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
   letter-spacing: -0.02em;
   line-height: 1.1;
+}
+
+.today-subtitle {
+  font-size: 14px;
+  color: var(--color-gray-400);
+  margin: 0 0 8px 0;
+  font-weight: 400;
 }
 
 .today-date {
@@ -11762,6 +11811,14 @@ body.modal-open {
 }
 
 [data-theme="light"] .screen-description {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .today-subtitle {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .goals-dashboard__subtitle {
   color: var(--color-gray-600);
 }
 

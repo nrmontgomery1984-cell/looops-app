@@ -192,7 +192,10 @@ export function HistoryScreen({ tasks }: HistoryScreenProps) {
 
   return (
     <div className="screen history-screen">
-      <h2>History</h2>
+      <div className="screen-header">
+        <h2>History</h2>
+        <p className="screen-description">Review your completed tasks, track streaks, and see your productivity patterns</p>
+      </div>
 
       {/* Stats Overview */}
       <div className="history-stats-grid">

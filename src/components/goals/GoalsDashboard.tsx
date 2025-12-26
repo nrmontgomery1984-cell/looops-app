@@ -333,6 +333,7 @@ export function GoalsDashboard({
       <div className="goals-dashboard__header">
         <div className="goals-dashboard__title-row">
           <h1 className="goals-dashboard__title">Goals</h1>
+          <p className="goals-dashboard__subtitle">Track your annual, quarterly, and monthly objectives across all loops</p>
           <button className="goals-dashboard__add-btn" onClick={onAddGoal}>
             + Add Goals
           </button>
