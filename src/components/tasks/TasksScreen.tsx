@@ -210,20 +210,26 @@ export function TasksScreen({
   }, []);
 
   // Mobile-specific inline styles to fix positioning - bypasses CSS conflicts
+  // ALWAYS apply these styles on mobile to ensure correct positioning
   const mobileStyles: React.CSSProperties = isMobile ? {
     position: 'fixed',
     top: '56px',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    margin: 0,
-    padding: 0,
+    left: '0px',
+    right: '0px',
+    bottom: '0px',
+    margin: '0px',
+    padding: '0px',
     display: 'flex',
     flexDirection: 'column',
     background: 'var(--color-bg)',
     zIndex: 999,
     overflow: 'hidden',
+    width: '100vw',
+    height: 'calc(100vh - 56px)',
   } : {};
+
+  // Debug: log when mobile styles are applied
+  console.log('[TasksScreen] isMobile:', isMobile, 'applying styles:', isMobile ? 'YES' : 'NO');
 
   // Mobile styles for tasks-main child - reset padding that desktop styles add
   const mobileMainStyles: React.CSSProperties = isMobile ? {
