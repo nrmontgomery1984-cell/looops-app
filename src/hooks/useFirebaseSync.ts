@@ -117,7 +117,7 @@ export function useFirebaseSync(
               onRemoteUpdateRef.current(cloudState as Partial<AppState>);
             } else {
               console.log('No cloud state found for user:', user.uid);
-              // No cloud state - this device's state will be the source of truth
+              // No cloud state yet - real-time listener will accept any incoming data
               hasLoadedFromCloud.current = false;
             }
 
@@ -125,15 +125,19 @@ export function useFirebaseSync(
             currentSubscribeUnsubscribe = subscribeToAppState(user.uid, (remoteState) => {
               if (!remoteState) return;
 
-              // Ignore updates for 2 seconds after we save (our own echoes)
+              // Ignore updates for a short time after we save (our own echoes)
+              // BUT: if we never loaded cloud data, ALWAYS accept updates (they're from other devices)
               const now = Date.now();
-              if (now < ignoringOwnSaveUntil.current) {
-                console.log('[Sync] Ignoring remote update - within save cooldown window');
+              if (now < ignoringOwnSaveUntil.current && hasLoadedFromCloud.current) {
+                console.log('[Sync] Ignoring remote update - within save cooldown window (own echo)');
                 return;
               }
 
               console.log('Received remote update for user:', user.uid);
+              hasLoadedFromCloud.current = true; // Now we have cloud data
               lastSyncedState.current = JSON.stringify(remoteState);
+              // Set cooldown to prevent immediate re-save of this data
+              ignoringOwnSaveUntil.current = Date.now() + 3000;
               onRemoteUpdateRef.current(remoteState as Partial<AppState>);
             });
             unsubscribeRef.current = currentSubscribeUnsubscribe;
