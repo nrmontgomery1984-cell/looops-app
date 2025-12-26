@@ -180,6 +180,8 @@ export function useFirebaseSync(
 
   // Sync state to cloud when it changes
   useEffect(() => {
+    console.log('[Sync] State change detected, isInitialMount:', isInitialMount.current, 'userRef:', userRef.current?.uid || 'null');
+
     // Skip initial mount
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -195,6 +197,13 @@ export function useFirebaseSync(
 
     if (!isFirebaseConfigured()) {
       console.log('[Sync] Firebase not configured, skipping save');
+      return;
+    }
+
+    // Check if state is different from last synced
+    const currentStateJson = JSON.stringify(state);
+    if (currentStateJson === lastSyncedState.current) {
+      console.log('[Sync] State unchanged from last sync, skipping');
       return;
     }
 
