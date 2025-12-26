@@ -14,51 +14,13 @@ const INNER_LOOPS: LoopId[] = ["Health", "Wealth", "Family", "Work", "Fun", "Mai
 // Meaning is the 7th loop that encompasses all others (displayed as outer ring)
 const OUTER_LOOP: LoopId = "Meaning";
 
-// Due date-based urgency colors (using brand palette)
-// Coral = overdue, Amber = due within 3 days, Sage = ok, Navy Gray = no due date
-const URGENCY_COLORS = {
-  overdue: "#F27059",    // Coral
-  soon: "#F4B942",       // Amber
-  ok: "#73A58C",         // Sage
-  none: "#737390",       // Navy Gray
+// Task dot colors based on urgency (for individual task dots)
+const TASK_URGENCY_COLORS = {
+  overdue: "#ef4444",    // Red
+  soon: "#eab308",       // Yellow
+  ok: "#22c55e",         // Green
+  none: "#737390",       // Gray (no due date)
 };
-
-// Calculate urgency color based on tasks in a loop
-function getLoopUrgencyColor(tasks: Task[]): string {
-  if (tasks.length === 0) return URGENCY_COLORS.none;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let hasOverdue = false;
-  let hasSoon = false;
-  let hasOk = false;
-  let hasDueDate = false;
-
-  for (const task of tasks) {
-    if (!task.dueDate) continue;
-    hasDueDate = true;
-
-    const dueDate = new Date(task.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    const daysDiff = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysDiff < 0) {
-      hasOverdue = true;
-    } else if (daysDiff <= 3) {
-      hasSoon = true;
-    } else {
-      hasOk = true;
-    }
-  }
-
-  // Priority: overdue > soon > ok > none
-  if (hasOverdue) return URGENCY_COLORS.overdue;
-  if (hasSoon) return URGENCY_COLORS.soon;
-  if (hasOk) return URGENCY_COLORS.ok;
-  if (!hasDueDate) return URGENCY_COLORS.none;
-  return URGENCY_COLORS.ok;
-}
 
 type LoopsVisualizationProps = {
   loopStates: Record<LoopId, { currentState: LoopStateType }>;
@@ -77,9 +39,14 @@ export function LoopsVisualization({
 }: LoopsVisualizationProps) {
   const [hoveredLoop, setHoveredLoop] = useState<LoopId | null>(null);
 
-  // Get tasks for a specific loop (excluding done)
+  // Get parent tasks for a specific loop (excluding done and subtasks)
+  // Each parent task = one dot in the loop visualization
   const getTasksForLoop = (loopId: LoopId): Task[] => {
-    return tasks.filter((t) => t.loop === loopId && t.status !== "done");
+    return tasks.filter((t) =>
+      t.loop === loopId &&
+      t.status !== "done" &&
+      !t.parentId // Only parent tasks, not subtasks
+    );
   };
 
   // Generate positions for task circles inside the main circle
@@ -156,11 +123,11 @@ export function LoopsVisualization({
     return { x, y };
   };
 
-  // Get Meaning loop state and color
+  // Get Meaning loop state and color (based on state, not urgency)
   const meaningLoop = LOOP_DEFINITIONS[OUTER_LOOP];
   const meaningState = loopStates[OUTER_LOOP]?.currentState || "MAINTAIN";
   const meaningTasks = getTasksForLoop(OUTER_LOOP);
-  const meaningColor = getLoopUrgencyColor(meaningTasks);
+  const meaningColor = getStateColor(meaningState); // Use state-based color (red/yellow/green)
   const isMeaningSelected = selectedLoop === OUTER_LOOP;
   const isMeaningHovered = hoveredLoop === OUTER_LOOP;
 
@@ -237,7 +204,7 @@ export function LoopsVisualization({
           const loop = LOOP_DEFINITIONS[loopId];
           const state = loopStates[loopId]?.currentState || "MAINTAIN";
           const loopTasks = getTasksForLoop(loopId);
-          const urgencyColor = getLoopUrgencyColor(loopTasks);
+          const stateColor = getStateColor(state); // Use state-based color (red/yellow/green)
           const isSelected = selectedLoop === loopId;
           const isHovered = hoveredLoop === loopId;
           const taskPositions = getTaskCirclePositions(loopTasks.length, 60, 60, 50);
@@ -267,13 +234,13 @@ export function LoopsVisualization({
                   </filter>
                 </defs>
 
-                {/* Main circle - themed fill with urgency-colored outline */}
+                {/* Main circle - state-colored outline (red/yellow/green) */}
                 <circle
                   cx="60"
                   cy="60"
                   r="54"
                   className="loop-outer-circle"
-                  stroke={urgencyColor}
+                  stroke={stateColor}
                   strokeWidth={isSelected ? 4 : 2}
                   filter={isSelected || isHovered ? `url(#glow-${loopId})` : undefined}
                 />
@@ -284,7 +251,7 @@ export function LoopsVisualization({
                   cy="60"
                   r="48"
                   fill="none"
-                  stroke={urgencyColor}
+                  stroke={stateColor}
                   strokeWidth="1"
                   opacity="0.2"
                 />
@@ -297,20 +264,20 @@ export function LoopsVisualization({
                   dominantBaseline="middle"
                   fontSize="32"
                   opacity="0.3"
-                  fill={urgencyColor}
+                  fill={stateColor}
                   className="loop-icon"
                 >
                   {loop.icon}
                 </text>
 
-                {/* Task circles inside */}
+                {/* Task circles inside - each parent task is one dot */}
                 {taskPositions.map((pos, idx) => (
                   <circle
                     key={idx}
                     cx={pos.x}
                     cy={pos.y}
                     r={pos.r}
-                    fill={urgencyColor}
+                    fill={stateColor}
                     opacity="0.8"
                     className="task-circle"
                   />
@@ -376,18 +343,21 @@ function LoopDetailPanel({
 }) {
   const loop = LOOP_DEFINITIONS[loopId];
   const state = loopStates[loopId]?.currentState || "MAINTAIN";
+  const stateColor = getStateColor(state); // Use state-based color
+  // Show all tasks (including subtasks) in detail panel for full visibility
   const loopTasks = tasks.filter((t) => t.loop === loopId && t.status !== "done");
-  const urgencyColor = getLoopUrgencyColor(loopTasks);
+  // Count only parent tasks for the count display
+  const parentTaskCount = loopTasks.filter(t => !t.parentId).length;
 
   return (
     <div className="loop-detail">
-      <div className="loop-detail-header" style={{ borderLeftColor: urgencyColor }}>
+      <div className="loop-detail-header" style={{ borderLeftColor: stateColor }}>
         <div className="loop-detail-info">
           <span className="loop-detail-icon">{loop.icon}</span>
           <div>
             <h3>{loop.name}</h3>
-            <span className="loop-detail-state" style={{ color: urgencyColor }}>
-              {getStateDisplayName(state)} · {loopTasks.length} tasks
+            <span className="loop-detail-state" style={{ color: stateColor }}>
+              {getStateDisplayName(state)} · {parentTaskCount} tasks
             </span>
           </div>
         </div>
@@ -402,11 +372,11 @@ function LoopDetailPanel({
             {loopTasks.map((task) => (
               <li
                 key={task.id}
-                className="loop-detail-task"
+                className={`loop-detail-task ${task.parentId ? 'subtask' : ''}`}
                 onClick={() => onSelectTask?.(task.id)}
               >
                 <span className="task-dot" style={{ backgroundColor: getTaskUrgencyColor(task) }} />
-                <span className="task-title">{task.title}</span>
+                <span className="task-title">{task.parentId ? `↳ ${task.title}` : task.title}</span>
                 {task.dueDate && (
                   <span className="task-due">{formatDue(task.dueDate)}</span>
                 )}
@@ -419,9 +389,9 @@ function LoopDetailPanel({
   );
 }
 
-// Get urgency color for a single task
+// Get urgency color for a single task (used for task dots in detail panel)
 function getTaskUrgencyColor(task: Task): string {
-  if (!task.dueDate) return URGENCY_COLORS.none;
+  if (!task.dueDate) return TASK_URGENCY_COLORS.none;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -429,9 +399,9 @@ function getTaskUrgencyColor(task: Task): string {
   dueDate.setHours(0, 0, 0, 0);
   const daysDiff = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (daysDiff < 0) return URGENCY_COLORS.overdue;
-  if (daysDiff <= 3) return URGENCY_COLORS.soon;
-  return URGENCY_COLORS.ok;
+  if (daysDiff < 0) return TASK_URGENCY_COLORS.overdue;
+  if (daysDiff <= 3) return TASK_URGENCY_COLORS.soon;
+  return TASK_URGENCY_COLORS.ok;
 }
 
 function formatDue(dateStr: string): string {

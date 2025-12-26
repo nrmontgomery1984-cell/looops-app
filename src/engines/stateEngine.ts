@@ -165,13 +165,13 @@ export function calculateCapacity(state: LoopStateType): {
 export function getStateColor(state: LoopStateType): string {
   switch (state) {
     case "BUILD":
-      return "#73A58C"; // Sage
+      return "#22c55e"; // Green - healthy/growing
     case "MAINTAIN":
-      return "#5a7fb8"; // Muted Blue
+      return "#eab308"; // Yellow - stable/maintaining
     case "RECOVER":
-      return "#F4B942"; // Amber
+      return "#ef4444"; // Red - needs attention
     case "HIBERNATE":
-      return "#737390"; // Navy Gray
+      return "#ef4444"; // Red - needs attention
   }
 }
 
