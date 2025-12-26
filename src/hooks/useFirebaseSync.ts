@@ -114,14 +114,31 @@ export function useFirebaseSync(
             }
 
             // Subscribe to real-time updates (non-blocking)
+            // Use a flag to ignore updates triggered by our own saves
+            let ignoringOwnUpdate = false;
             currentSubscribeUnsubscribe = subscribeToAppState(user.uid, (remoteState) => {
-              if (remoteState) {
-                const remoteJson = JSON.stringify(remoteState);
-                if (remoteJson !== lastSyncedState.current) {
+              if (remoteState && !ignoringOwnUpdate) {
+                // Remove updatedAt from comparison since it changes on every save
+                const { updatedAt: _remoteUpdated, ...remoteWithoutTimestamp } = remoteState as any;
+                const remoteJson = JSON.stringify(remoteWithoutTimestamp);
+
+                // Parse lastSyncedState and remove updatedAt for comparison
+                let lastWithoutTimestamp = '';
+                try {
+                  const parsed = JSON.parse(lastSyncedState.current || '{}');
+                  const { updatedAt: _lastUpdated, ...rest } = parsed;
+                  lastWithoutTimestamp = JSON.stringify(rest);
+                } catch {
+                  lastWithoutTimestamp = '';
+                }
+
+                if (remoteJson !== lastWithoutTimestamp) {
                   console.log('Received remote update for user:', user.uid);
                   // Update lastSyncedState BEFORE dispatching to avoid immediate re-save
-                  lastSyncedState.current = remoteJson;
+                  lastSyncedState.current = JSON.stringify(remoteState);
                   onRemoteUpdateRef.current(remoteState as Partial<AppState>);
+                } else {
+                  console.log('[Sync] Ignoring remote update - matches local state');
                 }
               }
             });
@@ -159,6 +176,7 @@ export function useFirebaseSync(
       setSyncStatus((prev) => ({ ...prev, isSyncing: true, error: null }));
 
       const stateJson = JSON.stringify(stateToSave);
+      // Update lastSyncedState BEFORE saving to prevent loop from real-time listener
       lastSyncedState.current = stateJson;
 
       const success = await saveAppState(userId, stateToSave);
@@ -178,7 +196,7 @@ export function useFirebaseSync(
           error: 'Failed to sync',
         }));
       }
-    }, 2000), // 2 second debounce
+    }, 1000), // 1 second debounce (reduced from 2s)
     []
   );
 
