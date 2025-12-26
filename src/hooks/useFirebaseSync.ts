@@ -193,8 +193,6 @@ export function useFirebaseSync(
 
   // Sync state to cloud when it changes
   useEffect(() => {
-    console.log('[Sync] State change detected, isInitialMount:', isInitialMount.current, 'userRef:', userRef.current?.uid || 'null');
-
     // Skip initial mount
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -204,19 +202,17 @@ export function useFirebaseSync(
 
     // Skip if no user or Firebase not configured
     if (!userRef.current) {
-      console.log('[Sync] No user, skipping save');
       return;
     }
 
     if (!isFirebaseConfigured()) {
-      console.log('[Sync] Firebase not configured, skipping save');
       return;
     }
 
-    // Check if state is different from last synced
-    const currentStateJson = JSON.stringify(state);
-    if (currentStateJson === lastSyncedState.current) {
-      console.log('[Sync] State unchanged from last sync, skipping');
+    // Skip if we're in the cooldown window (state change from our own save echoing back)
+    const now = Date.now();
+    if (now < ignoringOwnSaveUntil.current) {
+      console.log('[Sync] Skipping save - within cooldown window');
       return;
     }
 
