@@ -25655,166 +25655,195 @@ body.modal-open {
 }
 
 /* Light Mode - Identity Selector */
+[data-theme="light"] .identity-selector__category-title {
+  color: #1a1a2e !important;
+}
+
 [data-theme="light"] .identity-chip {
-  background: rgba(26, 26, 46, 0.03);
-  border-color: rgba(26, 26, 46, 0.15);
-  color: var(--looops-navy);
+  background: #f5f5f7 !important;
+  border-color: #d0d0d8 !important;
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .identity-chip:hover:not(.identity-chip--disabled) {
-  background: rgba(26, 26, 46, 0.06);
-  border-color: rgba(26, 26, 46, 0.2);
+  background: #ebebef !important;
+  border-color: #b0b0b8 !important;
 }
 
 [data-theme="light"] .identity-chip--selected {
-  background: rgba(242, 112, 89, 0.1);
-  border-color: var(--looops-coral);
+  background: rgba(242, 112, 89, 0.15) !important;
+  border-color: var(--looops-coral) !important;
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .identity-chip__label {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .identity-chip__description {
-  color: rgba(26, 26, 46, 0.5);
+  color: #555566 !important;
 }
 
 [data-theme="light"] .identity-selector__counter {
-  color: rgba(26, 26, 46, 0.5);
+  color: #666677 !important;
 }
 
 /* Light Mode - Value Slider */
+[data-theme="light"] .value-slider {
+  background: #f5f5f7 !important;
+  border-color: #d0d0d8 !important;
+}
+
 [data-theme="light"] .value-slider__label-left,
 [data-theme="light"] .value-slider__label-right {
-  color: rgba(26, 26, 46, 0.6);
+  color: #333344 !important;
 }
 
 [data-theme="light"] .value-slider__value {
-  color: rgba(26, 26, 46, 0.5);
+  color: #555566 !important;
+}
+
+[data-theme="light"] .value-slider__track {
+  background: #d0d0d8 !important;
+}
+
+[data-theme="light"] .value-slider input[type="range"] {
+  background: #d0d0d8 !important;
 }
 
 /* Light Mode - Tradeoff Scenario */
 [data-theme="light"] .tradeoff-scenario__title {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .tradeoff-scenario__description {
-  color: rgba(26, 26, 46, 0.6);
+  color: #444455 !important;
 }
 
 [data-theme="light"] .tradeoff-option {
-  background: rgba(26, 26, 46, 0.02);
-  border-color: rgba(26, 26, 46, 0.15);
+  background: #f5f5f7 !important;
+  border-color: #d0d0d8 !important;
 }
 
 [data-theme="light"] .tradeoff-option:hover {
-  background: rgba(26, 26, 46, 0.05);
-  border-color: rgba(26, 26, 46, 0.2);
+  background: #ebebef !important;
+  border-color: #b0b0b8 !important;
+}
+
+[data-theme="light"] .tradeoff-option--selected {
+  background: rgba(242, 112, 89, 0.12) !important;
+  border-color: var(--looops-coral) !important;
 }
 
 [data-theme="light"] .tradeoff-option__label {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .tradeoff-option__description {
-  color: rgba(26, 26, 46, 0.6);
+  color: #555566 !important;
 }
 
 [data-theme="light"] .tradeoff-scenario__vs {
-  color: rgba(26, 26, 46, 0.4);
+  color: #888899 !important;
 }
 
 /* Light Mode - Loop Priority Ranker */
 [data-theme="light"] .loop-ranker__item {
-  background: rgba(26, 26, 46, 0.03);
+  background: #f5f5f7 !important;
+  border-color: #d0d0d8 !important;
+}
+
+[data-theme="light"] .loop-ranker__name {
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .loop-ranker__rank {
-  color: rgba(26, 26, 46, 0.4);
+  color: #555566 !important;
 }
 
 [data-theme="light"] .loop-ranker__handle {
-  color: rgba(26, 26, 46, 0.3);
+  color: #888899 !important;
 }
 
 /* Light Mode - Resource Allocation Editor */
 [data-theme="light"] .resource-allocation__section-title {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .resource-allocation__section-desc {
-  color: rgba(26, 26, 46, 0.6);
+  color: #555566 !important;
 }
 
 [data-theme="light"] .resource-allocation__total-value {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
-[data-theme="light"] .resource-allocation__value {
-  color: rgba(26, 26, 46, 0.7);
+[data-theme="light"] .resource-allocation__value,
+[data-theme="light"] .resource-allocation__loop-name {
+  color: #333344 !important;
 }
 
 [data-theme="light"] .resource-option {
-  background: rgba(26, 26, 46, 0.03);
-  border-color: rgba(26, 26, 46, 0.15);
+  background: #f5f5f7 !important;
+  border-color: #d0d0d8 !important;
 }
 
 [data-theme="light"] .resource-option:hover {
-  background: rgba(26, 26, 46, 0.06);
-  border-color: rgba(26, 26, 46, 0.2);
+  background: #ebebef !important;
+  border-color: #b0b0b8 !important;
 }
 
 [data-theme="light"] .resource-option--selected {
-  background: rgba(242, 112, 89, 0.08);
-  border-color: var(--looops-coral);
+  background: rgba(242, 112, 89, 0.12) !important;
+  border-color: var(--looops-coral) !important;
 }
 
 [data-theme="light"] .resource-option__label {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .resource-option__description {
-  color: rgba(26, 26, 46, 0.5);
+  color: #555566 !important;
 }
 
 /* Light Mode - Loop Directions Form */
 [data-theme="light"] .loop-directions-form__header {
-  background: rgba(26, 26, 46, 0.03) !important;
+  background: #f5f5f7 !important;
 }
 
 [data-theme="light"] .loop-directions-step__title {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .loop-directions-step__description {
-  color: rgba(26, 26, 46, 0.6);
+  color: #444455 !important;
 }
 
 [data-theme="light"] .loop-option-selector__counter {
-  color: rgba(26, 26, 46, 0.5);
+  color: #666677 !important;
 }
 
 [data-theme="light"] .loop-option {
-  background: rgba(26, 26, 46, 0.03);
-  border-color: rgba(26, 26, 46, 0.15);
+  background: #f5f5f7 !important;
+  border-color: #d0d0d8 !important;
 }
 
 [data-theme="light"] .loop-option:hover:not(.loop-option--disabled) {
-  background: rgba(26, 26, 46, 0.06);
-  border-color: rgba(26, 26, 46, 0.2);
+  background: #ebebef !important;
+  border-color: #b0b0b8 !important;
 }
 
 [data-theme="light"] .loop-option--selected {
-  background: rgba(242, 112, 89, 0.08);
-  border-color: var(--looops-coral);
+  background: rgba(242, 112, 89, 0.12) !important;
+  border-color: var(--looops-coral) !important;
 }
 
 [data-theme="light"] .loop-option__label {
-  color: var(--looops-navy);
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .loop-option__description {
-  color: rgba(26, 26, 46, 0.5);
+  color: #555566 !important;
 }
 
 [data-theme="light"] .loop-option--disabled {
