@@ -25580,13 +25580,21 @@ body.modal-open {
 }
 
 /* Light Mode - Directional Wizard */
-[data-theme="light"] .directional-wizard__overlay {
-  background: rgba(255, 255, 255, 0.95);
+[data-theme="light"] .directional-wizard {
+  background: #f8f9fa;
 }
 
-[data-theme="light"] .directional-wizard__modal {
-  background: white;
-  box-shadow: 0 20px 60px rgba(26, 26, 46, 0.15);
+[data-theme="light"] .directional-wizard__header {
+  background: rgba(26, 26, 46, 0.03);
+  border-bottom-color: rgba(26, 26, 46, 0.1);
+}
+
+[data-theme="light"] .directional-wizard__close {
+  color: rgba(26, 26, 46, 0.5);
+}
+
+[data-theme="light"] .directional-wizard__close:hover {
+  color: var(--looops-navy);
 }
 
 [data-theme="light"] .directional-wizard__title {
@@ -25601,12 +25609,39 @@ body.modal-open {
   background: rgba(26, 26, 46, 0.1);
 }
 
-[data-theme="light"] .directional-wizard__step-title {
+[data-theme="light"] .directional-wizard__loop-dot--current {
+  box-shadow: 0 0 0 3px rgba(26, 26, 46, 0.1);
+}
+
+[data-theme="light"] .directional-wizard__content {
+  background: white;
+}
+
+[data-theme="light"] .directional-wizard__step-intro {
+  color: rgba(26, 26, 46, 0.7);
+}
+
+[data-theme="light"] .directional-wizard__scenario-nav {
+  border-top-color: rgba(26, 26, 46, 0.1);
+}
+
+[data-theme="light"] .directional-wizard__scenario-btn {
+  background: rgba(26, 26, 46, 0.05);
+  border-color: rgba(26, 26, 46, 0.15);
   color: var(--looops-navy);
 }
 
-[data-theme="light"] .directional-wizard__step-description {
-  color: rgba(26, 26, 46, 0.6);
+[data-theme="light"] .directional-wizard__scenario-btn:hover:not(:disabled) {
+  background: rgba(26, 26, 46, 0.1);
+}
+
+[data-theme="light"] .directional-wizard__scenario-counter {
+  color: rgba(26, 26, 46, 0.5);
+}
+
+[data-theme="light"] .directional-wizard__footer {
+  background: rgba(26, 26, 46, 0.03);
+  border-top-color: rgba(26, 26, 46, 0.1);
 }
 
 [data-theme="light"] .directional-wizard__btn--secondary {
@@ -25796,6 +25831,14 @@ body.modal-open {
 
 [data-theme="light"] .loop-assessment__hint {
   color: rgba(26, 26, 46, 0.5);
+}
+
+[data-theme="light"] .loop-assessment__input {
+  background: rgba(26, 26, 46, 0.1);
+}
+
+[data-theme="light"] .loop-assessment__input::-webkit-slider-thumb {
+  background: var(--looops-coral);
 }
 
 [data-theme="light"] .loop-dependencies__heading {
