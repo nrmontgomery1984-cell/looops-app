@@ -1417,27 +1417,119 @@ function AppContent() {
                       </div>
                     </div>
 
-                    {selectedGoal.metrics && selectedGoal.metrics.length > 0 && (
-                      <div className="goal-detail-metrics">
-                        <h3>Metrics</h3>
+                    <div className="goal-detail-metrics">
+                      <div className="goal-detail-metrics-header">
+                        <h3>Success Metrics</h3>
+                        <button
+                          className="goal-detail-add-metric-btn"
+                          onClick={() => {
+                            const newMetric = {
+                              id: `metric_${Date.now()}`,
+                              name: 'New Metric',
+                              target: 100,
+                              current: 0,
+                              unit: 'units',
+                            };
+                            const updatedGoal = {
+                              ...selectedGoal,
+                              metrics: [...(selectedGoal.metrics || []), newMetric],
+                              updatedAt: new Date().toISOString(),
+                            };
+                            dispatch({ type: "UPDATE_GOAL", payload: updatedGoal });
+                            setSelectedGoal(updatedGoal);
+                          }}
+                        >
+                          + Add Metric
+                        </button>
+                      </div>
+                      {selectedGoal.metrics && selectedGoal.metrics.length > 0 ? (
                         <div className="goal-detail-metrics-list">
-                          {selectedGoal.metrics.map((metric) => (
-                            <div key={metric.id} className="goal-detail-metric">
-                              <span className="goal-detail-metric-name">{metric.name}</span>
+                          {selectedGoal.metrics.map((metric, index) => (
+                            <div key={metric.id} className="goal-detail-metric goal-detail-metric--editable">
+                              <div className="goal-detail-metric-row">
+                                <input
+                                  type="text"
+                                  className="goal-detail-metric-name-input"
+                                  value={metric.name}
+                                  onChange={(e) => {
+                                    const newMetrics = [...selectedGoal.metrics!];
+                                    newMetrics[index] = { ...metric, name: e.target.value };
+                                    const updatedGoal = { ...selectedGoal, metrics: newMetrics, updatedAt: new Date().toISOString() };
+                                    dispatch({ type: "UPDATE_GOAL", payload: updatedGoal });
+                                    setSelectedGoal(updatedGoal);
+                                  }}
+                                  placeholder="Metric name"
+                                />
+                                <button
+                                  className="goal-detail-metric-delete"
+                                  onClick={() => {
+                                    if (confirm('Delete this metric?')) {
+                                      const newMetrics = selectedGoal.metrics!.filter((_, i) => i !== index);
+                                      const updatedGoal = { ...selectedGoal, metrics: newMetrics, updatedAt: new Date().toISOString() };
+                                      dispatch({ type: "UPDATE_GOAL", payload: updatedGoal });
+                                      setSelectedGoal(updatedGoal);
+                                    }
+                                  }}
+                                  title="Delete metric"
+                                >
+                                  ×
+                                </button>
+                              </div>
                               <div className="goal-detail-metric-progress">
                                 <div
                                   className="goal-detail-metric-fill"
-                                  style={{ width: `${(metric.current / metric.target) * 100}%` }}
+                                  style={{ width: `${metric.target > 0 ? (metric.current / metric.target) * 100 : 0}%` }}
                                 />
                               </div>
-                              <span className="goal-detail-metric-value">
-                                {metric.current} / {metric.target} {metric.unit}
-                              </span>
+                              <div className="goal-detail-metric-values">
+                                <input
+                                  type="number"
+                                  className="goal-detail-metric-current"
+                                  value={metric.current}
+                                  onChange={(e) => {
+                                    const newMetrics = [...selectedGoal.metrics!];
+                                    newMetrics[index] = { ...metric, current: Number(e.target.value) };
+                                    const updatedGoal = { ...selectedGoal, metrics: newMetrics, updatedAt: new Date().toISOString() };
+                                    dispatch({ type: "UPDATE_GOAL", payload: updatedGoal });
+                                    setSelectedGoal(updatedGoal);
+                                  }}
+                                  min="0"
+                                />
+                                <span className="goal-detail-metric-separator">/</span>
+                                <input
+                                  type="number"
+                                  className="goal-detail-metric-target"
+                                  value={metric.target}
+                                  onChange={(e) => {
+                                    const newMetrics = [...selectedGoal.metrics!];
+                                    newMetrics[index] = { ...metric, target: Number(e.target.value) };
+                                    const updatedGoal = { ...selectedGoal, metrics: newMetrics, updatedAt: new Date().toISOString() };
+                                    dispatch({ type: "UPDATE_GOAL", payload: updatedGoal });
+                                    setSelectedGoal(updatedGoal);
+                                  }}
+                                  min="1"
+                                />
+                                <input
+                                  type="text"
+                                  className="goal-detail-metric-unit"
+                                  value={metric.unit}
+                                  onChange={(e) => {
+                                    const newMetrics = [...selectedGoal.metrics!];
+                                    newMetrics[index] = { ...metric, unit: e.target.value };
+                                    const updatedGoal = { ...selectedGoal, metrics: newMetrics, updatedAt: new Date().toISOString() };
+                                    dispatch({ type: "UPDATE_GOAL", payload: updatedGoal });
+                                    setSelectedGoal(updatedGoal);
+                                  }}
+                                  placeholder="units"
+                                />
+                              </div>
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="goal-detail-no-metrics">No metrics defined. Add metrics to track your progress.</p>
+                      )}
+                    </div>
 
                     <div className="goal-detail-dates">
                       <div className="goal-detail-date">
@@ -1548,6 +1640,24 @@ function AppContent() {
                           Reopen
                         </button>
                       )}
+                    </div>
+
+                    {/* Danger Zone - Delete */}
+                    <div className="goal-detail-danger-zone">
+                      <button
+                        className="goal-detail-btn goal-detail-btn--delete"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete "${selectedGoal.title}"? This cannot be undone.`)) {
+                            dispatch({ type: "DELETE_GOAL", payload: selectedGoal.id });
+                            setSelectedGoal(null);
+                          }
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                        </svg>
+                        Delete Goal
+                      </button>
                     </div>
                   </div>
                 </div>

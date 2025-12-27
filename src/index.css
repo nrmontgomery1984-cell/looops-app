@@ -12366,6 +12366,170 @@ body.modal-open {
   text-align: right;
 }
 
+/* Editable metrics */
+.goal-detail-metrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.goal-detail-metrics-header h3 {
+  margin: 0;
+}
+
+.goal-detail-add-metric-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px dashed var(--color-gray-600);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.goal-detail-add-metric-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: rgba(0, 150, 136, 0.1);
+}
+
+.goal-detail-metric--editable {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.goal-detail-metric-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.goal-detail-metric-name-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 4px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.goal-detail-metric-name-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.goal-detail-metric-delete {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-gray-500);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.goal-detail-metric-delete:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.goal-detail-metric-values {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.goal-detail-metric-current,
+.goal-detail-metric-target {
+  width: 60px;
+  padding: 4px 8px;
+  background: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 4px;
+  color: var(--color-text);
+  font-size: 12px;
+  text-align: center;
+}
+
+.goal-detail-metric-current:focus,
+.goal-detail-metric-target:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.goal-detail-metric-separator {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.goal-detail-metric-unit {
+  width: 70px;
+  padding: 4px 8px;
+  background: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.goal-detail-metric-unit:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.goal-detail-no-metrics {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  padding: 12px;
+  text-align: center;
+  background: var(--color-gray-900);
+  border-radius: 8px;
+}
+
+/* Danger zone - Delete button */
+.goal-detail-danger-zone {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-gray-800);
+}
+
+.goal-detail-btn--delete {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.goal-detail-btn--delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.goal-detail-btn--delete svg {
+  flex-shrink: 0;
+}
+
 .goal-detail-dates {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -12473,6 +12637,29 @@ body.modal-open {
 
 [data-theme="light"] .goal-detail-metric-progress {
   background: var(--color-gray-200);
+}
+
+[data-theme="light"] .goal-detail-metric-name-input,
+[data-theme="light"] .goal-detail-metric-current,
+[data-theme="light"] .goal-detail-metric-target,
+[data-theme="light"] .goal-detail-metric-unit {
+  background: white;
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-800);
+}
+
+[data-theme="light"] .goal-detail-add-metric-btn {
+  border-color: var(--color-gray-400);
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .goal-detail-no-metrics {
+  background: var(--color-gray-50);
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .goal-detail-danger-zone {
+  border-top-color: var(--color-gray-200);
 }
 
 [data-theme="light"] .goal-detail-actions {
