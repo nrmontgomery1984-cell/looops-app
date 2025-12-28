@@ -8062,6 +8062,23 @@ body.modal-open {
   flex-wrap: wrap;
 }
 
+@media (max-width: 768px) {
+  .planning-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .planning-view-toggle {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .planning-view-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
+
 .planning-header h2 {
   margin: 0;
 }
@@ -8081,6 +8098,15 @@ body.modal-open {
   background: var(--color-gray-100);
   border-radius: 8px;
   padding: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-shrink: 0;
+}
+
+.planning-view-toggle::-webkit-scrollbar {
+  display: none;
 }
 
 .planning-view-btn {
@@ -8093,6 +8119,8 @@ body.modal-open {
   color: var(--color-gray-600);
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .planning-view-btn:hover {
