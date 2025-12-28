@@ -1,5 +1,5 @@
 // Recipe Card Component
-import React from "react";
+import React, { useState } from "react";
 import {
   Recipe,
   formatTime,
@@ -22,6 +22,7 @@ export function RecipeCard({
   onAddToPlan,
   compact = false,
 }: RecipeCardProps) {
+  const [imageError, setImageError] = useState(false);
   const difficultyColor = getDifficultyColor(recipe.difficulty);
   const difficultyDots = {
     easy: 1,
@@ -34,8 +35,12 @@ export function RecipeCard({
     <div className={`recipe-card ${compact ? "recipe-card--compact" : ""}`}>
       {/* Image or Placeholder */}
       <div className="recipe-card__image" onClick={onView}>
-        {recipe.imageUrl ? (
-          <img src={recipe.imageUrl} alt={recipe.title} />
+        {recipe.imageUrl && !imageError ? (
+          <img
+            src={recipe.imageUrl}
+            alt={recipe.title}
+            onError={() => setImageError(true)}
+          />
         ) : (
           <div className="recipe-card__placeholder">
             <span className="recipe-card__placeholder-icon">🍽️</span>

@@ -39,7 +39,6 @@ export const SEED_RECIPES: Recipe[] = [
     rating: 5,
     timesMade: 0,
     isFavorite: true,
-    imageUrl: "https://www.seriouseats.com/thmb/7Z-qxhxKMZbBQPRLZqIzLxfmvJQ=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__2014__03__20140306-287454-smashed-burgers-2-thumb-1500xauto-391931-f4241b895f094a90bf16f3bcdecda7d7.jpg",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
