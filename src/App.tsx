@@ -53,6 +53,7 @@ import { IntegrationsScreen } from "./components/integrations";
 import { DirectionalDocumentWizard, DirectionalDocumentView } from "./components/directional";
 import { DirectionalDocument } from "./types/directional";
 import { exportDirectionalDocumentPDF, downloadPDF } from "./services/pdfExport";
+import { MealPrepScreen } from "./components/mealprep";
 
 // Mock data for previewing completed directional document
 const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
@@ -1710,6 +1711,9 @@ function AppContent() {
             )}
           </div>
         );
+
+      case "mealprep":
+        return <MealPrepScreen />;
 
       case "history":
         return <HistoryScreen tasks={tasks.items} />;

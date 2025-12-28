@@ -95,6 +95,14 @@ const IntegrationsIcon = () => (
   </svg>
 );
 
+const MealPrepIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2" />
+    <path d="M7 2v20" />
+    <path d="M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+  </svg>
+);
+
 const SunIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="5" />
@@ -143,6 +151,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "systems", icon: <SystemsIcon />, label: "Systems" },
   { id: "loops", icon: <LoopsIcon />, label: "Loops" },
   { id: "planning", icon: <PlanningIcon />, label: "Planning" },
+  { id: "mealprep", icon: <MealPrepIcon />, label: "Meal Prep" },
   { id: "history", icon: <HistoryIcon />, label: "History" },
   { id: "integrations", icon: <IntegrationsIcon />, label: "Integrations" },
   { id: "me", icon: <ProfileIcon />, label: "Me" },

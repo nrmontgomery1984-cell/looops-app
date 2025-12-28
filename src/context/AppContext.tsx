@@ -76,6 +76,14 @@ import {
   DayTypeConfig,
   createDefaultSmartScheduleState,
 } from "../types/dayTypes";
+import {
+  MealPrepState,
+  KitchenProfile,
+  Recipe,
+  MealPlan,
+  TechniqueEntry,
+  getDefaultMealPrepState,
+} from "../types/mealPrep";
 
 // User profile type
 export type UserProfile = {
@@ -176,6 +184,9 @@ export type AppState = {
   // Smart Scheduler (day type system)
   smartSchedule: SmartScheduleState;
 
+  // Meal Prep (Health loop)
+  mealPrep: MealPrepState;
+
   // Active task timer (only one can run at a time)
   activeTimer: ActiveTimer | null;
 
@@ -270,6 +281,8 @@ const defaultState: AppState = {
   customTemplates: [],
   // Smart Schedule
   smartSchedule: createDefaultSmartScheduleState(),
+  // Meal Prep
+  mealPrep: getDefaultMealPrepState(),
   // Active Timer
   activeTimer: null,
   ui: {
@@ -435,6 +448,21 @@ export type AppAction =
   | { type: "ADD_CUSTOM_DAY_TYPE"; payload: DayTypeConfig }
   | { type: "UPDATE_CUSTOM_DAY_TYPE"; payload: DayTypeConfig }
   | { type: "DELETE_CUSTOM_DAY_TYPE"; payload: string }
+
+  // Meal Prep actions
+  | { type: "SET_KITCHEN_PROFILE"; payload: KitchenProfile }
+  | { type: "UPDATE_KITCHEN_PROFILE"; payload: Partial<KitchenProfile> }
+  | { type: "COMPLETE_MEAL_PREP_ONBOARDING" }
+  | { type: "ADD_RECIPE"; payload: Recipe }
+  | { type: "UPDATE_RECIPE"; payload: Recipe }
+  | { type: "DELETE_RECIPE"; payload: string }
+  | { type: "TOGGLE_RECIPE_FAVORITE"; payload: string }
+  | { type: "LOG_RECIPE_MADE"; payload: { recipeId: string; date: string } }
+  | { type: "SET_MEAL_PLAN"; payload: MealPlan }
+  | { type: "UPDATE_MEAL_PLAN"; payload: MealPlan }
+  | { type: "ADD_TECHNIQUE_ENTRY"; payload: TechniqueEntry }
+  | { type: "UPDATE_TECHNIQUE_ENTRY"; payload: TechniqueEntry }
+  | { type: "DELETE_TECHNIQUE_ENTRY"; payload: string }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -1610,6 +1638,138 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    // Meal Prep
+    case "SET_KITCHEN_PROFILE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          kitchenProfile: action.payload,
+        },
+      };
+
+    case "UPDATE_KITCHEN_PROFILE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          kitchenProfile: state.mealPrep.kitchenProfile
+            ? { ...state.mealPrep.kitchenProfile, ...action.payload, updatedAt: new Date().toISOString() }
+            : null,
+        },
+      };
+
+    case "COMPLETE_MEAL_PREP_ONBOARDING":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          onboardingComplete: true,
+        },
+      };
+
+    case "ADD_RECIPE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          recipes: [...state.mealPrep.recipes, action.payload],
+        },
+      };
+
+    case "UPDATE_RECIPE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          recipes: state.mealPrep.recipes.map(r =>
+            r.id === action.payload.id ? { ...action.payload, updatedAt: new Date().toISOString() } : r
+          ),
+        },
+      };
+
+    case "DELETE_RECIPE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          recipes: state.mealPrep.recipes.filter(r => r.id !== action.payload),
+        },
+      };
+
+    case "TOGGLE_RECIPE_FAVORITE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          recipes: state.mealPrep.recipes.map(r =>
+            r.id === action.payload ? { ...r, isFavorite: !r.isFavorite, updatedAt: new Date().toISOString() } : r
+          ),
+        },
+      };
+
+    case "LOG_RECIPE_MADE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          recipes: state.mealPrep.recipes.map(r =>
+            r.id === action.payload.recipeId
+              ? { ...r, timesMade: r.timesMade + 1, lastMade: action.payload.date, updatedAt: new Date().toISOString() }
+              : r
+          ),
+        },
+      };
+
+    case "SET_MEAL_PLAN":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          mealPlans: [...state.mealPrep.mealPlans.filter(mp => mp.weekOf !== action.payload.weekOf), action.payload],
+        },
+      };
+
+    case "UPDATE_MEAL_PLAN":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          mealPlans: state.mealPrep.mealPlans.map(mp =>
+            mp.id === action.payload.id ? { ...action.payload, updatedAt: new Date().toISOString() } : mp
+          ),
+        },
+      };
+
+    case "ADD_TECHNIQUE_ENTRY":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          techniqueLibrary: [...state.mealPrep.techniqueLibrary, action.payload],
+        },
+      };
+
+    case "UPDATE_TECHNIQUE_ENTRY":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          techniqueLibrary: state.mealPrep.techniqueLibrary.map(te =>
+            te.id === action.payload.id ? { ...action.payload, lastUpdated: new Date().toISOString() } : te
+          ),
+        },
+      };
+
+    case "DELETE_TECHNIQUE_ENTRY":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          techniqueLibrary: state.mealPrep.techniqueLibrary.filter(te => te.id !== action.payload),
+        },
+      };
+
     default:
       return state;
   }
@@ -1705,6 +1865,13 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
           customDayTypes: savedState.smartSchedule.customDayTypes ?? [],
         }
       : defaultState.smartSchedule,
+    // Meal Prep - persists
+    mealPrep: savedState.mealPrep
+      ? {
+          ...defaultState.mealPrep,
+          ...savedState.mealPrep,
+        }
+      : defaultState.mealPrep,
     // Active Timer - persists (allows resuming timer across sessions)
     activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
@@ -1894,4 +2061,19 @@ export function useDirectionalDocument() {
 export function useSmartSchedule() {
   const { state } = useApp();
   return state.smartSchedule;
+}
+
+export function useMealPrep() {
+  const { state } = useApp();
+  return state.mealPrep;
+}
+
+export function useKitchenProfile() {
+  const { state } = useApp();
+  return state.mealPrep.kitchenProfile;
+}
+
+export function useRecipes() {
+  const { state } = useApp();
+  return state.mealPrep.recipes;
 }

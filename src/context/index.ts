@@ -22,6 +22,10 @@ export {
   useBabysitter,
   useHealth,
   useCalendar,
+  useSmartSchedule,
+  useMealPrep,
+  useKitchenProfile,
+  useRecipes,
 } from "./AppContext";
 
 export type { UserProfile, AppState, AppAction } from "./AppContext";
