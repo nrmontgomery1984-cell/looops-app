@@ -1870,11 +1870,19 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
           customDayTypes: savedState.smartSchedule.customDayTypes ?? [],
         }
       : defaultState.smartSchedule,
-    // Meal Prep - persists
+    // Meal Prep - persists, but use seed data if saved arrays are empty
     mealPrep: savedState.mealPrep
       ? {
           ...defaultState.mealPrep,
           ...savedState.mealPrep,
+          // Use seed recipes if user hasn't added any yet
+          recipes: (savedState.mealPrep.recipes?.length ?? 0) > 0
+            ? savedState.mealPrep.recipes!
+            : defaultState.mealPrep.recipes,
+          // Use seed techniques if user hasn't added any yet
+          techniqueLibrary: (savedState.mealPrep.techniqueLibrary?.length ?? 0) > 0
+            ? savedState.mealPrep.techniqueLibrary!
+            : defaultState.mealPrep.techniqueLibrary,
         }
       : defaultState.mealPrep,
     // Active Timer - persists (allows resuming timer across sessions)
