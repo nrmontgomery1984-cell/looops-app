@@ -11,3 +11,8 @@ export { TechniqueCard } from "./TechniqueCard";
 export { TechniqueDetail } from "./TechniqueDetail";
 export { TechniqueForm } from "./TechniqueForm";
 export { TechniqueLibrary } from "./TechniqueLibrary";
+
+// Meal Planning
+export { MealPlanCalendar } from "./MealPlanCalendar";
+export { ShoppingList } from "./ShoppingList";
+export { MealSuggester } from "./MealSuggester";

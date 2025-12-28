@@ -7,6 +7,7 @@ import {
   Course,
   APPROVED_SOURCES,
   TechniqueEntry,
+  MealPlan,
 } from "../../types/mealPrep";
 import { KitchenOnboardingFlow } from "./onboarding";
 import { RecipeCard } from "./RecipeCard";
@@ -14,6 +15,9 @@ import { RecipeDetail } from "./RecipeDetail";
 import { ImportRecipeModal } from "./ImportRecipeModal";
 import { RecipeForm } from "./RecipeForm";
 import { TechniqueLibrary } from "./TechniqueLibrary";
+import { MealPlanCalendar } from "./MealPlanCalendar";
+import { ShoppingList } from "./ShoppingList";
+import { MealSuggester } from "./MealSuggester";
 
 type ViewMode = "grid" | "list";
 type SortBy = "recent" | "rating" | "timesMade" | "totalTime" | "title";
@@ -42,6 +46,7 @@ export function MealPrepScreen() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showRecipeForm, setShowRecipeForm] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [showSuggester, setShowSuggester] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState<FilterState>({
@@ -148,6 +153,11 @@ export function MealPrepScreen() {
     dispatch({ type: "DELETE_TECHNIQUE_ENTRY", payload: id });
   };
 
+  // Meal plan handlers
+  const handleSaveMealPlan = (plan: MealPlan) => {
+    dispatch({ type: "SET_MEAL_PLAN", payload: plan });
+  };
+
   const handleEditRecipe = (recipe: Recipe) => {
     setEditingRecipe(recipe);
     setShowRecipeForm(true);
@@ -243,6 +253,37 @@ export function MealPrepScreen() {
     );
   }
 
+  // Meal Plan Calendar View
+  if (mainView === "calendar") {
+    return (
+      <div className="screen meal-prep-screen">
+        <MealPlanCalendar
+          recipes={mealPrep.recipes}
+          mealPlans={mealPrep.mealPlans}
+          onSavePlan={handleSaveMealPlan}
+          onSelectRecipe={(recipe) => {
+            setSelectedRecipe(recipe);
+          }}
+          onBack={() => setMainView("recipes")}
+        />
+      </div>
+    );
+  }
+
+  // Shopping List View
+  if (mainView === "shopping") {
+    return (
+      <div className="screen meal-prep-screen">
+        <ShoppingList
+          recipes={mealPrep.recipes}
+          mealPlans={mealPrep.mealPlans}
+          onUpdateList={handleSaveMealPlan}
+          onBack={() => setMainView("recipes")}
+        />
+      </div>
+    );
+  }
+
   // Helper to check active tab
   const isActiveTab = (tab: MainView) => mainView === tab;
 
@@ -294,18 +335,21 @@ export function MealPrepScreen() {
         <button
           className={`meal-prep__tab ${isActiveTab("calendar") ? "meal-prep__tab--active" : ""}`}
           onClick={() => setMainView("calendar")}
-          disabled
         >
           Meal Plan
-          <span className="meal-prep__tab-badge">Soon</span>
+          <span className="meal-prep__tab-count">{mealPrep.mealPlans.length}</span>
         </button>
         <button
           className={`meal-prep__tab ${isActiveTab("shopping") ? "meal-prep__tab--active" : ""}`}
           onClick={() => setMainView("shopping")}
-          disabled
         >
-          Shopping List
-          <span className="meal-prep__tab-badge">Soon</span>
+          Shopping
+        </button>
+        <button
+          className="meal-prep__tab meal-prep__tab--suggest"
+          onClick={() => setShowSuggester(true)}
+        >
+          What to cook?
         </button>
       </div>
 
@@ -510,6 +554,21 @@ export function MealPrepScreen() {
           }}
           onClose={() => setShowImportModal(false)}
         />
+      )}
+
+      {/* Meal Suggester Modal */}
+      {showSuggester && (
+        <div className="meal-prep__suggester-overlay">
+          <MealSuggester
+            recipes={mealPrep.recipes}
+            kitchenProfile={mealPrep.kitchenProfile}
+            onSelectRecipe={(recipe) => {
+              setSelectedRecipe(recipe);
+              setShowSuggester(false);
+            }}
+            onClose={() => setShowSuggester(false)}
+          />
+        </div>
       )}
     </div>
   );
