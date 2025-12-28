@@ -1,6 +1,6 @@
 // Main directional document intake wizard
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   DirectionalDocument,
   DirectionalIntakeProgress,
@@ -11,6 +11,7 @@ import {
   ValueDimension,
   ConflictResolution,
   LoopDirections,
+  GeneratedDocument,
   createDirectionalDocument,
   createIntakeProgress,
   calculateCompletionProgress,
@@ -27,6 +28,10 @@ import {
   TRADEOFF_SCENARIOS,
 } from "../../data/directionalOptions";
 import { LOOP_COLORS } from "../../types/core";
+import { useApp } from "../../context/AppContext";
+
+// Server URL for API calls
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 type DirectionalDocumentWizardProps = {
   userId: string;
@@ -79,6 +84,61 @@ export function DirectionalDocumentWizard({
 
   // Current tradeoff scenario index (for tradeoffs step)
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
+
+  // AI generation state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [showingResult, setShowingResult] = useState(false);
+
+  // Get user prototype for AI generation context
+  const { state: appState } = useApp();
+
+  // Generate AI document
+  const generateDirectionalDocument = useCallback(async () => {
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/ai/generate-directions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          directionalDocument: document,
+          userPrototype: appState.user.prototype,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.generatedDocument) {
+        // Update document with generated content
+        setDocument((prev) => ({
+          ...prev,
+          generatedDocument: data.generatedDocument as GeneratedDocument,
+          status: "complete",
+          completionProgress: 100,
+          updatedAt: new Date().toISOString(),
+        }));
+        setShowingResult(true);
+      } else {
+        throw new Error("Failed to generate document");
+      }
+    } catch (error) {
+      console.error("AI generation error:", error);
+      setGenerationError(
+        error instanceof Error ? error.message : "Failed to generate document"
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [document, appState.user.prototype]);
 
   // Calculate overall progress percentage
   const progressPercent = useMemo(
@@ -264,7 +324,7 @@ export function DirectionalDocumentWizard({
       return prev;
     });
 
-    // Check if we just finished
+    // Check if we just finished the intake
     const isLastLoop =
       progress.currentPhase === "loops" &&
       progress.currentLoop === ALL_LOOPS[ALL_LOOPS.length - 1];
@@ -272,16 +332,10 @@ export function DirectionalDocumentWizard({
       progress.loopStep === LOOP_STEPS[LOOP_STEPS.length - 1];
 
     if (isLastLoop && isLastStep) {
-      // Complete the document
-      const completedDoc: DirectionalDocument = {
-        ...document,
-        status: "complete",
-        completionProgress: 100,
-        updatedAt: new Date().toISOString(),
-      };
-      onComplete(completedDoc);
+      // Trigger AI generation instead of immediate completion
+      generateDirectionalDocument();
     }
-  }, [document, progress, onComplete, onSaveProgress]);
+  }, [document, progress, onSaveProgress, generateDirectionalDocument]);
 
   // Check if current step is valid to proceed
   const canProceed = useMemo(() => {
@@ -312,8 +366,170 @@ export function DirectionalDocumentWizard({
     return false;
   }, [progress, document]);
 
+  // Render generating screen
+  const renderGeneratingScreen = () => (
+    <div className="directional-wizard__generating">
+      <div className="directional-wizard__generating-animation">
+        <div className="directional-wizard__spinner" />
+      </div>
+      <h3>Synthesizing Your Directions</h3>
+      <p>
+        Analyzing your values, priorities, and preferences to create your
+        personalized directional document...
+      </p>
+    </div>
+  );
+
+  // Render generation error screen
+  const renderErrorScreen = () => (
+    <div className="directional-wizard__error">
+      <div className="directional-wizard__error-icon">!</div>
+      <h3>Generation Failed</h3>
+      <p>{generationError}</p>
+      <div className="directional-wizard__error-actions">
+        <button
+          className="directional-wizard__btn directional-wizard__btn--primary"
+          onClick={generateDirectionalDocument}
+        >
+          Try Again
+        </button>
+        <button
+          className="directional-wizard__btn directional-wizard__btn--secondary"
+          onClick={() => {
+            // Complete without AI-generated content
+            const basicDoc: DirectionalDocument = {
+              ...document,
+              status: "complete",
+              completionProgress: 100,
+              updatedAt: new Date().toISOString(),
+            };
+            onComplete(basicDoc);
+          }}
+        >
+          Complete Without AI Summary
+        </button>
+      </div>
+    </div>
+  );
+
+  // Render result preview screen
+  const renderResultScreen = () => {
+    const gen = document.generatedDocument;
+    if (!gen) return null;
+
+    return (
+      <div className="directional-wizard__result">
+        <div className="directional-wizard__result-header">
+          <h3>Your Directional Document</h3>
+          <p className="directional-wizard__result-intro">
+            Based on your inputs, here's your personalized direction guide.
+          </p>
+        </div>
+
+        {gen.missionStatement && (
+          <div className="directional-wizard__result-section">
+            <h4>Mission Statement</h4>
+            <blockquote className="directional-wizard__mission">
+              {gen.missionStatement}
+            </blockquote>
+          </div>
+        )}
+
+        <div className="directional-wizard__result-section">
+          <h4>Summary</h4>
+          <p className="directional-wizard__summary">{gen.summary}</p>
+        </div>
+
+        {gen.keyThemes && gen.keyThemes.length > 0 && (
+          <div className="directional-wizard__result-section">
+            <h4>Key Themes</h4>
+            <ul className="directional-wizard__themes">
+              {gen.keyThemes.map((theme, i) => (
+                <li key={i}>{theme}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {gen.loopDirectives && Object.keys(gen.loopDirectives).length > 0 && (
+          <div className="directional-wizard__result-section">
+            <h4>Loop Directives</h4>
+            <div className="directional-wizard__loop-directives">
+              {Object.entries(gen.loopDirectives).map(([loop, directive]) => (
+                <div key={loop} className="directional-wizard__loop-directive">
+                  <span
+                    className="directional-wizard__loop-badge"
+                    style={{ backgroundColor: LOOP_COLORS[loop as LoopId]?.border }}
+                  >
+                    {loop}
+                  </span>
+                  <p>{directive}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {gen.guardrails && gen.guardrails.length > 0 && (
+          <div className="directional-wizard__result-section">
+            <h4>Guardrails</h4>
+            <ul className="directional-wizard__guardrails">
+              {gen.guardrails.map((guardrail, i) => (
+                <li key={i}>{guardrail}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {gen.weeklyRhythm && (
+          <div className="directional-wizard__result-section">
+            <h4>Suggested Weekly Rhythm</h4>
+            <p>{gen.weeklyRhythm}</p>
+          </div>
+        )}
+
+        {gen.potentialConflicts && gen.potentialConflicts.length > 0 && (
+          <div className="directional-wizard__result-section directional-wizard__result-section--warning">
+            <h4>Potential Conflicts to Watch</h4>
+            <ul className="directional-wizard__conflicts">
+              {gen.potentialConflicts.map((conflict, i) => (
+                <li key={i}>{conflict}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {gen.recommendations && gen.recommendations.length > 0 && (
+          <div className="directional-wizard__result-section">
+            <h4>Recommendations</h4>
+            <ul className="directional-wizard__recommendations">
+              {gen.recommendations.map((rec, i) => (
+                <li key={i}>{rec}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Render current step content
   const renderStepContent = () => {
+    // Show generating screen
+    if (isGenerating) {
+      return renderGeneratingScreen();
+    }
+
+    // Show error screen
+    if (generationError) {
+      return renderErrorScreen();
+    }
+
+    // Show result preview
+    if (showingResult && document.generatedDocument) {
+      return renderResultScreen();
+    }
+
     if (progress.currentPhase === "core") {
       switch (progress.coreStep) {
         case "identity":
@@ -528,16 +744,22 @@ export function DirectionalDocumentWizard({
         >
           &times;
         </button>
-        <h2 className="directional-wizard__title">{getStepTitle()}</h2>
+        <h2 className="directional-wizard__title">
+          {isGenerating
+            ? "Generating..."
+            : showingResult
+              ? "Your Directions"
+              : getStepTitle()}
+        </h2>
         <div className="directional-wizard__progress">
           <div className="directional-wizard__progress-bar">
             <div
               className="directional-wizard__progress-fill"
-              style={{ width: `${progressPercent}%` }}
+              style={{ width: `${showingResult ? 100 : progressPercent}%` }}
             />
           </div>
           <span className="directional-wizard__progress-text">
-            {progressPercent}% complete
+            {showingResult ? "Complete" : `${progressPercent}% complete`}
           </span>
         </div>
 
@@ -565,25 +787,64 @@ export function DirectionalDocumentWizard({
       <div className="directional-wizard__content">{renderStepContent()}</div>
 
       <div className="directional-wizard__footer">
-        <button
-          type="button"
-          className="directional-wizard__btn directional-wizard__btn--secondary"
-          onClick={canGoBack ? goBack : onCancel}
-        >
-          {canGoBack ? "Back" : "Cancel"}
-        </button>
-        <button
-          type="button"
-          className="directional-wizard__btn directional-wizard__btn--primary"
-          onClick={goNext}
-          disabled={!canProceed}
-        >
-          {progress.currentPhase === "loops" &&
-          progress.currentLoop === ALL_LOOPS[ALL_LOOPS.length - 1] &&
-          progress.loopStep === LOOP_STEPS[LOOP_STEPS.length - 1]
-            ? "Complete"
-            : "Continue"}
-        </button>
+        {/* Hide footer during generating */}
+        {isGenerating ? (
+          <div className="directional-wizard__footer-generating">
+            <span>This may take a moment...</span>
+          </div>
+        ) : showingResult ? (
+          /* Result screen footer */
+          <>
+            <button
+              type="button"
+              className="directional-wizard__btn directional-wizard__btn--secondary"
+              onClick={() => {
+                // Go back to editing
+                setShowingResult(false);
+                setDocument((prev) => ({
+                  ...prev,
+                  generatedDocument: undefined,
+                  status: "draft",
+                }));
+              }}
+            >
+              Edit Responses
+            </button>
+            <button
+              type="button"
+              className="directional-wizard__btn directional-wizard__btn--primary"
+              onClick={() => onComplete(document)}
+            >
+              Save & Finish
+            </button>
+          </>
+        ) : generationError ? (
+          /* Error screen - footer is in the content */
+          null
+        ) : (
+          /* Normal navigation footer */
+          <>
+            <button
+              type="button"
+              className="directional-wizard__btn directional-wizard__btn--secondary"
+              onClick={canGoBack ? goBack : onCancel}
+            >
+              {canGoBack ? "Back" : "Cancel"}
+            </button>
+            <button
+              type="button"
+              className="directional-wizard__btn directional-wizard__btn--primary"
+              onClick={goNext}
+              disabled={!canProceed}
+            >
+              {progress.currentPhase === "loops" &&
+              progress.currentLoop === ALL_LOOPS[ALL_LOOPS.length - 1] &&
+              progress.loopStep === LOOP_STEPS[LOOP_STEPS.length - 1]
+                ? "Generate Directions"
+                : "Continue"}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

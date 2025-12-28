@@ -122,10 +122,20 @@ export interface LoopDirections {
 export interface GeneratedDocument {
   // AI-generated summary of the user's direction
   summary: string;
+  // Personal mission statement synthesized from inputs
+  missionStatement?: string;
   // Key themes identified across all directions
   keyThemes: string[];
+  // Loop-specific directives/guidance
+  loopDirectives?: Record<LoopId, string>;
+  // Decision framework based on tradeoff choices
+  decisionFramework?: string[];
+  // Guardrails and boundaries based on non-negotiables
+  guardrails?: string[];
   // Potential conflicts between stated priorities
   potentialConflicts: string[];
+  // Suggested weekly rhythm based on allocations
+  weeklyRhythm?: string;
   // Recommendations based on the analysis
   recommendations: string[];
   // When this was generated

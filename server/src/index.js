@@ -13,6 +13,7 @@ import todoistRoutes from "./routes/todoist.js";
 import spotifyRoutes from "./routes/spotify.js";
 import tillerRoutes from "./routes/tiller.js";
 import fitbitRoutes from "./routes/fitbit.js";
+import aiRoutes from "./routes/ai.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -50,6 +51,7 @@ app.use("/api/todoist", todoistRoutes);
 app.use("/api/spotify", spotifyRoutes);
 app.use("/api/tiller", tillerRoutes);
 app.use("/api/fitbit", fitbitRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
