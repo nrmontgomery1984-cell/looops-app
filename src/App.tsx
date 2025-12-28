@@ -48,7 +48,7 @@ import { SpotifyWidget } from "./components/dashboard/SpotifyWidget";
 import { MediaWidget } from "./components/dashboard/MediaWidget";
 import { CalendarWidget as GoogleCalendarWidget } from "./components/dashboard/CalendarWidget";
 import { HistoryScreen } from "./components/history";
-import { WeeklyPlanning } from "./components/planning";
+import { WeeklyPlanning, SmartScheduler } from "./components/planning";
 import { IntegrationsScreen } from "./components/integrations";
 import { DirectionalDocumentWizard, DirectionalDocumentView } from "./components/directional";
 import { DirectionalDocument } from "./types/directional";
@@ -259,7 +259,7 @@ function AppContent() {
   const [viewMode, setViewMode] = useState<"visual" | "kanban">("visual");
   const [showGoalsWizard, setShowGoalsWizard] = useState(false);
   const [showDirectionalWizard, setShowDirectionalWizard] = useState(false);
-  const [planningView, setPlanningView] = useState<"states" | "goals" | "weekly" | "directions">("goals");
+  const [planningView, setPlanningView] = useState<"states" | "goals" | "weekly" | "directions" | "scheduler">("goals");
   const [todayViewMode, setTodayViewMode] = useState<"stack" | "calendar">("stack");
   const [todayFilter, setTodayFilter] = useState<LoopId | "all">("all");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -1190,6 +1190,12 @@ function AppContent() {
                 >
                   Directions
                 </button>
+                <button
+                  className={`planning-view-btn ${planningView === "scheduler" ? "active" : ""}`}
+                  onClick={() => setPlanningView("scheduler")}
+                >
+                  Smart Schedule
+                </button>
               </div>
             </div>
 
@@ -1244,6 +1250,8 @@ function AppContent() {
                   })}
                 </div>
               </>
+            ) : planningView === "scheduler" ? (
+              <SmartScheduler />
             ) : (
               /* Directions View */
               <div className="directions-view">

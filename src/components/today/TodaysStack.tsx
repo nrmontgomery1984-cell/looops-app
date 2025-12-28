@@ -11,6 +11,8 @@ import {
   HabitCompletion,
   getHabitsDueToday,
 } from "../../types";
+import { useSmartSchedule } from "../../context/AppContext";
+import { getDayType, getDayTypeConfig } from "../../engines/smartSchedulerEngine";
 
 type TodaysStackProps = {
   tasks: Task[];
@@ -36,6 +38,14 @@ export function TodaysStack({
   onUncompleteHabit,
 }: TodaysStackProps) {
   const today = new Date().toISOString().split("T")[0];
+  const smartSchedule = useSmartSchedule();
+
+  // Get today's day type for badge display
+  const todayDayType = useMemo(() => {
+    const dayType = getDayType(new Date(), smartSchedule);
+    const config = getDayTypeConfig(dayType, smartSchedule);
+    return { dayType, config };
+  }, [smartSchedule]);
 
   // Get habits due today
   const todaysHabits = useMemo(() => getHabitsDueToday(habits), [habits]);
@@ -69,7 +79,17 @@ export function TodaysStack({
   return (
     <div className="todays-stack">
       <div className="todays-stack__header">
-        <h3>Today's Stack</h3>
+        <div className="todays-stack__title-row">
+          <h3>Today's Stack</h3>
+          {smartSchedule.enabled && todayDayType.dayType !== "regular" && (
+            <span
+              className="todays-stack__day-badge"
+              style={{ backgroundColor: todayDayType.config.color }}
+            >
+              {todayDayType.config.icon} {todayDayType.config.label}
+            </span>
+          )}
+        </div>
         <span className="todays-stack__count">
           {tasks.length} tasks, {completedHabitsCount}/{todaysHabits.length} habits
         </span>

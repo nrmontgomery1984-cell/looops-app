@@ -70,6 +70,12 @@ import { findTemplateById, BUILT_IN_TEMPLATES } from "../data/taskTemplates";
 import { TaskTemplate } from "../types/taskTemplates";
 import { createTask, ActiveTimer, TimeEntry } from "../types/tasks";
 import { createProject } from "../types/projects";
+import {
+  SmartScheduleState,
+  MarkedDate,
+  DayTypeConfig,
+  createDefaultSmartScheduleState,
+} from "../types/dayTypes";
 
 // User profile type
 export type UserProfile = {
@@ -167,6 +173,9 @@ export type AppState = {
   // Custom task templates
   customTemplates: TaskTemplate[];
 
+  // Smart Scheduler (day type system)
+  smartSchedule: SmartScheduleState;
+
   // Active task timer (only one can run at a time)
   activeTimer: ActiveTimer | null;
 
@@ -259,6 +268,8 @@ const defaultState: AppState = {
   directionalDocument: null,
   // Custom Templates
   customTemplates: [],
+  // Smart Schedule
+  smartSchedule: createDefaultSmartScheduleState(),
   // Active Timer
   activeTimer: null,
   ui: {
@@ -414,6 +425,16 @@ export type AppAction =
   | { type: "ADD_CUSTOM_TEMPLATE"; payload: TaskTemplate }
   | { type: "UPDATE_CUSTOM_TEMPLATE"; payload: TaskTemplate }
   | { type: "DELETE_CUSTOM_TEMPLATE"; payload: string }
+
+  // Smart Schedule actions
+  | { type: "SET_SMART_SCHEDULE_ENABLED"; payload: boolean }
+  | { type: "MARK_DATE"; payload: MarkedDate }
+  | { type: "UNMARK_DATE"; payload: string }
+  | { type: "UPDATE_DAY_TYPE_CONFIG"; payload: DayTypeConfig }
+  | { type: "BULK_MARK_DATES"; payload: MarkedDate[] }
+  | { type: "ADD_CUSTOM_DAY_TYPE"; payload: DayTypeConfig }
+  | { type: "UPDATE_CUSTOM_DAY_TYPE"; payload: DayTypeConfig }
+  | { type: "DELETE_CUSTOM_DAY_TYPE"; payload: string }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -1472,6 +1493,123 @@ function appReducer(state: AppState, action: AppAction): AppState {
         customTemplates: state.customTemplates.filter(t => t.id !== action.payload),
       };
 
+    // Smart Schedule
+    case "SET_SMART_SCHEDULE_ENABLED":
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          enabled: action.payload,
+        },
+      };
+
+    case "MARK_DATE": {
+      const existingIndex = state.smartSchedule.markedDates.findIndex(
+        m => m.date === action.payload.date
+      );
+      const newMarkedDates = existingIndex >= 0
+        ? state.smartSchedule.markedDates.map((m, i) =>
+            i === existingIndex ? action.payload : m
+          )
+        : [...state.smartSchedule.markedDates, action.payload];
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          markedDates: newMarkedDates,
+        },
+      };
+    }
+
+    case "UNMARK_DATE":
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          markedDates: state.smartSchedule.markedDates.filter(
+            m => m.date !== action.payload
+          ),
+        },
+      };
+
+    case "UPDATE_DAY_TYPE_CONFIG":
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          dayTypeConfigs: {
+            ...state.smartSchedule.dayTypeConfigs,
+            [action.payload.dayType]: action.payload,
+          },
+        },
+      };
+
+    case "BULK_MARK_DATES": {
+      // Merge new dates, replacing any existing ones for the same date
+      const existingDates = new Map(
+        state.smartSchedule.markedDates.map(m => [m.date, m])
+      );
+      action.payload.forEach(m => existingDates.set(m.date, m));
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          markedDates: Array.from(existingDates.values()),
+        },
+      };
+    }
+
+    case "ADD_CUSTOM_DAY_TYPE":
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          customDayTypes: [...(state.smartSchedule.customDayTypes || []), action.payload],
+          dayTypeConfigs: {
+            ...state.smartSchedule.dayTypeConfigs,
+            [action.payload.dayType]: action.payload,
+          },
+        },
+      };
+
+    case "UPDATE_CUSTOM_DAY_TYPE":
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          customDayTypes: (state.smartSchedule.customDayTypes || []).map(dt =>
+            dt.dayType === action.payload.dayType ? action.payload : dt
+          ),
+          dayTypeConfigs: {
+            ...state.smartSchedule.dayTypeConfigs,
+            [action.payload.dayType]: action.payload,
+          },
+        },
+      };
+
+    case "DELETE_CUSTOM_DAY_TYPE": {
+      const dayTypeId = action.payload;
+      return {
+        ...state,
+        smartSchedule: {
+          ...state.smartSchedule,
+          customDayTypes: (state.smartSchedule.customDayTypes || []).filter(
+            dt => dt.dayType !== dayTypeId
+          ),
+          // Remove marked dates that use this day type
+          markedDates: state.smartSchedule.markedDates.filter(
+            m => m.dayType !== dayTypeId
+          ),
+          // Remove from dayTypeConfigs
+          dayTypeConfigs: Object.fromEntries(
+            Object.entries(state.smartSchedule.dayTypeConfigs).filter(
+              ([key]) => key !== dayTypeId
+            )
+          ) as typeof state.smartSchedule.dayTypeConfigs,
+        },
+      };
+    }
+
     default:
       return state;
   }
@@ -1559,6 +1697,14 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
     directionalDocument: savedState.directionalDocument ?? defaultState.directionalDocument,
     // Custom Templates - persists
     customTemplates: savedState.customTemplates ?? defaultState.customTemplates,
+    // Smart Schedule - persists
+    smartSchedule: savedState.smartSchedule
+      ? {
+          ...defaultState.smartSchedule,
+          ...savedState.smartSchedule,
+          customDayTypes: savedState.smartSchedule.customDayTypes ?? [],
+        }
+      : defaultState.smartSchedule,
     // Active Timer - persists (allows resuming timer across sessions)
     activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
@@ -1743,4 +1889,9 @@ export function useMedia() {
 export function useDirectionalDocument() {
   const { state } = useApp();
   return state.directionalDocument;
+}
+
+export function useSmartSchedule() {
+  const { state } = useApp();
+  return state.smartSchedule;
 }
