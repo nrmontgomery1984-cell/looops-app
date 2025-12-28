@@ -1251,6 +1251,9 @@ function AppContent() {
                   <DirectionalDocumentView
                     document={state.directionalDocument}
                     onEdit={() => setShowDirectionalWizard(true)}
+                    onDocumentUpdate={(updatedDoc) => {
+                      dispatch({ type: "SET_DIRECTIONAL_DOCUMENT", payload: updatedDoc });
+                    }}
                     onExportPdf={async () => {
                       if (state.directionalDocument) {
                         try {

@@ -1,7 +1,7 @@
 // Read-only view of the completed directional document
 
-import React from "react";
-import { DirectionalDocument, LoopId, ALL_LOOPS } from "../../types";
+import React, { useState, useCallback } from "react";
+import { DirectionalDocument, LoopId, ALL_LOOPS, GeneratedDocument } from "../../types";
 import { LOOP_COLORS } from "../../types/core";
 import {
   IDENTITY_STATEMENTS,
@@ -14,19 +14,74 @@ import {
   FINANCIAL_APPROACH_OPTIONS,
   TRADEOFF_SCENARIOS,
 } from "../../data/directionalOptions";
+import { useApp } from "../../context/AppContext";
+
+// Server URL for API calls
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 type DirectionalDocumentViewProps = {
   document: DirectionalDocument;
   onEdit?: () => void;
   onExportPdf?: () => void;
+  onDocumentUpdate?: (doc: DirectionalDocument) => void;
 };
 
 export function DirectionalDocumentView({
   document,
   onEdit,
   onExportPdf,
+  onDocumentUpdate,
 }: DirectionalDocumentViewProps) {
   const { core, loops } = document;
+  const { state: appState } = useApp();
+
+  // AI regeneration state
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
+
+  // Regenerate AI summary
+  const regenerateAISummary = useCallback(async () => {
+    setIsRegenerating(true);
+    setRegenerateError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/ai/generate-directions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          directionalDocument: document,
+          userPrototype: appState.user.prototype,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.generatedDocument) {
+        const updatedDoc: DirectionalDocument = {
+          ...document,
+          generatedDocument: data.generatedDocument as GeneratedDocument,
+          updatedAt: new Date().toISOString(),
+        };
+        onDocumentUpdate?.(updatedDoc);
+      } else {
+        throw new Error("Failed to generate document");
+      }
+    } catch (error) {
+      console.error("AI regeneration error:", error);
+      setRegenerateError(
+        error instanceof Error ? error.message : "Failed to regenerate"
+      );
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [document, appState.user.prototype, onDocumentUpdate]);
 
   // Helper to get option labels from IDs
   const getIdentityLabels = (ids: string[]) =>
@@ -83,6 +138,16 @@ export function DirectionalDocumentView({
               Edit Directions
             </button>
           )}
+          {onDocumentUpdate && (
+            <button
+              type="button"
+              className="directional-document__action directional-document__action--ai"
+              onClick={regenerateAISummary}
+              disabled={isRegenerating}
+            >
+              {isRegenerating ? "Generating..." : document.generatedDocument ? "Regenerate AI Summary" : "Generate AI Summary"}
+            </button>
+          )}
           {onExportPdf && (
             <button
               type="button"
@@ -93,6 +158,11 @@ export function DirectionalDocumentView({
             </button>
           )}
         </div>
+        {regenerateError && (
+          <div className="directional-document__error">
+            {regenerateError}
+          </div>
+        )}
       </div>
 
       {/* Core Directions */}
