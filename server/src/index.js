@@ -27,6 +27,10 @@ app.use(cors({
     if (origin.match(/^http:\/\/localhost:\d+$/)) {
       return callback(null, true);
     }
+    // Allow Vercel deployments
+    if (origin.match(/\.vercel\.app$/)) {
+      return callback(null, true);
+    }
     // Allow configured CLIENT_URL
     if (origin === process.env.CLIENT_URL) {
       return callback(null, true);
