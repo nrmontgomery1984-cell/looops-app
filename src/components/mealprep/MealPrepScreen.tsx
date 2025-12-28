@@ -56,19 +56,7 @@ export function MealPrepScreen() {
   // Get user ID for onboarding
   const userId = state.user.profile?.id || "anonymous";
 
-  // If onboarding not complete, show onboarding flow
-  if (!mealPrep.onboardingComplete) {
-    return (
-      <div className="screen meal-prep-screen">
-        <KitchenOnboardingFlow
-          userId={userId}
-          onComplete={() => {}}
-        />
-      </div>
-    );
-  }
-
-  // Filter and sort recipes
+  // Filter and sort recipes - MUST be called before any conditional returns (React hooks rules)
   const filteredRecipes = useMemo(() => {
     let recipes = [...mealPrep.recipes];
 
@@ -184,6 +172,19 @@ export function MealPrepScreen() {
     filters.course ||
     filters.favorites ||
     filters.maxTime;
+
+  // If onboarding not complete, show onboarding flow
+  // This check must come AFTER all hooks are called (React rules of hooks)
+  if (!mealPrep.onboardingComplete) {
+    return (
+      <div className="screen meal-prep-screen">
+        <KitchenOnboardingFlow
+          userId={userId}
+          onComplete={() => {}}
+        />
+      </div>
+    );
+  }
 
   // Recipe Detail View
   if (selectedRecipe) {
