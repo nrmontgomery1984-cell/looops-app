@@ -309,15 +309,11 @@ export interface MealPrepState {
 }
 
 export function getDefaultMealPrepState(): MealPrepState {
-  // Import seed data lazily to avoid circular dependencies
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { SEED_RECIPES, SEED_TECHNIQUES } = require("../data/mealPrepSeedData");
-
   return {
     kitchenProfile: null,
-    recipes: SEED_RECIPES,
+    recipes: [],
     mealPlans: [],
-    techniqueLibrary: SEED_TECHNIQUES,
+    techniqueLibrary: [],
     onboardingComplete: false,
   };
 }

@@ -84,6 +84,7 @@ import {
   TechniqueEntry,
   getDefaultMealPrepState,
 } from "../types/mealPrep";
+import { SEED_RECIPES, SEED_TECHNIQUES } from "../data/mealPrepSeedData";
 
 // User profile type
 export type UserProfile = {
@@ -282,7 +283,11 @@ const defaultState: AppState = {
   // Smart Schedule
   smartSchedule: createDefaultSmartScheduleState(),
   // Meal Prep
-  mealPrep: getDefaultMealPrepState(),
+  mealPrep: {
+    ...getDefaultMealPrepState(),
+    recipes: SEED_RECIPES,
+    techniqueLibrary: SEED_TECHNIQUES,
+  },
   // Active Timer
   activeTimer: null,
   ui: {
