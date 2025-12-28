@@ -4,6 +4,34 @@ import * as fitbitService from "../services/fitbitService.js";
 
 const router = Router();
 
+// Helper to extract token from Authorization header
+function getTokenFromHeader(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+  return null;
+}
+
+// Helper to make Fitbit API request with client-provided token
+async function fitbitRequestWithToken(token, endpoint) {
+  const response = await fetch(`https://api.fitbit.com${endpoint}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      return { needsReauth: true };
+    }
+    const error = await response.text();
+    throw new Error(`Fitbit API error: ${error}`);
+  }
+
+  return response.json();
+}
+
 /**
  * GET /api/fitbit/status
  * Check if Fitbit is configured and authorized
@@ -91,6 +119,109 @@ router.get("/summary", async (req, res) => {
   } catch (err) {
     console.error("Fitbit summary error:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/fitbit/health
+ * Get health data using client-provided access token
+ * This is the main endpoint used by the client app
+ */
+router.get("/health", async (req, res) => {
+  try {
+    const token = getTokenFromHeader(req);
+
+    if (!token) {
+      // Fall back to server-stored token
+      const summary = await fitbitService.getHealthSummary();
+      if (summary.error) {
+        return res.json({ source: "local", data: null, message: summary.error });
+      }
+      return res.json({ source: "fitbit", data: summary });
+    }
+
+    // Use client-provided token
+    const today = new Date().toISOString().split("T")[0];
+
+    // Fetch activity data
+    const activityResult = await fitbitRequestWithToken(
+      token,
+      `/1/user/-/activities/date/${today}.json`
+    );
+    if (activityResult.needsReauth) {
+      return res.json({ needsReauth: true });
+    }
+
+    // Fetch sleep data
+    const sleepResult = await fitbitRequestWithToken(
+      token,
+      `/1.2/user/-/sleep/date/${today}.json`
+    );
+
+    // Fetch heart rate data
+    let heartRateResult = null;
+    try {
+      heartRateResult = await fitbitRequestWithToken(
+        token,
+        `/1/user/-/activities/heart/date/${today}/1d.json`
+      );
+    } catch {
+      // Heart rate might not be available
+    }
+
+    // Parse activity data
+    const activity = activityResult.summary || {};
+    const steps = activity.steps || 0;
+    const distanceKm = activity.distances?.find((d) => d.activity === "total")?.distance || 0;
+    const caloriesBurned = activity.caloriesOut || 0;
+    const activeMinutes = (activity.fairlyActiveMinutes || 0) + (activity.veryActiveMinutes || 0);
+    const restingHeartRate = activity.restingHeartRate || heartRateResult?.["activities-heart"]?.[0]?.value?.restingHeartRate || null;
+
+    // Parse sleep data
+    const mainSleep = sleepResult?.sleep?.find((s) => s.isMainSleep) || sleepResult?.sleep?.[0];
+    const sleepDurationHours = mainSleep ? Math.round((mainSleep.duration / 3600000) * 10) / 10 : 0;
+    const sleepScore = mainSleep?.efficiency || null;
+    const stages = mainSleep?.levels?.summary || {};
+    const deepSleepMinutes = stages.deep?.minutes || 0;
+    const remSleepMinutes = stages.rem?.minutes || 0;
+
+    // Calculate scores
+    const scores = {
+      steps: steps >= 10000 ? 100 : steps >= 7500 ? 80 : steps >= 5000 ? 60 : steps >= 2500 ? 40 : 20,
+      sleep: sleepScore,
+      activity: activeMinutes >= 60 ? 100 : activeMinutes >= 45 ? 80 : activeMinutes >= 30 ? 60 : activeMinutes >= 15 ? 40 : 20,
+      readiness: null,
+    };
+
+    // Calculate readiness as average of valid scores
+    const validScores = [scores.steps, scores.sleep, scores.activity].filter((s) => s !== null);
+    scores.readiness = validScores.length > 0
+      ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
+      : null;
+
+    const healthData = {
+      today: {
+        date: today,
+        steps,
+        distanceKm,
+        caloriesBurned,
+        activeMinutes,
+        restingHeartRate,
+        sleepDurationHours,
+        sleepScore,
+        deepSleepMinutes,
+        remSleepMinutes,
+        mindfulnessMinutes: 0, // Fitbit doesn't have this
+        weightKg: null,
+        scores,
+      },
+      heartRateZones: heartRateResult?.["activities-heart"]?.[0]?.value?.heartRateZones || [],
+    };
+
+    res.json({ source: "fitbit", data: healthData });
+  } catch (err) {
+    console.error("Fitbit health error:", err);
+    res.status(500).json({ source: "error", error: err.message });
   }
 });
 

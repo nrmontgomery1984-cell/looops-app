@@ -14,6 +14,8 @@ import spotifyRoutes from "./routes/spotify.js";
 import tillerRoutes from "./routes/tiller.js";
 import fitbitRoutes from "./routes/fitbit.js";
 import aiRoutes from "./routes/ai.js";
+import oauthRoutes from "./routes/oauth.js";
+import integrationsRoutes from "./routes/integrations.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -56,6 +58,8 @@ app.use("/api/spotify", spotifyRoutes);
 app.use("/api/tiller", tillerRoutes);
 app.use("/api/fitbit", fitbitRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/oauth", oauthRoutes);
+app.use("/api/integrations", integrationsRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

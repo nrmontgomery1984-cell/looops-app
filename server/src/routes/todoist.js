@@ -4,6 +4,81 @@ import * as todoistService from "../services/todoistService.js";
 
 const router = Router();
 
+const TODOIST_API_BASE = "https://api.todoist.com/rest/v2";
+
+// Helper to extract token from Authorization header
+function getTokenFromHeader(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+  return null;
+}
+
+// Helper to make Todoist API request with client-provided token
+async function todoistRequestWithToken(token, endpoint, options = {}) {
+  const response = await fetch(`${TODOIST_API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      return { needsReauth: true };
+    }
+    if (response.status === 204) {
+      return null;
+    }
+    const error = await response.text();
+    throw new Error(`Todoist API error: ${error}`);
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  return response.json();
+}
+
+// Label to Loop mapping
+const DEFAULT_LABEL_MAPPING = {
+  health: "Health",
+  Health: "Health",
+  wealth: "Wealth",
+  Wealth: "Wealth",
+  family: "Family",
+  Family: "Family",
+  work: "Work",
+  Work: "Work",
+  fun: "Fun",
+  Fun: "Fun",
+  maintenance: "Maintenance",
+  Maintenance: "Maintenance",
+  meaning: "Meaning",
+  Meaning: "Meaning",
+};
+
+// Priority mapping
+const PRIORITY_MAP = {
+  1: 4, // Todoist p4 -> Looops 4
+  2: 3, // Todoist p3 -> Looops 3
+  3: 2, // Todoist p2 -> Looops 2
+  4: 1, // Todoist p1 -> Looops 1
+};
+
+function mapLabelsToLoop(labels) {
+  for (const label of labels) {
+    if (DEFAULT_LABEL_MAPPING[label]) {
+      return DEFAULT_LABEL_MAPPING[label];
+    }
+  }
+  return "Work"; // Default
+}
+
 /**
  * GET /api/todoist/status
  * Check if Todoist is configured
@@ -21,9 +96,76 @@ router.get("/status", (req, res) => {
 /**
  * GET /api/todoist/sync
  * Full sync - get all tasks, labels, projects
+ * Supports client-provided tokens
  */
 router.get("/sync", async (req, res, next) => {
   try {
+    const token = getTokenFromHeader(req);
+
+    if (token) {
+      // Use client-provided token
+      const [tasksResult, labelsResult, projectsResult] = await Promise.all([
+        todoistRequestWithToken(token, "/tasks"),
+        todoistRequestWithToken(token, "/labels"),
+        todoistRequestWithToken(token, "/projects"),
+      ]);
+
+      // Check for reauth
+      if (tasksResult?.needsReauth || labelsResult?.needsReauth) {
+        return res.json({ needsReauth: true });
+      }
+
+      // Format tasks
+      const tasks = (tasksResult || []).map((task) => ({
+        id: task.id,
+        todoistId: task.id,
+        title: task.content,
+        description: task.description || "",
+        loop: mapLabelsToLoop(task.labels || []),
+        labels: task.labels || [],
+        projectId: task.project_id,
+        sectionId: task.section_id,
+        parentId: task.parent_id,
+        priority: PRIORITY_MAP[task.priority] || 4,
+        dueDate: task.due?.date || null,
+        dueString: task.due?.string || null,
+        isRecurring: task.due?.is_recurring || false,
+        url: task.url,
+        order: task.order,
+        createdAt: task.created_at,
+      }));
+
+      // Format labels
+      const labels = (labelsResult || []).map((label) => ({
+        id: label.id,
+        name: label.name,
+        color: label.color,
+        order: label.order,
+        loop: DEFAULT_LABEL_MAPPING[label.name] || null,
+      }));
+
+      // Format projects
+      const projects = (projectsResult || []).map((project) => ({
+        id: project.id,
+        name: project.name,
+        color: project.color,
+        parentId: project.parent_id,
+        order: project.order,
+        isFavorite: project.is_favorite,
+      }));
+
+      return res.json({
+        source: "todoist",
+        data: {
+          tasks,
+          labels,
+          projects,
+          syncedAt: new Date().toISOString(),
+        },
+      });
+    }
+
+    // Fall back to server-stored token
     const data = await todoistService.fullSync();
     if (data === null) {
       return res.json({ source: "local", data: null });
