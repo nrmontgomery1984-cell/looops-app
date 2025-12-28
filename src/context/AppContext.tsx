@@ -282,7 +282,7 @@ const defaultState: AppState = {
   customTemplates: [],
   // Smart Schedule
   smartSchedule: createDefaultSmartScheduleState(),
-  // Meal Prep
+  // Meal Prep - with seed data from trusted sources
   mealPrep: {
     ...getDefaultMealPrepState(),
     recipes: SEED_RECIPES,
@@ -1456,9 +1456,28 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
-    // Hydration
-    case "HYDRATE":
-      return { ...state, ...action.payload };
+    // Hydration - merge remote state but preserve seed data if remote is empty
+    case "HYDRATE": {
+      const payload = action.payload;
+      // Special handling for mealPrep - don't overwrite seed data with empty arrays from cloud
+      let mealPrepMerged = payload.mealPrep;
+      if (payload.mealPrep) {
+        const hasRemoteRecipes = (payload.mealPrep.recipes?.length ?? 0) > 0;
+        const hasRemoteTechniques = (payload.mealPrep.techniqueLibrary?.length ?? 0) > 0;
+        mealPrepMerged = {
+          ...state.mealPrep,
+          ...payload.mealPrep,
+          // Keep seed recipes if remote has none
+          recipes: hasRemoteRecipes ? payload.mealPrep.recipes! : state.mealPrep.recipes,
+          techniqueLibrary: hasRemoteTechniques ? payload.mealPrep.techniqueLibrary! : state.mealPrep.techniqueLibrary,
+        };
+      }
+      return {
+        ...state,
+        ...payload,
+        mealPrep: mealPrepMerged ?? state.mealPrep,
+      };
+    }
 
     // Template actions
     case "CREATE_FROM_TEMPLATE": {
@@ -1910,15 +1929,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Initialize state from localStorage synchronously
   const [state, baseDispatch] = useReducer(appReducer, defaultState, (initial) => {
+    console.log('[AppContext] Init - defaultState recipes:', initial.mealPrep.recipes.length, 'techniques:', initial.mealPrep.techniqueLibrary.length);
     try {
       const savedStateRaw = localStorage.getItem(STORAGE_KEYS.APP_STATE);
       if (savedStateRaw) {
         const savedState = JSON.parse(savedStateRaw) as Partial<AppState>;
-        return deepMergeState(initial, savedState);
+        console.log('[AppContext] Saved state found - mealPrep.recipes:', savedState.mealPrep?.recipes?.length ?? 'N/A');
+        const merged = deepMergeState(initial, savedState);
+        console.log('[AppContext] After merge - recipes:', merged.mealPrep.recipes.length);
+        return merged;
       }
     } catch (error) {
       console.error("Error restoring state from localStorage:", error);
     }
+    console.log('[AppContext] No saved state - using default with', initial.mealPrep.recipes.length, 'recipes');
     return initial;
   });
 
