@@ -38,6 +38,7 @@ import { MeditationWidget } from "./MeditationWidget";
 import { WeatherWidget } from "./WeatherWidget";
 import { GoodTimesWidget } from "./GoodTimesWidget";
 import { StepsWidget } from "./StepsWidget";
+import { LoopAIWidget } from "./LoopAIWidget";
 
 interface LoopDashboardProps {
   loop: LoopId;
@@ -254,6 +255,16 @@ export function LoopDashboard({
 
       case "steps":
         return <StepsWidget />;
+
+      case "loop_ai":
+        return (
+          <LoopAIWidget
+            loopId={loop}
+            tasks={loopTasks}
+            goals={loopGoals}
+            compact={config.settings.compact as boolean}
+          />
+        );
 
       default:
         return (

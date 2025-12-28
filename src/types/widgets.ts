@@ -33,7 +33,8 @@ export type WidgetType =
   | "meditation"
   | "weather"
   | "good_times"
-  | "steps";
+  | "steps"
+  | "loop_ai";
 
 export type WidgetSize = "small" | "medium" | "large" | "full";
 
@@ -367,6 +368,17 @@ export const WIDGET_DEFINITIONS: Record<WidgetType, WidgetDefinition> = {
     availableSizes: ["small", "medium"],
     defaultSettings: {
       goal: 10000,
+    },
+  },
+  loop_ai: {
+    type: "loop_ai",
+    name: "AI Assistant",
+    description: "Chat with Claude about this loop",
+    icon: "🤖",
+    defaultSize: "medium",
+    availableSizes: ["medium", "large"],
+    defaultSettings: {
+      compact: false,
     },
   },
 };

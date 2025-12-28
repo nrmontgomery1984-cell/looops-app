@@ -262,4 +262,123 @@ function parseGeneratedDocument(responseText) {
   };
 }
 
+// Loop-specific AI chat endpoint
+router.post("/loop-chat", async (req, res) => {
+  try {
+    const { loopId, message, context, userPrototype, directionalDocument } = req.body;
+
+    if (!loopId || !message) {
+      return res.status(400).json({ error: "Loop ID and message required" });
+    }
+
+    const client = getAnthropicClient();
+
+    // Build loop-specific system prompt
+    const systemPrompt = buildLoopChatPrompt(loopId, context, userPrototype, directionalDocument);
+
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+    });
+
+    const responseText = response.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n");
+
+    res.json({
+      success: true,
+      response: responseText,
+      loopId,
+    });
+  } catch (error) {
+    console.error("Loop chat error:", error);
+    res.status(500).json({
+      error: error.message || "Failed to get AI response",
+    });
+  }
+});
+
+// Build loop-specific chat prompt
+function buildLoopChatPrompt(loopId, context, userPrototype, directionalDocument) {
+  const loopDescriptions = {
+    Health: "physical and mental wellbeing, fitness, sleep, nutrition, stress management, and medical care",
+    Wealth: "finances, budgeting, investing, career income, financial security, and money management",
+    Family: "relationships with family members, partner, children, close friends, and maintaining strong social bonds",
+    Work: "career, professional development, job satisfaction, skills, productivity, and work-life balance",
+    Fun: "hobbies, recreation, entertainment, social activities, creativity, and play",
+    Maintenance: "home care, chores, errands, organization, administrative tasks, and keeping life running smoothly",
+    Meaning: "purpose, spirituality, personal growth, contribution, values alignment, and life significance",
+  };
+
+  const loopFocus = loopDescriptions[loopId] || "general life management";
+
+  // Get user's directional document info for this loop if available
+  let loopDirective = "";
+  let loopDetails = "";
+  if (directionalDocument?.generatedDocument?.loopDirectives?.[loopId]) {
+    loopDirective = `\n\nTheir personal directive for ${loopId}: "${directionalDocument.generatedDocument.loopDirectives[loopId]}"`;
+  }
+  if (directionalDocument?.loops?.[loopId]) {
+    const loopData = directionalDocument.loops[loopId];
+    loopDetails = `
+Their ${loopId} loop status:
+- Current Season: ${loopData.currentSeason}
+- Current Satisfaction: ${loopData.currentSatisfaction}/100
+- Non-Negotiables: ${loopData.nonNegotiables?.join(", ") || "Not specified"}`;
+  }
+
+  // Get archetype info if available
+  let archetypeContext = "";
+  if (userPrototype?.archetypeBlend) {
+    const blend = userPrototype.archetypeBlend;
+    archetypeContext = `\n\nUser archetype: ${blend.name} (${blend.primary} primary, ${blend.secondary} secondary)`;
+    if (userPrototype.voiceProfile) {
+      archetypeContext += `\nPreferred communication: ${userPrototype.voiceProfile.tone} tone, ${userPrototype.voiceProfile.motivationStyle} motivation style`;
+    }
+  }
+
+  // Add context-specific info (tasks, goals, recent data)
+  let contextInfo = "";
+  if (context) {
+    if (context.tasks?.length > 0) {
+      contextInfo += `\n\nCurrent ${loopId} tasks:\n${context.tasks.map(t => `- ${t.title}${t.completed ? ' (done)' : ''}`).join('\n')}`;
+    }
+    if (context.goals?.length > 0) {
+      contextInfo += `\n\nCurrent ${loopId} goals:\n${context.goals.map(g => `- ${g.title}`).join('\n')}`;
+    }
+    if (context.recentData) {
+      contextInfo += `\n\nRecent data: ${JSON.stringify(context.recentData)}`;
+    }
+  }
+
+  return `You are a friendly, insightful AI assistant specialized in ${loopFocus} - the "${loopId}" loop of life management.
+
+Your role is to help this user with their ${loopId} loop - offering suggestions, answering questions, providing accountability, and helping them make progress.${archetypeContext}${loopDirective}${loopDetails}${contextInfo}
+
+Guidelines:
+- Be conversational and supportive, not preachy
+- Give specific, actionable advice when asked
+- Reference their personal context when relevant
+- Keep responses concise (2-4 paragraphs max unless they ask for more)
+- If they seem stressed, acknowledge it before diving into solutions
+- Suggest small wins and incremental progress
+- Be honest if something seems unrealistic
+
+You can help with:
+- Brainstorming and planning
+- Breaking down big goals into tasks
+- Troubleshooting challenges
+- Celebrating wins
+- Providing perspective
+- Suggesting resources or approaches`;
+}
+
 export default router;
