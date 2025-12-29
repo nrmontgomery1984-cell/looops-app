@@ -33958,12 +33958,13 @@ body.modal-open {
 .meal-prep__suggester-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  backdrop-filter: blur(4px);
 }
 
 .meal-suggester {
@@ -33975,6 +33976,8 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-primary);
 }
 
 .meal-suggester__header {
@@ -34036,12 +34039,13 @@ body.modal-open {
 .meal-suggester__option {
   padding: 10px 16px;
   background: var(--bg-secondary);
-  border: 2px solid var(--border-primary);
+  border: 2px solid var(--border-secondary);
   border-radius: 8px;
   color: var(--text-primary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
 .meal-suggester__option:hover {
@@ -34057,16 +34061,20 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 16px;
+  gap: 8px;
+  padding: 20px 16px;
+  min-height: 90px;
+  justify-content: center;
 }
 
 .meal-suggester__option-icon {
-  font-size: 24px;
+  font-size: 28px;
 }
 
 .meal-suggester__option-label {
   font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .meal-suggester__submit {
