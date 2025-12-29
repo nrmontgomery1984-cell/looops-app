@@ -294,6 +294,7 @@ export function MealPlanCalendar({
                     <div className="meal-calendar__meal">
                       {recipe ? (
                         <button
+                          type="button"
                           className="meal-calendar__meal-content"
                           onClick={() => onSelectRecipe(recipe)}
                         >
@@ -316,6 +317,7 @@ export function MealPlanCalendar({
                         </div>
                       )}
                       <button
+                        type="button"
                         className="meal-calendar__meal-remove"
                         onClick={() => handleRemoveMeal(dateStr, slot.key)}
                         title="Remove meal"
@@ -325,6 +327,7 @@ export function MealPlanCalendar({
                     </div>
                   ) : (
                     <button
+                      type="button"
                       className="meal-calendar__add-meal"
                       onClick={() => setShowRecipePicker({ date: dateStr, slot: slot.key })}
                     >

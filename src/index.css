@@ -33444,6 +33444,8 @@ body.modal-open {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
+  z-index: 1;
 }
 
 .meal-calendar__add-meal:hover {
@@ -33478,6 +33480,8 @@ body.modal-open {
   cursor: pointer;
   text-align: left;
   transition: all 0.2s;
+  position: relative;
+  z-index: 1;
 }
 
 .meal-calendar__meal-content:hover {
@@ -34235,11 +34239,27 @@ body.modal-open {
 
   .meal-calendar__grid {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .meal-calendar__grid-header,
   .meal-calendar__row {
     min-width: 600px;
+  }
+
+  .meal-calendar__add-meal,
+  .meal-calendar__meal-content,
+  .meal-calendar__meal-remove {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .meal-calendar__cell {
+    min-height: 70px;
+  }
+
+  .meal-calendar__add-meal {
+    min-height: 54px;
   }
 
   .shopping-list__controls {
@@ -34269,6 +34289,12 @@ body.modal-open {
   align-items: flex-start;
   margin-bottom: 24px;
   gap: 16px;
+  flex-wrap: wrap;
+}
+
+.food-waste-tracker__title-section {
+  flex: 1;
+  min-width: 200px;
 }
 
 .food-waste-tracker__title-section h1 {

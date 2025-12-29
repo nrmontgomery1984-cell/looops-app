@@ -296,6 +296,7 @@ export function MealPrepScreen() {
           onAddEntry={(entry: WasteEntry) => dispatch({ type: "ADD_WASTE_ENTRY", payload: entry })}
           onUpdateEntry={(entry: WasteEntry) => dispatch({ type: "UPDATE_WASTE_ENTRY", payload: entry })}
           onDeleteEntry={(id: string) => dispatch({ type: "DELETE_WASTE_ENTRY", payload: id })}
+          onBack={() => setMainView("recipes")}
         />
       </div>
     );

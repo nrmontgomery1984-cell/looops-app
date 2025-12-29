@@ -16,6 +16,7 @@ interface FoodWasteTrackerProps {
   onAddEntry: (entry: WasteEntry) => void;
   onUpdateEntry: (entry: WasteEntry) => void;
   onDeleteEntry: (id: string) => void;
+  onBack?: () => void;
 }
 
 type ViewMode = "dashboard" | "log" | "add";
@@ -27,6 +28,7 @@ export function FoodWasteTracker({
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
+  onBack,
 }: FoodWasteTrackerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("dashboard");
   const [editingEntry, setEditingEntry] = useState<WasteEntry | null>(null);
@@ -177,6 +179,11 @@ export function FoodWasteTracker({
     return (
       <div className="food-waste-tracker">
         <div className="food-waste-tracker__header">
+          {onBack && (
+            <button className="food-waste-tracker__back" onClick={onBack}>
+              ← Back
+            </button>
+          )}
           <div className="food-waste-tracker__title-section">
             <h1>No Waste</h1>
             <p className="food-waste-tracker__subtitle">
