@@ -419,6 +419,14 @@ router.post("/parse-recipe", async (req, res) => {
       });
     }
 
+    // Helper to check if @type matches (can be string or array)
+    const isRecipeType = (item) => {
+      if (!item || !item['@type']) return false;
+      const type = item['@type'];
+      if (Array.isArray(type)) return type.includes('Recipe');
+      return type === 'Recipe';
+    };
+
     // Try to extract JSON-LD structured data first (most recipe sites have this)
     let jsonLdData = null;
     const jsonLdMatches = pageContent.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
@@ -428,17 +436,17 @@ router.post("/parse-recipe", async (req, res) => {
           const jsonContent = match.replace(/<script[^>]*>|<\/script>/gi, '').trim();
           const parsed = JSON.parse(jsonContent);
           // Look for Recipe type in the JSON-LD
-          if (parsed['@type'] === 'Recipe') {
+          if (isRecipeType(parsed)) {
             jsonLdData = parsed;
             break;
           } else if (Array.isArray(parsed['@graph'])) {
-            const recipe = parsed['@graph'].find(item => item['@type'] === 'Recipe');
+            const recipe = parsed['@graph'].find(item => isRecipeType(item));
             if (recipe) {
               jsonLdData = recipe;
               break;
             }
           } else if (Array.isArray(parsed)) {
-            const recipe = parsed.find(item => item['@type'] === 'Recipe');
+            const recipe = parsed.find(item => isRecipeType(item));
             if (recipe) {
               jsonLdData = recipe;
               break;
