@@ -82,12 +82,15 @@ export function WastedMoneyWidget() {
   // Load food waste entries from meal prep
   const loadFoodWasteFromMealPrep = () => {
     try {
-      const mealPrepState = localStorage.getItem("looops_mealprep_state");
-      if (mealPrepState) {
-        const state = JSON.parse(mealPrepState);
-        if (state.wasteLog && state.wasteLog.length > 0) {
+      // The app state is stored in looops_app_state, which contains mealPrep.wasteLog
+      const appStateStr = localStorage.getItem("looops_app_state");
+      if (appStateStr) {
+        const appState = JSON.parse(appStateStr);
+        const wasteLog = appState?.mealPrep?.wasteLog;
+
+        if (wasteLog && wasteLog.length > 0) {
           // Import food waste entries that have costs
-          const wasteWithCost = state.wasteLog.filter(
+          const wasteWithCost = wasteLog.filter(
             (w: any) => w.estimatedCost && w.estimatedCost > 0
           );
 
@@ -128,8 +131,8 @@ export function WastedMoneyWidget() {
           }
         }
       }
-    } catch {
-      // Ignore errors
+    } catch (err) {
+      console.error("Error loading food waste from meal prep:", err);
     }
   };
 
