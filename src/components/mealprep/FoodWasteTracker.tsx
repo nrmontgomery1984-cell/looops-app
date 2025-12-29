@@ -7,6 +7,8 @@ import {
   calculateWasteStats,
   createWasteEntry,
   estimateIngredientCost,
+  syncWasteToExpenses,
+  removeWasteTransaction,
 } from "../../types/mealPrep";
 
 interface FoodWasteTrackerProps {
@@ -111,7 +113,7 @@ export function FoodWasteTracker({
     if (!ingredientName.trim()) return;
 
     if (editingEntry) {
-      onUpdateEntry({
+      const updatedEntry: WasteEntry = {
         ...editingEntry,
         ingredientName: ingredientName.trim(),
         normalizedName: ingredientName.toLowerCase().replace(/[^a-z0-9]/g, " ").trim(),
@@ -121,7 +123,10 @@ export function FoodWasteTracker({
         estimatedCost: estimatedCost ? parseFloat(estimatedCost) : undefined,
         notes: notes.trim() || undefined,
         date,
-      });
+      };
+      onUpdateEntry(updatedEntry);
+      // Sync to expense tracker
+      syncWasteToExpenses(updatedEntry);
     } else {
       const entry = createWasteEntry({
         ingredientName: ingredientName.trim(),
@@ -133,6 +138,8 @@ export function FoodWasteTracker({
         date,
       });
       onAddEntry(entry);
+      // Sync to expense tracker
+      syncWasteToExpenses(entry);
     }
 
     resetForm();
@@ -155,6 +162,8 @@ export function FoodWasteTracker({
   const handleDelete = (id: string) => {
     if (confirm("Delete this waste entry?")) {
       onDeleteEntry(id);
+      // Also remove from expense tracker
+      removeWasteTransaction(id);
     }
   };
 

@@ -117,6 +117,11 @@ interface BudgetCategory {
   loop: LoopId;
 }
 
+interface LoopBudget {
+  loop: LoopId;
+  budgeted: number;
+}
+
 interface AccountBalance {
   name: string;
   balance: number;
@@ -168,10 +173,11 @@ interface BudgetData {
   accounts: AccountBalance[];
   expenses: Expense[];
   transactions: RecentTransaction[];
+  loopBudgets: LoopBudget[];
   lastUpdated: string;
 }
 
-type ViewMode = 'overview' | 'expenses' | 'categories' | 'accounts' | 'transactions';
+type ViewMode = 'overview' | 'expenses' | 'categories' | 'accounts' | 'transactions' | 'budget';
 
 export function BudgetWidget() {
   const [data, setData] = useState<BudgetData | null>(null);
@@ -197,6 +203,7 @@ export function BudgetWidget() {
     let expenses: Expense[] = [];
     let transactions: RecentTransaction[] = [];
     let accounts: AccountBalance[] = [];
+    let loopBudgets: LoopBudget[] = [];
 
     // Load expenses
     const storedExpenses = localStorage.getItem('looops_expenses');
@@ -228,14 +235,38 @@ export function BudgetWidget() {
       }
     }
 
+    // Load loop budgets
+    const storedBudgets = localStorage.getItem('looops_loop_budgets');
+    if (storedBudgets) {
+      try {
+        loopBudgets = JSON.parse(storedBudgets);
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    // Load monthly income
+    let monthlyIncome = 0;
+    const storedIncome = localStorage.getItem('looops_monthly_income');
+    if (storedIncome) {
+      try {
+        monthlyIncome = parseFloat(storedIncome) || 0;
+      } catch {
+        // Ignore
+      }
+    }
+
+    const totalExpenses = expenses.reduce((sum: number, e: Expense) => sum + e.amount, 0);
+
     setData({
-      monthlyIncome: 0,
-      monthlyExpenses: expenses.reduce((sum: number, e: Expense) => sum + e.amount, 0),
-      monthlyNet: 0,
+      monthlyIncome,
+      monthlyExpenses: totalExpenses,
+      monthlyNet: monthlyIncome - totalExpenses,
       categories: [],
       accounts,
       expenses,
       transactions,
+      loopBudgets,
       lastUpdated: new Date().toISOString(),
     });
   };
@@ -280,6 +311,17 @@ export function BudgetWidget() {
           }
         }
 
+        // Load loop budgets (always from localStorage)
+        let loopBudgets: LoopBudget[] = [];
+        const storedBudgets = localStorage.getItem('looops_loop_budgets');
+        if (storedBudgets) {
+          try {
+            loopBudgets = JSON.parse(storedBudgets);
+          } catch {
+            // Ignore
+          }
+        }
+
         // Transform API response to BudgetData format
         const budgetData: BudgetData = {
           monthlyIncome: result.data.incomeExpenses?.income || 0,
@@ -308,6 +350,7 @@ export function BudgetWidget() {
             category: txn.category,
             loop: getCategoryLoop(txn.category),
           })),
+          loopBudgets,
           lastUpdated: result.data.updatedAt || new Date().toISOString(),
         };
         setData(budgetData);
@@ -355,6 +398,32 @@ export function BudgetWidget() {
       ...prev,
       expenses: updatedExpenses,
       monthlyExpenses: updatedExpenses.reduce((sum, e) => sum + e.amount, 0),
+    } : null);
+  };
+
+  const handleUpdateLoopBudget = (loop: LoopId, budgeted: number) => {
+    const currentBudgets = data?.loopBudgets || [];
+    const existingIndex = currentBudgets.findIndex(b => b.loop === loop);
+    let updatedBudgets: LoopBudget[];
+
+    if (existingIndex >= 0) {
+      updatedBudgets = currentBudgets.map((b, i) =>
+        i === existingIndex ? { loop, budgeted } : b
+      );
+    } else {
+      updatedBudgets = [...currentBudgets, { loop, budgeted }];
+    }
+
+    localStorage.setItem('looops_loop_budgets', JSON.stringify(updatedBudgets));
+    setData(prev => prev ? { ...prev, loopBudgets: updatedBudgets } : null);
+  };
+
+  const handleUpdateMonthlyIncome = (income: number) => {
+    localStorage.setItem('looops_monthly_income', income.toString());
+    setData(prev => prev ? {
+      ...prev,
+      monthlyIncome: income,
+      monthlyNet: income - (prev.monthlyExpenses || 0),
     } : null);
   };
 
@@ -609,6 +678,7 @@ export function BudgetWidget() {
       accounts: [],
       expenses: [],
       transactions: [],
+      loopBudgets: [],
       lastUpdated: new Date().toISOString(),
     });
     return null;
@@ -660,6 +730,12 @@ export function BudgetWidget() {
           Overview
         </button>
         <button
+          className={`budget-tab ${view === 'budget' ? 'active' : ''}`}
+          onClick={() => setView('budget')}
+        >
+          Budget
+        </button>
+        <button
           className={`budget-tab ${view === 'expenses' ? 'active' : ''}`}
           onClick={() => setView('expenses')}
         >
@@ -689,6 +765,15 @@ export function BudgetWidget() {
       <div className="budget-content">
         {view === 'overview' && (
           <OverviewView data={data} />
+        )}
+        {view === 'budget' && (
+          <BudgetAllocationView
+            loopBudgets={data.loopBudgets}
+            expenses={data.expenses}
+            monthlyIncome={data.monthlyIncome}
+            onUpdateBudget={handleUpdateLoopBudget}
+            onUpdateIncome={handleUpdateMonthlyIncome}
+          />
         )}
         {view === 'expenses' && (
           <ExpensesView
@@ -824,6 +909,201 @@ function OverviewView({ data }: { data: BudgetData }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Budget Allocation View - Set and track budgets by loop
+function BudgetAllocationView({
+  loopBudgets,
+  expenses,
+  monthlyIncome,
+  onUpdateBudget,
+  onUpdateIncome,
+}: {
+  loopBudgets: LoopBudget[];
+  expenses: Expense[];
+  monthlyIncome: number;
+  onUpdateBudget: (loop: LoopId, budgeted: number) => void;
+  onUpdateIncome: (income: number) => void;
+}) {
+  const [editingIncome, setEditingIncome] = useState(false);
+  const [incomeValue, setIncomeValue] = useState(monthlyIncome.toString());
+  const [editingLoop, setEditingLoop] = useState<LoopId | null>(null);
+  const [budgetValue, setBudgetValue] = useState('');
+
+  const loops: LoopId[] = ['Health', 'Wealth', 'Family', 'Work', 'Fun', 'Maintenance', 'Meaning'];
+
+  // Calculate actual spending by loop
+  const actualByLoop: Record<LoopId, number> = {
+    Health: 0, Wealth: 0, Family: 0, Work: 0, Fun: 0, Maintenance: 0, Meaning: 0,
+  };
+
+  expenses.forEach(e => {
+    actualByLoop[e.loop] = (actualByLoop[e.loop] || 0) + e.amount;
+  });
+
+  // Get budget for a loop
+  const getBudget = (loop: LoopId): number => {
+    const budget = loopBudgets.find(b => b.loop === loop);
+    return budget?.budgeted || 0;
+  };
+
+  // Calculate totals
+  const totalBudgeted = loopBudgets.reduce((sum, b) => sum + b.budgeted, 0);
+  const totalActual = Object.values(actualByLoop).reduce((sum, v) => sum + v, 0);
+  const unallocated = monthlyIncome - totalBudgeted;
+
+  const handleIncomeSubmit = () => {
+    const value = parseFloat(incomeValue) || 0;
+    onUpdateIncome(value);
+    setEditingIncome(false);
+  };
+
+  const handleBudgetSubmit = (loop: LoopId) => {
+    const value = parseFloat(budgetValue) || 0;
+    onUpdateBudget(loop, value);
+    setEditingLoop(null);
+    setBudgetValue('');
+  };
+
+  const startEditingBudget = (loop: LoopId) => {
+    setEditingLoop(loop);
+    setBudgetValue(getBudget(loop).toString());
+  };
+
+  return (
+    <div className="budget-allocation">
+      {/* Monthly Income */}
+      <div className="budget-income-section">
+        <div className="budget-income-header">
+          <span className="budget-income-label">Monthly Income</span>
+          {editingIncome ? (
+            <div className="budget-income-edit">
+              <input
+                type="number"
+                value={incomeValue}
+                onChange={e => setIncomeValue(e.target.value)}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleIncomeSubmit();
+                  if (e.key === 'Escape') setEditingIncome(false);
+                }}
+              />
+              <button onClick={handleIncomeSubmit}>Save</button>
+              <button onClick={() => setEditingIncome(false)}>Cancel</button>
+            </div>
+          ) : (
+            <div className="budget-income-display" onClick={() => {
+              setIncomeValue(monthlyIncome.toString());
+              setEditingIncome(true);
+            }}>
+              <span className="budget-income-value">{formatCurrency(monthlyIncome)}</span>
+              <span className="budget-income-edit-hint">Edit</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Budget Summary */}
+      <div className="budget-summary-grid">
+        <div className="budget-summary-item">
+          <span className="budget-summary-label">Budgeted</span>
+          <span className="budget-summary-value">{formatCurrency(totalBudgeted)}</span>
+        </div>
+        <div className="budget-summary-item">
+          <span className="budget-summary-label">Actual</span>
+          <span className={`budget-summary-value ${totalActual > totalBudgeted ? 'over' : ''}`}>
+            {formatCurrency(totalActual)}
+          </span>
+        </div>
+        <div className="budget-summary-item">
+          <span className="budget-summary-label">Unallocated</span>
+          <span className={`budget-summary-value ${unallocated < 0 ? 'over' : 'remaining'}`}>
+            {formatCurrency(unallocated)}
+          </span>
+        </div>
+      </div>
+
+      {/* Loop Budgets */}
+      <div className="budget-loop-list">
+        <h4>Budget by Loop</h4>
+        {loops.map(loop => {
+          const budgeted = getBudget(loop);
+          const actual = actualByLoop[loop];
+          const difference = budgeted - actual;
+          const percentUsed = budgeted > 0 ? Math.min((actual / budgeted) * 100, 100) : 0;
+          const isOver = actual > budgeted && budgeted > 0;
+
+          return (
+            <div key={loop} className="budget-loop-row">
+              <div className="budget-loop-info">
+                <span
+                  className="budget-loop-name"
+                  style={{ color: getLoopColor(loop) }}
+                >
+                  {loop}
+                </span>
+                {editingLoop === loop ? (
+                  <div className="budget-loop-edit">
+                    <span className="budget-loop-edit-prefix">$</span>
+                    <input
+                      type="number"
+                      value={budgetValue}
+                      onChange={e => setBudgetValue(e.target.value)}
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleBudgetSubmit(loop);
+                        if (e.key === 'Escape') setEditingLoop(null);
+                      }}
+                    />
+                    <button className="budget-loop-edit-save" onClick={() => handleBudgetSubmit(loop)}>
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <div className="budget-loop-amounts" onClick={() => startEditingBudget(loop)}>
+                    <span className="budget-loop-budgeted">
+                      {formatCurrency(budgeted)}
+                    </span>
+                    <span className="budget-loop-separator">of</span>
+                    <span className={`budget-loop-actual ${isOver ? 'over' : ''}`}>
+                      {formatCurrency(actual)} spent
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Progress bar */}
+              {budgeted > 0 && (
+                <div className="budget-loop-progress">
+                  <div
+                    className={`budget-loop-progress-fill ${isOver ? 'over' : ''}`}
+                    style={{
+                      width: `${percentUsed}%`,
+                      backgroundColor: isOver ? '#e74c3c' : getLoopColor(loop),
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Difference */}
+              {budgeted > 0 && (
+                <div className={`budget-loop-diff ${difference >= 0 ? 'under' : 'over'}`}>
+                  {difference >= 0 ? `${formatCurrency(difference)} left` : `${formatCurrency(Math.abs(difference))} over`}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Quick tip */}
+      {totalBudgeted === 0 && (
+        <div className="budget-tip">
+          <p>Tap a loop to set your monthly budget for that category.</p>
+        </div>
+      )}
     </div>
   );
 }

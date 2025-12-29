@@ -22167,6 +22167,703 @@ body.modal-open {
   font-weight: 500;
 }
 
+/* Budget Allocation View */
+.budget-allocation {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.budget-income-section {
+  padding: 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.budget-income-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.budget-income-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.budget-income-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.budget-income-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.budget-income-edit-hint {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.budget-income-display:hover .budget-income-edit-hint {
+  opacity: 1;
+}
+
+.budget-income-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.budget-income-edit input {
+  width: 100px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.budget-income-edit button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.budget-income-edit button:first-of-type {
+  background: var(--color-accent);
+  color: white;
+}
+
+.budget-income-edit button:last-of-type {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.budget-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.budget-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.budget-summary-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-tertiary);
+}
+
+.budget-summary-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.budget-summary-value.over {
+  color: var(--color-error);
+}
+
+.budget-summary-value.remaining {
+  color: var(--color-success);
+}
+
+.budget-loop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.budget-loop-list h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.budget-loop-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.budget-loop-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.budget-loop-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.budget-loop-amounts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.budget-loop-amounts:hover {
+  opacity: 0.8;
+}
+
+.budget-loop-budgeted {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.budget-loop-separator {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.budget-loop-actual {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.budget-loop-actual.over {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.budget-loop-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.budget-loop-edit-prefix {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.budget-loop-edit input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.budget-loop-edit-save {
+  padding: 4px 10px;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.budget-loop-progress {
+  height: 6px;
+  background: var(--color-bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.budget-loop-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.budget-loop-progress-fill.over {
+  background: var(--color-error) !important;
+}
+
+.budget-loop-diff {
+  font-size: 11px;
+  text-align: right;
+}
+
+.budget-loop-diff.under {
+  color: var(--color-success);
+}
+
+.budget-loop-diff.over {
+  color: var(--color-error);
+}
+
+.budget-tip {
+  padding: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.budget-tip p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* Light mode overrides for budget allocation */
+[data-theme="light"] .budget-income-edit input,
+[data-theme="light"] .budget-loop-edit input {
+  background: white;
+  border-color: #d4d7dc;
+}
+
+/* =============================================================================
+   WASTED MONEY WIDGET - Track discretionary spending
+   ============================================================================= */
+
+.wasted-money-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  height: 100%;
+}
+
+.wasted-money-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wasted-money-title-section h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.wasted-money-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.wasted-money-add-btn {
+  padding: 8px 16px;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.wasted-money-add-btn:hover {
+  background: var(--color-accent-light);
+}
+
+.wasted-money-back {
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.wasted-money-back:hover {
+  color: var(--color-text);
+}
+
+/* Stats */
+.wasted-money-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.wasted-money-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.wasted-money-stat--main {
+  grid-column: 1;
+}
+
+.wasted-money-stat__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-error);
+}
+
+.wasted-money-stat__value.up {
+  color: var(--color-error);
+}
+
+.wasted-money-stat__value.down {
+  color: var(--color-success);
+}
+
+.wasted-money-stat__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-tertiary);
+}
+
+/* Category Breakdown */
+.wasted-money-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wasted-money-breakdown h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wasted-money-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wasted-money-category {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.wasted-money-category__icon {
+  font-size: 16px;
+}
+
+.wasted-money-category__name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.wasted-money-category__amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-error);
+}
+
+/* Recent Entries */
+.wasted-money-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wasted-money-recent__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wasted-money-recent__header h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wasted-money-view-all {
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--color-accent);
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wasted-money-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.wasted-money-empty p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.wasted-money-empty__hint {
+  margin-top: 4px !important;
+  font-size: 12px !important;
+  color: var(--color-text-tertiary) !important;
+}
+
+.wasted-money-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wasted-money-list--full {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.wasted-money-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.wasted-money-entry__icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.wasted-money-entry__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wasted-money-entry__desc {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wasted-money-entry__date,
+.wasted-money-entry__meta {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.wasted-money-entry__amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-error);
+  white-space: nowrap;
+}
+
+.wasted-money-entry__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.wasted-money-entry__actions button {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.wasted-money-entry__actions button:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.wasted-money-entry__actions button.delete {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+/* Form */
+.wasted-money-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wasted-money-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wasted-money-form__field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.wasted-money-form__field input,
+.wasted-money-form__field textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.wasted-money-form__field input:focus,
+.wasted-money-form__field textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.wasted-money-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.wasted-money-form__amount-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+
+.wasted-money-form__amount-input span {
+  color: var(--color-text-secondary);
+}
+
+.wasted-money-form__amount-input input {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+}
+
+.wasted-money-form__categories {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.wasted-money-form__category {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  background: var(--color-surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wasted-money-form__category:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.wasted-money-form__category.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-transparent);
+}
+
+.wasted-money-form__category span:first-child {
+  font-size: 18px;
+}
+
+.wasted-money-form__category span:last-child {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.wasted-money-form__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.wasted-money-form__btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wasted-money-form__btn--primary {
+  background: var(--color-accent);
+  color: white;
+}
+
+.wasted-money-form__btn--primary:hover:not(:disabled) {
+  background: var(--color-accent-light);
+}
+
+.wasted-money-form__btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wasted-money-form__btn--secondary {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.wasted-money-form__btn--secondary:hover {
+  background: var(--color-bg-tertiary);
+}
+
+/* Light mode */
+[data-theme="light"] .wasted-money-form__field input,
+[data-theme="light"] .wasted-money-form__field textarea,
+[data-theme="light"] .wasted-money-form__amount-input {
+  background: white;
+  border-color: #d4d7dc;
+}
+
 /* =============================================================================
    MEDIA WIDGET - Movie, TV, Book, Game Logging
    ============================================================================= */

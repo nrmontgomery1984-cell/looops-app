@@ -810,3 +810,132 @@ export function getExperienceLevelDescription(level: ExperienceLevel): string {
       return "I seek out complex techniques and restaurant-level dishes";
   }
 }
+
+// ==================== Food Waste to Expense Integration ====================
+
+// Transaction interface (mirrors BudgetWidget's RecentTransaction)
+interface WasteTransaction {
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+  loop: "Health";
+  account?: string;
+  type: "expense";
+  wasteEntryId: string; // Link back to waste entry
+}
+
+const WASTE_TRANSACTION_STORAGE_KEY = "looops_waste_transactions";
+
+// Sync a waste entry to the transactions list
+export function syncWasteToExpenses(entry: WasteEntry): void {
+  if (!entry.estimatedCost || entry.estimatedCost <= 0) {
+    // No cost to track, remove if exists
+    removeWasteTransaction(entry.id);
+    return;
+  }
+
+  const transaction: WasteTransaction = {
+    date: entry.date,
+    description: `Food Waste: ${entry.ingredientName}`,
+    amount: -entry.estimatedCost, // Negative for expenses
+    category: "Food Waste",
+    loop: "Health",
+    type: "expense",
+    wasteEntryId: entry.id,
+  };
+
+  // Load existing waste transactions
+  const wasteTransactions = getWasteTransactions();
+
+  // Update or add
+  const existingIndex = wasteTransactions.findIndex(t => t.wasteEntryId === entry.id);
+  if (existingIndex >= 0) {
+    wasteTransactions[existingIndex] = transaction;
+  } else {
+    wasteTransactions.push(transaction);
+  }
+
+  // Save back
+  localStorage.setItem(WASTE_TRANSACTION_STORAGE_KEY, JSON.stringify(wasteTransactions));
+
+  // Also update the main transactions list
+  syncWasteTransactionsToMain(wasteTransactions);
+}
+
+// Remove a waste transaction when waste entry is deleted
+export function removeWasteTransaction(wasteEntryId: string): void {
+  const wasteTransactions = getWasteTransactions();
+  const filtered = wasteTransactions.filter(t => t.wasteEntryId !== wasteEntryId);
+  localStorage.setItem(WASTE_TRANSACTION_STORAGE_KEY, JSON.stringify(filtered));
+
+  // Also update main transactions
+  syncWasteTransactionsToMain(filtered);
+}
+
+// Get all waste transactions
+function getWasteTransactions(): WasteTransaction[] {
+  try {
+    const stored = localStorage.getItem(WASTE_TRANSACTION_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Sync waste transactions into the main transactions list
+function syncWasteTransactionsToMain(wasteTransactions: WasteTransaction[]): void {
+  try {
+    const mainTransactionsKey = "looops_transactions";
+    const storedMain = localStorage.getItem(mainTransactionsKey);
+    let mainTransactions: any[] = storedMain ? JSON.parse(storedMain) : [];
+
+    // Remove all existing waste transactions (those with wasteEntryId or category "Food Waste")
+    mainTransactions = mainTransactions.filter(
+      (t: any) => !t.wasteEntryId && t.category !== "Food Waste"
+    );
+
+    // Add current waste transactions
+    mainTransactions = [...mainTransactions, ...wasteTransactions];
+
+    // Sort by date descending
+    mainTransactions.sort((a, b) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    localStorage.setItem(mainTransactionsKey, JSON.stringify(mainTransactions));
+  } catch {
+    // Ignore errors
+  }
+}
+
+// Calculate total food waste cost for a given period
+export function calculateWasteCostForPeriod(
+  wasteLog: WasteEntry[],
+  startDate: Date,
+  endDate: Date
+): number {
+  return wasteLog
+    .filter(entry => {
+      const entryDate = new Date(entry.date);
+      return entryDate >= startDate && entryDate <= endDate && entry.estimatedCost;
+    })
+    .reduce((sum, entry) => sum + (entry.estimatedCost || 0), 0);
+}
+
+// Get monthly waste cost breakdown
+export function getMonthlyWasteCosts(wasteLog: WasteEntry[]): Array<{ month: string; cost: number }> {
+  const monthlyData = new Map<string, number>();
+
+  wasteLog.forEach(entry => {
+    if (entry.estimatedCost && entry.estimatedCost > 0) {
+      const date = new Date(entry.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + entry.estimatedCost);
+    }
+  });
+
+  return Array.from(monthlyData.entries())
+    .map(([month, cost]) => ({ month, cost }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}

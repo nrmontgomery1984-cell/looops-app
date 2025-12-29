@@ -34,7 +34,8 @@ export type WidgetType =
   | "weather"
   | "good_times"
   | "steps"
-  | "loop_ai";
+  | "loop_ai"
+  | "wasted_money";
 
 export type WidgetSize = "small" | "medium" | "large" | "full";
 
@@ -379,6 +380,17 @@ export const WIDGET_DEFINITIONS: Record<WidgetType, WidgetDefinition> = {
     availableSizes: ["medium", "large"],
     defaultSettings: {
       compact: false,
+    },
+  },
+  wasted_money: {
+    type: "wasted_money",
+    name: "Wasted Money",
+    description: "Track discretionary spending like eating out, cannabis, and wasted food",
+    icon: "💸",
+    defaultSize: "large",
+    availableSizes: ["medium", "large", "full"],
+    defaultSettings: {
+      showBreakdown: true,
     },
   },
 };

@@ -39,6 +39,7 @@ import { WeatherWidget } from "./WeatherWidget";
 import { GoodTimesWidget } from "./GoodTimesWidget";
 import { StepsWidget } from "./StepsWidget";
 import { LoopAIWidget } from "./LoopAIWidget";
+import { WastedMoneyWidget } from "./WastedMoneyWidget";
 
 interface LoopDashboardProps {
   loop: LoopId;
@@ -265,6 +266,9 @@ export function LoopDashboard({
             compact={config.settings.compact as boolean}
           />
         );
+
+      case "wasted_money":
+        return <WastedMoneyWidget />;
 
       default:
         return (
