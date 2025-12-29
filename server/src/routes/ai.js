@@ -463,9 +463,10 @@ router.post("/parse-recipe", async (req, res) => {
       console.log("Found JSON-LD recipe data, parsing directly");
       const recipe = parseJsonLdRecipe(jsonLdData, url, parsedUrl);
 
-      // For approved sources like Serious Eats, extract technique tips from the article
-      const isApproved = isApprovedSource(parsedUrl.hostname);
-      if (isApproved) {
+      // For technique-approved sources like Serious Eats, extract technique tips from the article
+      // (excludes recipe aggregators like AllRecipes that don't have detailed technique explanations)
+      const hasTechniqueContent = isTechniqueApprovedSource(parsedUrl.hostname);
+      if (hasTechniqueContent) {
         try {
           const techniqueTips = await extractTechniqueTips(pageContent, url, recipe.title);
           if (techniqueTips && techniqueTips.length > 0) {
@@ -688,6 +689,21 @@ function isApprovedSource(hostname) {
     "minimalistbaker.com",
   ];
   return approvedDomains.some((domain) => hostname.includes(domain));
+}
+
+// Sources that have high-quality technique content worth extracting
+// (excludes recipe aggregators like AllRecipes that don't have detailed technique explanations)
+function isTechniqueApprovedSource(hostname) {
+  const techniqueApprovedDomains = [
+    "seriouseats.com",
+    "bonappetit.com",
+    "nytimes.com",
+    "cooking.nytimes.com",
+    "food52.com",
+    "thekitchn.com",
+    "smittenkitchen.com",
+  ];
+  return techniqueApprovedDomains.some((domain) => hostname.includes(domain));
 }
 
 function mapDifficultyToTechniqueLevel(difficulty) {

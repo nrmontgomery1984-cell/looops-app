@@ -185,6 +185,7 @@ export const APPROVED_SOURCES: RecipeSource[] = [
   { type: "website", name: "Serious Eats", approved: true },
   { type: "website", name: "Bon Appétit", approved: true },
   { type: "website", name: "Chris Young Cooks", approved: true },
+  { type: "website", name: "AllRecipes", approved: true },
   { type: "youtube", name: "Babish Culinary Universe", approved: true },
   { type: "youtube", name: "Fallow", approved: true },
   { type: "youtube", name: "Chris Young Cooks", approved: true },
@@ -197,6 +198,7 @@ export const APPROVED_DOMAINS = [
   "bonappetit.com",
   "chrisyoungcooks.com",
   "bingingwithbabish.com",
+  "allrecipes.com",
 ];
 
 export function isApprovedUrl(url: string): boolean {
@@ -225,6 +227,9 @@ export function getSourceFromUrl(url: string): RecipeSource | null {
     }
     if (hostname.includes("bingingwithbabish.com")) {
       return { type: "website", name: "Babish Culinary Universe", approved: true };
+    }
+    if (hostname.includes("allrecipes.com")) {
+      return { type: "website", name: "AllRecipes", approved: true };
     }
     return null;
   } catch {
