@@ -1,5 +1,5 @@
 // Import Recipe Modal - Parse recipes from approved URLs
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Recipe,
   isApprovedUrl,
@@ -50,13 +50,17 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRecipeData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Editable fields for review step
   const [editedTitle, setEditedTitle] = useState("");
   const [editedServings, setEditedServings] = useState(4);
   const [editedPrepTime, setEditedPrepTime] = useState(0);
   const [editedCookTime, setEditedCookTime] = useState(0);
+  const [editedTags, setEditedTags] = useState<string[]>([]);
+  const [editedCourse, setEditedCourse] = useState<string[]>(["dinner"]);
+  const [newTag, setNewTag] = useState("");
+
+  const COURSE_OPTIONS = ["breakfast", "lunch", "dinner", "snack", "dessert"] as const;
 
   const handleUrlSubmit = async () => {
     setError(null);
@@ -76,7 +80,6 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
     }
 
     setStep("parsing");
-    setIsLoading(true);
 
     try {
       // Call the API to parse the recipe
@@ -99,6 +102,8 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
         setEditedServings(data.recipe.servings);
         setEditedPrepTime(data.recipe.prepTime);
         setEditedCookTime(data.recipe.cookTime);
+        setEditedTags(data.recipe.tags || []);
+        setEditedCourse(data.recipe.course || ["dinner"]);
         setStep("review");
       } else {
         throw new Error(data.error || "Failed to parse recipe");
@@ -111,8 +116,6 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
           : "Failed to parse recipe. The page might be unavailable or have an unexpected format."
       );
       setStep("error");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -143,10 +146,10 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
         category: ing.category as any || "other",
       })),
       steps: parsedData.steps,
-      tags: parsedData.tags,
+      tags: editedTags,
       chefNotes: parsedData.chefNotes,
       imageUrl: parsedData.imageUrl,
-      course: ["dinner"], // Default, could be parsed from tags
+      course: editedCourse as ("breakfast" | "lunch" | "dinner" | "snack" | "dessert")[],
     });
 
     onImport(recipe);
@@ -326,19 +329,76 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
                 </div>
               )}
 
-              {/* Tags */}
-              {parsedData.tags.length > 0 && (
-                <div className="import-recipe-modal__tags">
-                  <label>Tags:</label>
-                  <div className="import-recipe-modal__tags-list">
-                    {parsedData.tags.map((tag) => (
-                      <span key={tag} className="import-recipe-modal__tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+              {/* Course/Category */}
+              <div className="import-recipe-modal__course">
+                <label>Course:</label>
+                <div className="import-recipe-modal__course-options">
+                  {COURSE_OPTIONS.map((course) => (
+                    <label key={course} className="import-recipe-modal__course-option">
+                      <input
+                        type="checkbox"
+                        checked={editedCourse.includes(course)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditedCourse([...editedCourse, course]);
+                          } else {
+                            setEditedCourse(editedCourse.filter((c) => c !== course));
+                          }
+                        }}
+                      />
+                      <span>{course}</span>
+                    </label>
+                  ))}
                 </div>
-              )}
+              </div>
+
+              {/* Tags */}
+              <div className="import-recipe-modal__tags">
+                <label>Tags:</label>
+                <div className="import-recipe-modal__tags-list">
+                  {editedTags.map((tag) => (
+                    <span key={tag} className="import-recipe-modal__tag import-recipe-modal__tag--editable">
+                      {tag}
+                      <button
+                        className="import-recipe-modal__tag-remove"
+                        onClick={() => setEditedTags(editedTags.filter((t) => t !== tag))}
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="import-recipe-modal__tag-add">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add a tag..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newTag.trim()) {
+                        e.preventDefault();
+                        if (!editedTags.includes(newTag.trim())) {
+                          setEditedTags([...editedTags, newTag.trim()]);
+                        }
+                        setNewTag("");
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newTag.trim() && !editedTags.includes(newTag.trim())) {
+                        setEditedTags([...editedTags, newTag.trim()]);
+                        setNewTag("");
+                      }
+                    }}
+                    disabled={!newTag.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Actions */}

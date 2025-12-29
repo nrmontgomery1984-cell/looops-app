@@ -29754,6 +29754,115 @@ body.modal-open {
   color: var(--color-gray-300);
 }
 
+.import-recipe-modal__tag--editable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 6px;
+}
+
+.import-recipe-modal__tag-remove {
+  background: none;
+  border: none;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.import-recipe-modal__tag-remove:hover {
+  background: var(--color-gray-600);
+  color: var(--color-gray-200);
+}
+
+.import-recipe-modal__tag-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.import-recipe-modal__tag-add input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--color-gray-800);
+  border: 1px solid var(--color-gray-600);
+  border-radius: 4px;
+  color: var(--color-gray-200);
+  font-size: 12px;
+}
+
+.import-recipe-modal__tag-add input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.import-recipe-modal__tag-add button {
+  padding: 6px 12px;
+  background: var(--color-gray-700);
+  border: 1px solid var(--color-gray-600);
+  border-radius: 4px;
+  color: var(--color-gray-300);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.import-recipe-modal__tag-add button:hover:not(:disabled) {
+  background: var(--color-gray-600);
+  color: var(--color-gray-100);
+}
+
+.import-recipe-modal__tag-add button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Course/Category checkboxes */
+.import-recipe-modal__course {
+  padding-top: 12px;
+}
+
+.import-recipe-modal__course label {
+  display: block;
+  font-size: 12px;
+  color: var(--color-gray-400);
+  margin-bottom: 8px;
+}
+
+.import-recipe-modal__course-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.import-recipe-modal__course-option {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-gray-300);
+}
+
+.import-recipe-modal__course-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.import-recipe-modal__course-option span {
+  text-transform: capitalize;
+}
+
 .import-recipe-modal__actions {
   display: flex;
   gap: 12px;
