@@ -381,4 +381,306 @@ You can help with:
 - Suggesting resources or approaches`;
 }
 
+// Parse recipe from URL - fetches webpage and uses Claude to extract recipe data
+router.post("/parse-recipe", async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    // Validate URL
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return res.status(400).json({ error: "Invalid URL format" });
+    }
+
+    // Fetch the webpage content
+    let pageContent;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      pageContent = await response.text();
+    } catch (fetchError) {
+      return res.status(400).json({
+        error: `Failed to fetch URL: ${fetchError.message}`
+      });
+    }
+
+    // Truncate content if too long (Claude has limits)
+    const maxChars = 50000;
+    if (pageContent.length > maxChars) {
+      pageContent = pageContent.substring(0, maxChars);
+    }
+
+    const client = getAnthropicClient();
+
+    const prompt = `You are a recipe parser. Extract the recipe information from this webpage HTML and return it as JSON.
+
+The webpage is from: ${url}
+
+Extract and return this JSON structure (fill in what you can find, use null for missing data):
+{
+  "title": "Recipe title",
+  "author": "Recipe author if found",
+  "description": "Brief description of the dish",
+  "prepTime": number in minutes,
+  "cookTime": number in minutes,
+  "totalTime": number in minutes,
+  "servings": number,
+  "difficulty": "easy" | "medium" | "advanced" | "project",
+  "cuisine": "Cuisine type",
+  "course": ["breakfast" | "lunch" | "dinner" | "snack" | "dessert"],
+  "tags": ["tag1", "tag2"],
+  "ingredients": [
+    {
+      "name": "Ingredient name",
+      "quantity": number or null,
+      "unit": "unit of measurement",
+      "preparation": "how to prep (diced, minced, etc)",
+      "optional": boolean
+    }
+  ],
+  "steps": [
+    {
+      "stepNumber": 1,
+      "instruction": "Step instruction",
+      "duration": minutes or null,
+      "tip": "Any tips for this step"
+    }
+  ],
+  "chefNotes": "Any notes or tips from the recipe author",
+  "requiredEquipment": ["equipment1", "equipment2"]
+}
+
+Difficulty guide:
+- easy: Simple techniques, under 30 min active time, beginner-friendly
+- medium: Some technique required, 30-60 min, comfortable home cook
+- advanced: Complex techniques, precision required, experienced cooks
+- project: Multi-day or very complex, for cooking enthusiasts
+
+Here is the webpage HTML content:
+
+${pageContent}
+
+Return ONLY the JSON object, no markdown, no explanation.`;
+
+    const message = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    const responseText = message.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n");
+
+    // Parse the JSON response
+    let parsedRecipe;
+    try {
+      // Try to extract JSON from the response
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedRecipe = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("No JSON found in response");
+      }
+    } catch (parseError) {
+      console.error("Failed to parse recipe JSON:", parseError);
+      return res.status(500).json({
+        error: "Failed to parse recipe data from page",
+        rawResponse: responseText.substring(0, 500)
+      });
+    }
+
+    // Determine source name from URL
+    const sourceName = getSourceName(parsedUrl.hostname);
+
+    // Format the recipe for our app
+    const recipe = {
+      id: `recipe_${Date.now()}`,
+      title: parsedRecipe.title || "Untitled Recipe",
+      slug: generateSlug(parsedRecipe.title || "untitled"),
+      source: {
+        type: "website",
+        name: sourceName,
+        approved: isApprovedSource(parsedUrl.hostname),
+      },
+      sourceUrl: url,
+      author: parsedRecipe.author || null,
+      prepTime: parsedRecipe.prepTime || 0,
+      cookTime: parsedRecipe.cookTime || 0,
+      totalTime: parsedRecipe.totalTime || (parsedRecipe.prepTime || 0) + (parsedRecipe.cookTime || 0),
+      servings: parsedRecipe.servings || 4,
+      difficulty: parsedRecipe.difficulty || "medium",
+      techniqueLevel: mapDifficultyToTechniqueLevel(parsedRecipe.difficulty),
+      cuisine: parsedRecipe.cuisine || null,
+      course: parsedRecipe.course || ["dinner"],
+      tags: parsedRecipe.tags || [],
+      ingredients: (parsedRecipe.ingredients || []).map((ing, i) => ({
+        id: String(i + 1),
+        name: ing.name,
+        quantity: ing.quantity,
+        unit: ing.unit || "",
+        preparation: ing.preparation || null,
+        optional: ing.optional || false,
+        normalizedName: ing.name?.toLowerCase().replace(/[^a-z0-9]/g, " ").trim(),
+        category: categorizeIngredient(ing.name),
+      })),
+      steps: (parsedRecipe.steps || []).map((step, i) => ({
+        stepNumber: step.stepNumber || i + 1,
+        instruction: step.instruction,
+        duration: step.duration || null,
+        tip: step.tip || null,
+        isActive: true,
+      })),
+      chefNotes: parsedRecipe.chefNotes || null,
+      requiredEquipment: parsedRecipe.requiredEquipment || [],
+      scalable: true,
+      rating: null,
+      timesMade: 0,
+      isFavorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    res.json({
+      success: true,
+      recipe,
+    });
+  } catch (error) {
+    console.error("Recipe parse error:", error);
+    res.status(500).json({
+      error: error.message || "Failed to parse recipe",
+    });
+  }
+});
+
+// Helper functions for recipe parsing
+function generateSlug(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function getSourceName(hostname) {
+  const sourceMap = {
+    "seriouseats.com": "Serious Eats",
+    "www.seriouseats.com": "Serious Eats",
+    "bonappetit.com": "Bon Appétit",
+    "www.bonappetit.com": "Bon Appétit",
+    "nytimes.com": "NYT Cooking",
+    "cooking.nytimes.com": "NYT Cooking",
+    "www.nytimes.com": "NYT Cooking",
+    "foodnetwork.com": "Food Network",
+    "www.foodnetwork.com": "Food Network",
+    "allrecipes.com": "AllRecipes",
+    "www.allrecipes.com": "AllRecipes",
+    "epicurious.com": "Epicurious",
+    "www.epicurious.com": "Epicurious",
+    "food52.com": "Food52",
+    "www.food52.com": "Food52",
+    "thekitchn.com": "The Kitchn",
+    "www.thekitchn.com": "The Kitchn",
+    "budgetbytes.com": "Budget Bytes",
+    "www.budgetbytes.com": "Budget Bytes",
+    "smittenkitchen.com": "Smitten Kitchen",
+    "www.smittenkitchen.com": "Smitten Kitchen",
+    "minimalistbaker.com": "Minimalist Baker",
+    "www.minimalistbaker.com": "Minimalist Baker",
+  };
+  return sourceMap[hostname] || hostname.replace(/^www\./, "").split(".")[0];
+}
+
+function isApprovedSource(hostname) {
+  const approvedDomains = [
+    "seriouseats.com",
+    "bonappetit.com",
+    "nytimes.com",
+    "cooking.nytimes.com",
+    "foodnetwork.com",
+    "allrecipes.com",
+    "epicurious.com",
+    "food52.com",
+    "thekitchn.com",
+    "budgetbytes.com",
+    "smittenkitchen.com",
+    "minimalistbaker.com",
+  ];
+  return approvedDomains.some((domain) => hostname.includes(domain));
+}
+
+function mapDifficultyToTechniqueLevel(difficulty) {
+  const map = {
+    easy: "basic",
+    medium: "intermediate",
+    advanced: "advanced",
+    project: "expert",
+  };
+  return map[difficulty] || "intermediate";
+}
+
+function categorizeIngredient(name) {
+  if (!name) return "other";
+  const lower = name.toLowerCase();
+
+  // Proteins
+  if (/beef|chicken|pork|lamb|fish|salmon|shrimp|tofu|turkey|bacon|sausage|steak|ground/.test(lower)) {
+    return "protein";
+  }
+  // Dairy
+  if (/milk|cream|cheese|butter|yogurt|egg|sour cream/.test(lower)) {
+    return "dairy";
+  }
+  // Vegetables
+  if (/onion|garlic|carrot|celery|pepper|tomato|potato|lettuce|spinach|broccoli|mushroom|zucchini|squash|corn|pea|bean|cabbage|kale|cucumber/.test(lower)) {
+    return "vegetable";
+  }
+  // Fruits
+  if (/apple|banana|orange|lemon|lime|berry|grape|mango|peach|pear|avocado/.test(lower)) {
+    return "fruit";
+  }
+  // Grains
+  if (/rice|pasta|bread|flour|oat|noodle|quinoa|barley|wheat|tortilla|bun/.test(lower)) {
+    return "grain";
+  }
+  // Spices
+  if (/salt|pepper|cumin|paprika|oregano|basil|thyme|rosemary|cinnamon|nutmeg|ginger|turmeric|cayenne|chili|spice|seasoning/.test(lower)) {
+    return "spice";
+  }
+  // Oils & fats
+  if (/oil|olive|vegetable oil|coconut|lard|shortening/.test(lower)) {
+    return "oil_fat";
+  }
+  // Condiments
+  if (/sauce|ketchup|mustard|mayo|vinegar|soy sauce|worcestershire|hot sauce|dressing/.test(lower)) {
+    return "condiment";
+  }
+  // Liquids
+  if (/broth|stock|wine|water|juice/.test(lower)) {
+    return "liquid";
+  }
+
+  return "other";
+}
+
 export default router;
