@@ -1,5 +1,6 @@
 // Meal Suggester - "What should I cook?" assistant
 import { useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Recipe, KitchenProfile } from "../../types/mealPrep";
 
 interface MealSuggesterProps {
@@ -157,148 +158,102 @@ export function MealSuggester({
 
   // Questions Step
   if (step === "questions") {
-    return (
-      <div className="meal-suggester">
+    return createPortal(
+      <div className="meal-suggester__overlay" onClick={onClose}>
+        <div className="meal-suggester" onClick={(e) => e.stopPropagation()}>
+          <div className="meal-suggester__header">
+            <h2>What should I cook?</h2>
+            <button className="meal-suggester__close" onClick={onClose}>
+              ×
+            </button>
+          </div>
+
+          <div className="meal-suggester__content">
+            <p className="meal-suggester__intro">
+              Answer a few quick questions and I'll suggest the perfect recipe for you!
+            </p>
+
+            {/* Time Question */}
+            <div className="meal-suggester__question">
+              <h3>How much time do you have?</h3>
+              <div className="meal-suggester__options">
+                {TIME_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    className={`meal-suggester__option ${filters.time === option.value ? "meal-suggester__option--selected" : ""}`}
+                    onClick={() => setFilters({ ...filters, time: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mood Question */}
+            <div className="meal-suggester__question">
+              <h3>What are you in the mood for?</h3>
+              <div className="meal-suggester__options meal-suggester__options--mood">
+                {MOOD_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    className={`meal-suggester__option meal-suggester__option--mood ${filters.mood === option.value ? "meal-suggester__option--selected" : ""}`}
+                    onClick={() => setFilters({ ...filters, mood: option.value })}
+                  >
+                    <span className="meal-suggester__option-icon">{option.icon}</span>
+                    <span className="meal-suggester__option-label">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Course Question */}
+            <div className="meal-suggester__question">
+              <h3>What meal are you making?</h3>
+              <div className="meal-suggester__options">
+                {["breakfast", "lunch", "dinner", "snack"].map((course) => (
+                  <button
+                    key={course}
+                    className={`meal-suggester__option ${filters.course === course ? "meal-suggester__option--selected" : ""}`}
+                    onClick={() => setFilters({ ...filters, course })}
+                  >
+                    {course.charAt(0).toUpperCase() + course.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              className="meal-suggester__submit"
+              onClick={handleGetSuggestions}
+            >
+              Get Suggestions ✨
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  // Results Step
+  return createPortal(
+    <div className="meal-suggester__overlay" onClick={onClose}>
+      <div className="meal-suggester" onClick={(e) => e.stopPropagation()}>
         <div className="meal-suggester__header">
-          <h2>What should I cook?</h2>
+          <h2>Here's what I suggest!</h2>
           <button className="meal-suggester__close" onClick={onClose}>
             ×
           </button>
         </div>
 
         <div className="meal-suggester__content">
-          <p className="meal-suggester__intro">
-            Answer a few quick questions and I'll suggest the perfect recipe for you!
-          </p>
-
-          {/* Time Question */}
-          <div className="meal-suggester__question">
-            <h3>How much time do you have?</h3>
-            <div className="meal-suggester__options">
-              {TIME_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  className={`meal-suggester__option ${filters.time === option.value ? "meal-suggester__option--selected" : ""}`}
-                  onClick={() => setFilters({ ...filters, time: option.value })}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Mood Question */}
-          <div className="meal-suggester__question">
-            <h3>What are you in the mood for?</h3>
-            <div className="meal-suggester__options meal-suggester__options--mood">
-              {MOOD_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  className={`meal-suggester__option meal-suggester__option--mood ${filters.mood === option.value ? "meal-suggester__option--selected" : ""}`}
-                  onClick={() => setFilters({ ...filters, mood: option.value })}
-                >
-                  <span className="meal-suggester__option-icon">{option.icon}</span>
-                  <span className="meal-suggester__option-label">{option.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Course Question */}
-          <div className="meal-suggester__question">
-            <h3>What meal are you making?</h3>
-            <div className="meal-suggester__options">
-              {["breakfast", "lunch", "dinner", "snack"].map((course) => (
-                <button
-                  key={course}
-                  className={`meal-suggester__option ${filters.course === course ? "meal-suggester__option--selected" : ""}`}
-                  onClick={() => setFilters({ ...filters, course })}
-                >
-                  {course.charAt(0).toUpperCase() + course.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            className="meal-suggester__submit"
-            onClick={handleGetSuggestions}
-          >
-            Get Suggestions ✨
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Results Step
-  return (
-    <div className="meal-suggester">
-      <div className="meal-suggester__header">
-        <h2>Here's what I suggest!</h2>
-        <button className="meal-suggester__close" onClick={onClose}>
-          ×
-        </button>
-      </div>
-
-      <div className="meal-suggester__content">
-        {suggestedRecipes.length === 0 ? (
-          <div className="meal-suggester__no-results">
-            <span className="meal-suggester__no-results-icon">🤔</span>
-            <h3>No matches found</h3>
-            <p>
-              Try adjusting your preferences or add more recipes to your collection!
-            </p>
-            <button
-              className="meal-suggester__retry-btn"
-              onClick={handleStartOver}
-            >
-              Try Different Options
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="meal-suggester__results">
-              {suggestedRecipes.map((recipe, index) => (
-                <button
-                  key={recipe.id}
-                  className={`meal-suggester__result ${index === 0 ? "meal-suggester__result--top" : ""}`}
-                  onClick={() => onSelectRecipe(recipe)}
-                >
-                  {index === 0 && (
-                    <span className="meal-suggester__result-badge">Top Pick</span>
-                  )}
-                  {recipe.imageUrl && (
-                    <img
-                      src={recipe.imageUrl}
-                      alt=""
-                      className="meal-suggester__result-image"
-                    />
-                  )}
-                  <div className="meal-suggester__result-info">
-                    <h4 className="meal-suggester__result-title">{recipe.title}</h4>
-                    <div className="meal-suggester__result-meta">
-                      <span>{recipe.totalTime} min</span>
-                      <span>·</span>
-                      <span>{recipe.difficulty}</span>
-                      {recipe.rating && (
-                        <>
-                          <span>·</span>
-                          <span>{"★".repeat(Math.round(recipe.rating))}</span>
-                        </>
-                      )}
-                    </div>
-                    {recipe.timesMade === 0 && (
-                      <span className="meal-suggester__result-new">
-                        Never made before!
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="meal-suggester__actions">
+          {suggestedRecipes.length === 0 ? (
+            <div className="meal-suggester__no-results">
+              <span className="meal-suggester__no-results-icon">🤔</span>
+              <h3>No matches found</h3>
+              <p>
+                Try adjusting your preferences or add more recipes to your collection!
+              </p>
               <button
                 className="meal-suggester__retry-btn"
                 onClick={handleStartOver}
@@ -306,9 +261,61 @@ export function MealSuggester({
                 Try Different Options
               </button>
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              <div className="meal-suggester__results">
+                {suggestedRecipes.map((recipe, index) => (
+                  <button
+                    key={recipe.id}
+                    className={`meal-suggester__result ${index === 0 ? "meal-suggester__result--top" : ""}`}
+                    onClick={() => onSelectRecipe(recipe)}
+                  >
+                    {index === 0 && (
+                      <span className="meal-suggester__result-badge">Top Pick</span>
+                    )}
+                    {recipe.imageUrl && (
+                      <img
+                        src={recipe.imageUrl}
+                        alt=""
+                        className="meal-suggester__result-image"
+                      />
+                    )}
+                    <div className="meal-suggester__result-info">
+                      <h4 className="meal-suggester__result-title">{recipe.title}</h4>
+                      <div className="meal-suggester__result-meta">
+                        <span>{recipe.totalTime} min</span>
+                        <span>·</span>
+                        <span>{recipe.difficulty}</span>
+                        {recipe.rating && (
+                          <>
+                            <span>·</span>
+                            <span>{"★".repeat(Math.round(recipe.rating))}</span>
+                          </>
+                        )}
+                      </div>
+                      {recipe.timesMade === 0 && (
+                        <span className="meal-suggester__result-new">
+                          Never made before!
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="meal-suggester__actions">
+                <button
+                  className="meal-suggester__retry-btn"
+                  onClick={handleStartOver}
+                >
+                  Try Different Options
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

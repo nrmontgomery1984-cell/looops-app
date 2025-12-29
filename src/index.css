@@ -33955,14 +33955,20 @@ body.modal-open {
 
 /* ==================== Meal Suggester ==================== */
 
+/* Legacy wrapper - now using portal */
 .meal-prep__suggester-overlay {
+  display: contents;
+}
+
+/* Portal-rendered overlay - rendered at document.body level */
+.meal-suggester__overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 10000;
   padding: 20px;
   backdrop-filter: blur(4px);
 }
