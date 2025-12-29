@@ -32540,6 +32540,19 @@ body.modal-open {
 
   .meal-prep__tabs {
     padding-bottom: 12px;
+    /* Add gradient to indicate more content */
+    mask-image: linear-gradient(to right, black 90%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  }
+
+  .meal-prep__tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .meal-prep__tab-count {
+    font-size: 10px;
+    padding: 2px 5px;
   }
 }
 
@@ -32633,7 +32646,7 @@ body.modal-open {
 }
 
 .meal-calendar__today-btn {
-  background: var(--accent-primary);
+  background: var(--color-accent);
   border: none;
   color: white;
   padding: 8px 16px;
@@ -32688,7 +32701,7 @@ body.modal-open {
 }
 
 .meal-calendar__day-header--today {
-  background: var(--accent-primary);
+  background: var(--color-accent);
   color: white;
 }
 
@@ -32719,7 +32732,7 @@ body.modal-open {
 }
 
 .meal-calendar__cell--today {
-  background: color-mix(in srgb, var(--accent-primary) 5%, var(--bg-primary));
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--bg-primary));
 }
 
 .meal-calendar__add-meal {
@@ -32737,8 +32750,8 @@ body.modal-open {
 }
 
 .meal-calendar__add-meal:hover {
-  border-color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
 
 .meal-calendar__add-icon {
@@ -32747,7 +32760,7 @@ body.modal-open {
 }
 
 .meal-calendar__add-meal:hover .meal-calendar__add-icon {
-  color: var(--accent-primary);
+  color: var(--color-accent);
 }
 
 .meal-calendar__meal {
@@ -32771,7 +32784,7 @@ body.modal-open {
 }
 
 .meal-calendar__meal-content:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
 }
 
 .meal-calendar__meal-content--custom {
@@ -32887,7 +32900,7 @@ body.modal-open {
   gap: 12px;
   width: 100%;
   padding: 12px 20px;
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-primary));
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--bg-primary));
   border: none;
   border-bottom: 1px solid var(--border-primary);
   color: var(--text-primary);
@@ -32897,7 +32910,7 @@ body.modal-open {
 }
 
 .meal-calendar__picker-custom:hover {
-  background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg-primary));
+  background: color-mix(in srgb, var(--color-accent) 15%, var(--bg-primary));
 }
 
 .meal-calendar__picker-recipes {
@@ -33072,7 +33085,7 @@ body.modal-open {
 
 .shopping-list__add-item button {
   padding: 12px 20px;
-  background: var(--accent-primary);
+  background: var(--color-accent);
   border: none;
   border-radius: 8px;
   color: white;
@@ -33331,12 +33344,12 @@ body.modal-open {
 }
 
 .meal-suggester__option:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
 }
 
 .meal-suggester__option--selected {
-  background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg-primary));
-  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--color-accent) 15%, var(--bg-primary));
+  border-color: var(--color-accent);
 }
 
 .meal-suggester__option--mood {
@@ -33358,7 +33371,7 @@ body.modal-open {
 .meal-suggester__submit {
   width: 100%;
   padding: 14px;
-  background: var(--accent-primary);
+  background: var(--color-accent);
   border: none;
   border-radius: 10px;
   color: white;
@@ -33395,12 +33408,12 @@ body.modal-open {
 }
 
 .meal-suggester__result:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
 }
 
 .meal-suggester__result--top {
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-secondary));
-  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--bg-secondary));
+  border-color: var(--color-accent);
 }
 
 .meal-suggester__result-badge {
@@ -33408,7 +33421,7 @@ body.modal-open {
   top: -8px;
   left: 12px;
   padding: 4px 10px;
-  background: var(--accent-primary);
+  background: var(--color-accent);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -33444,7 +33457,7 @@ body.modal-open {
   display: inline-block;
   margin-top: 4px;
   font-size: 11px;
-  color: var(--accent-primary);
+  color: var(--color-accent);
   font-weight: 500;
 }
 
@@ -33488,14 +33501,14 @@ body.modal-open {
 
 /* "What to cook" Tab Button */
 .meal-prep__tab--suggest {
-  background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg-secondary));
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--color-accent) 15%, var(--bg-secondary));
+  border-color: var(--color-accent);
+  color: var(--color-accent);
   font-weight: 600;
 }
 
 .meal-prep__tab--suggest:hover {
-  background: color-mix(in srgb, var(--accent-primary) 25%, var(--bg-secondary));
+  background: color-mix(in srgb, var(--color-accent) 25%, var(--bg-secondary));
 }
 
 /* ==================== Responsive - Meal Calendar ==================== */
@@ -33577,7 +33590,7 @@ body.modal-open {
 .food-waste-tracker__back {
   background: none;
   border: none;
-  color: var(--accent-primary);
+  color: var(--color-accent);
   font-size: 14px;
   cursor: pointer;
   padding: 8px 0;
@@ -33588,7 +33601,7 @@ body.modal-open {
 }
 
 .food-waste-tracker__add-btn {
-  background: var(--accent-primary);
+  background: var(--color-accent);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -33600,7 +33613,7 @@ body.modal-open {
 }
 
 .food-waste-tracker__add-btn:hover {
-  background: var(--accent-secondary);
+  background: var(--color-accent-light);
 }
 
 /* Waste Stats Grid */
@@ -33623,8 +33636,8 @@ body.modal-open {
 }
 
 .waste-stats-card--highlight {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .waste-stats-card--highlight .waste-stats-card__value,
@@ -33666,7 +33679,7 @@ body.modal-open {
 .waste-section__link {
   background: none;
   border: none;
-  color: var(--accent-primary);
+  color: var(--color-accent);
   font-size: 13px;
   cursor: pointer;
   padding: 0;
@@ -33696,7 +33709,7 @@ body.modal-open {
 .waste-offender-item__rank {
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent-primary);
+  color: var(--color-accent);
   min-width: 24px;
 }
 
@@ -33773,7 +33786,7 @@ body.modal-open {
 
 .waste-entry-item__cost {
   font-size: 12px;
-  color: var(--accent-primary);
+  color: var(--color-accent);
   font-weight: 500;
 }
 
@@ -33800,7 +33813,7 @@ body.modal-open {
 }
 
 .waste-entry-item__action:hover {
-  color: var(--accent-primary);
+  color: var(--color-accent);
 }
 
 .waste-entry-item__action--delete:hover {
@@ -33848,7 +33861,7 @@ body.modal-open {
 .waste-reason-item__count {
   font-size: 14px;
   font-weight: 600;
-  color: var(--accent-primary);
+  color: var(--color-accent);
 }
 
 /* Waste Filters */
@@ -33951,12 +33964,12 @@ body.modal-open {
 }
 
 .waste-entry-form__reason-btn:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
 }
 
 .waste-entry-form__reason-btn--active {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
   color: white;
 }
 
@@ -34010,13 +34023,13 @@ body.modal-open {
 }
 
 .waste-entry-form__btn--primary {
-  background: var(--accent-primary);
+  background: var(--color-accent);
   border: none;
   color: white;
 }
 
 .waste-entry-form__btn--primary:hover {
-  background: var(--accent-secondary);
+  background: var(--color-accent-light);
 }
 
 .waste-entry-form__btn--primary:disabled {
@@ -34031,8 +34044,8 @@ body.modal-open {
 }
 
 [data-theme="light"] .waste-stats-card--highlight {
-  background: var(--accent-primary) !important;
-  border-color: var(--accent-primary) !important;
+  background: var(--color-accent) !important;
+  border-color: var(--color-accent) !important;
 }
 
 [data-theme="light"] .waste-stats-card__value {
@@ -34091,8 +34104,8 @@ body.modal-open {
 }
 
 [data-theme="light"] .waste-entry-form__reason-btn--active {
-  background: var(--accent-primary) !important;
-  border-color: var(--accent-primary) !important;
+  background: var(--color-accent) !important;
+  border-color: var(--color-accent) !important;
   color: white !important;
 }
 
