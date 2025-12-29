@@ -29444,6 +29444,226 @@ body.modal-open {
   margin-top: auto;
 }
 
+/* Recipe Card Light Mode */
+[data-theme="light"] .recipe-card {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .recipe-card:hover {
+  border-color: var(--color-gray-300);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .recipe-card__image {
+  background: var(--color-gray-100);
+}
+
+[data-theme="light"] .recipe-card__placeholder {
+  background: linear-gradient(135deg, var(--color-gray-100), var(--color-gray-200));
+}
+
+[data-theme="light"] .recipe-card__title {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .recipe-card__title:hover {
+  color: var(--color-accent);
+}
+
+[data-theme="light"] .recipe-card__source {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .recipe-card__meta {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .recipe-card__divider {
+  color: var(--color-gray-300);
+}
+
+[data-theme="light"] .recipe-card__difficulty-label {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .recipe-card__tag {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .recipe-card__action {
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .recipe-card__action:hover {
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
+}
+
+[data-theme="light"] .recipe-card__action--view {
+  background: var(--color-accent);
+  color: white;
+}
+
+[data-theme="light"] .recipe-card__action--view:hover {
+  background: var(--color-accent-hover);
+}
+
+[data-theme="light"] .recipe-card__stats {
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-500);
+}
+
+/* Import Recipe Modal Light Mode */
+[data-theme="light"] .import-recipe-modal {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+}
+
+[data-theme="light"] .import-recipe-modal__header {
+  border-color: var(--color-gray-200);
+}
+
+[data-theme="light"] .import-recipe-modal__header h2 {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .import-recipe-modal__close {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .import-recipe-modal__close:hover {
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__label {
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__url-input input {
+  background: var(--color-white);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .import-recipe-modal__url-input input:focus {
+  border-color: var(--color-accent);
+}
+
+[data-theme="light"] .import-recipe-modal__sources-label {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .import-recipe-modal__source {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__field label {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .import-recipe-modal__field input {
+  background: var(--color-white);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .import-recipe-modal__author {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .import-recipe-modal__summary {
+  background: var(--color-gray-50);
+}
+
+[data-theme="light"] .import-recipe-modal__summary-count {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .import-recipe-modal__summary-label {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .import-recipe-modal__equipment label,
+[data-theme="light"] .import-recipe-modal__tags label,
+[data-theme="light"] .import-recipe-modal__course label {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .import-recipe-modal__equipment-item,
+[data-theme="light"] .import-recipe-modal__tag {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__tag-remove {
+  color: var(--color-gray-400);
+}
+
+[data-theme="light"] .import-recipe-modal__tag-remove:hover {
+  background: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__tag-add input {
+  background: var(--color-white);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .import-recipe-modal__tag-add button {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__tag-add button:hover:not(:disabled) {
+  background: var(--color-gray-200);
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .import-recipe-modal__course-option {
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__actions {
+  border-color: var(--color-gray-200);
+}
+
+[data-theme="light"] .import-recipe-modal__btn--secondary {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .import-recipe-modal__btn--secondary:hover {
+  background: var(--color-gray-200);
+}
+
+[data-theme="light"] .import-recipe-modal__error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+[data-theme="light"] .import-recipe-modal__loading p {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .import-recipe-modal__loading-hint {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .import-recipe-modal__error-state h3 {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .import-recipe-modal__error-state p {
+  color: var(--color-gray-600);
+}
+
 /* Import Recipe Modal */
 .modal-overlay {
   position: fixed;

@@ -462,6 +462,21 @@ router.post("/parse-recipe", async (req, res) => {
     if (jsonLdData) {
       console.log("Found JSON-LD recipe data, parsing directly");
       const recipe = parseJsonLdRecipe(jsonLdData, url, parsedUrl);
+
+      // For approved sources like Serious Eats, extract technique tips from the article
+      const isApproved = isApprovedSource(parsedUrl.hostname);
+      if (isApproved) {
+        try {
+          const techniqueTips = await extractTechniqueTips(pageContent, url, recipe.title);
+          if (techniqueTips && techniqueTips.length > 0) {
+            recipe.extractedTechniques = techniqueTips;
+          }
+        } catch (err) {
+          console.log("Failed to extract technique tips:", err.message);
+          // Continue without technique tips
+        }
+      }
+
       return res.json({ success: true, recipe });
     }
 
@@ -727,6 +742,90 @@ function categorizeIngredient(name) {
   }
 
   return "other";
+}
+
+// Extract technique tips from recipe article content using Claude
+async function extractTechniqueTips(pageContent, url, recipeTitle) {
+  const client = getAnthropicClient();
+
+  // Strip script/style tags and get text content (simplified extraction)
+  const textContent = pageContent
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Limit content for API call
+  const limitedContent = textContent.substring(0, 40000);
+
+  const prompt = `You are a culinary technique extractor. Analyze this recipe article from ${url} for "${recipeTitle}" and extract valuable cooking techniques, tips, and scientific explanations that appear BEFORE the actual recipe instructions.
+
+Recipe articles from sites like Serious Eats often contain valuable technique information in the lead-up text, such as:
+- Why certain techniques work (the science)
+- Common mistakes to avoid
+- Key tips for success
+- Ingredient selection advice
+- Equipment recommendations
+- Timing and temperature guidance
+
+Extract these techniques and return them as a JSON array. Each technique should be a standalone, reusable piece of cooking knowledge.
+
+Return this JSON structure:
+{
+  "techniques": [
+    {
+      "title": "Brief technique name (e.g., 'The Smash Technique for Burgers')",
+      "category": "One of: heat-control, knife-skills, sauce-making, meat-cooking, vegetable-prep, baking, timing, equipment, ingredient-selection, food-science",
+      "description": "A concise explanation of the technique (2-3 sentences)",
+      "whyItWorks": "The science or reasoning behind why this works (optional)",
+      "commonMistakes": ["Common mistake 1", "Common mistake 2"],
+      "keyTips": ["Key tip 1", "Key tip 2"],
+      "relatedIngredients": ["ingredient1", "ingredient2"]
+    }
+  ]
+}
+
+Only include techniques that are:
+1. Actually mentioned in the article (don't make things up)
+2. Reusable for other recipes (not recipe-specific instructions)
+3. Provide real value for learning to cook better
+
+If no valuable techniques are found, return {"techniques": []}.
+
+Here is the article content:
+
+${limitedContent}
+
+Return ONLY the JSON object, no markdown, no explanation.`;
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  const responseText = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n");
+
+  try {
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return parsed.techniques || [];
+    }
+  } catch (e) {
+    console.error("Failed to parse technique tips JSON:", e);
+  }
+
+  return [];
 }
 
 // Parse ISO 8601 duration (PT1H30M) to minutes
