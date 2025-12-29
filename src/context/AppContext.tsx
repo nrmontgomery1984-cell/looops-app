@@ -82,6 +82,7 @@ import {
   Recipe,
   MealPlan,
   TechniqueEntry,
+  WasteEntry,
   getDefaultMealPrepState,
 } from "../types/mealPrep";
 import { SEED_RECIPES, SEED_TECHNIQUES } from "../data/mealPrepSeedData";
@@ -468,6 +469,11 @@ export type AppAction =
   | { type: "ADD_TECHNIQUE_ENTRY"; payload: TechniqueEntry }
   | { type: "UPDATE_TECHNIQUE_ENTRY"; payload: TechniqueEntry }
   | { type: "DELETE_TECHNIQUE_ENTRY"; payload: string }
+
+  // Waste tracking actions
+  | { type: "ADD_WASTE_ENTRY"; payload: WasteEntry }
+  | { type: "UPDATE_WASTE_ENTRY"; payload: WasteEntry }
+  | { type: "DELETE_WASTE_ENTRY"; payload: string }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -1791,6 +1797,36 @@ function appReducer(state: AppState, action: AppAction): AppState {
         mealPrep: {
           ...state.mealPrep,
           techniqueLibrary: state.mealPrep.techniqueLibrary.filter(te => te.id !== action.payload),
+        },
+      };
+
+    // Waste tracking actions
+    case "ADD_WASTE_ENTRY":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          wasteLog: [...state.mealPrep.wasteLog, action.payload],
+        },
+      };
+
+    case "UPDATE_WASTE_ENTRY":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          wasteLog: state.mealPrep.wasteLog.map(w =>
+            w.id === action.payload.id ? action.payload : w
+          ),
+        },
+      };
+
+    case "DELETE_WASTE_ENTRY":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          wasteLog: state.mealPrep.wasteLog.filter(w => w.id !== action.payload),
         },
       };
 

@@ -19,10 +19,12 @@ import { TechniqueLibrary } from "./TechniqueLibrary";
 import { MealPlanCalendar } from "./MealPlanCalendar";
 import { ShoppingList } from "./ShoppingList";
 import { MealSuggester } from "./MealSuggester";
+import { FoodWasteTracker } from "./FoodWasteTracker";
+import { WasteEntry } from "../../types/mealPrep";
 
 type ViewMode = "grid" | "list";
 type SortBy = "recent" | "rating" | "timesMade" | "totalTime" | "title";
-type MainView = "recipes" | "techniques" | "calendar" | "shopping";
+type MainView = "recipes" | "techniques" | "calendar" | "shopping" | "waste";
 
 interface FilterState {
   search: string;
@@ -285,6 +287,20 @@ export function MealPrepScreen() {
     );
   }
 
+  // Food Waste Tracker View
+  if (mainView === "waste") {
+    return (
+      <div className="screen meal-prep-screen">
+        <FoodWasteTracker
+          wasteLog={mealPrep.wasteLog}
+          onAddEntry={(entry: WasteEntry) => dispatch({ type: "ADD_WASTE_ENTRY", payload: entry })}
+          onUpdateEntry={(entry: WasteEntry) => dispatch({ type: "UPDATE_WASTE_ENTRY", payload: entry })}
+          onDeleteEntry={(id: string) => dispatch({ type: "DELETE_WASTE_ENTRY", payload: id })}
+        />
+      </div>
+    );
+  }
+
   // Helper to check active tab
   const isActiveTab = (tab: MainView) => mainView === tab;
 
@@ -345,6 +361,15 @@ export function MealPrepScreen() {
           onClick={() => setMainView("shopping")}
         >
           Shopping
+        </button>
+        <button
+          className={`meal-prep__tab ${isActiveTab("waste") ? "meal-prep__tab--active" : ""}`}
+          onClick={() => setMainView("waste")}
+        >
+          No Waste
+          {mealPrep.wasteLog.length > 0 && (
+            <span className="meal-prep__tab-count">{mealPrep.wasteLog.length}</span>
+          )}
         </button>
         <button
           className="meal-prep__tab meal-prep__tab--suggest"

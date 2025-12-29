@@ -303,6 +303,61 @@ export interface TechniqueEntry {
   sourcesCited: string[];
 }
 
+// ==================== Food Waste Tracking ====================
+
+export type WasteReason =
+  | "expired"           // Went bad before use
+  | "forgot"            // Forgot about it
+  | "cooked_too_much"   // Made more than needed
+  | "didnt_like"        // Tried, didn't like
+  | "spoiled_early"     // Went bad faster than expected
+  | "recipe_changed"    // Changed meal plans
+  | "other";
+
+export interface WasteEntry {
+  id: string;
+  ingredientName: string;           // "green peppers"
+  normalizedName: string;           // "green pepper" (for matching)
+  quantity: number;
+  unit: string;                     // "whole", "cups", "lbs", etc.
+  reason: WasteReason;
+  date: string;                     // ISO date
+  estimatedCost?: number;           // Optional, user-entered
+  notes?: string;
+  createdAt: string;
+}
+
+export interface WasteStats {
+  totalEntries: number;
+  totalEstimatedCost: number;
+  topWastedIngredients: Array<{
+    name: string;
+    count: number;
+    lastWasted: string;
+  }>;
+  wasteByReason: Record<WasteReason, number>;
+}
+
+export const WASTE_REASON_LABELS: Record<WasteReason, string> = {
+  expired: "Expired",
+  forgot: "Forgot about it",
+  cooked_too_much: "Cooked too much",
+  didnt_like: "Didn't like it",
+  spoiled_early: "Spoiled early",
+  recipe_changed: "Changed plans",
+  other: "Other",
+};
+
+export const WASTE_REASON_ICONS: Record<WasteReason, string> = {
+  expired: "clock",
+  forgot: "question",
+  cooked_too_much: "stack",
+  didnt_like: "thumbs-down",
+  spoiled_early: "warning",
+  recipe_changed: "swap",
+  other: "dots",
+};
+
 // ==================== Meal Prep State ====================
 
 export interface MealPrepState {
@@ -310,6 +365,7 @@ export interface MealPrepState {
   recipes: Recipe[];
   mealPlans: MealPlan[];
   techniqueLibrary: TechniqueEntry[];
+  wasteLog: WasteEntry[];
   onboardingComplete: boolean;
 }
 
@@ -319,6 +375,7 @@ export function getDefaultMealPrepState(): MealPrepState {
     recipes: [],
     mealPlans: [],
     techniqueLibrary: [],
+    wasteLog: [],
     onboardingComplete: false,
   };
 }
@@ -396,6 +453,96 @@ export function formatTime(minutes: number): string {
     return `${hours} hr`;
   }
   return `${hours} hr ${mins} min`;
+}
+
+// ==================== Waste Tracking Helpers ====================
+
+export function createWasteEntry(
+  data: Omit<WasteEntry, "id" | "normalizedName" | "createdAt">
+): WasteEntry {
+  return {
+    ...data,
+    id: `waste_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    normalizedName: data.ingredientName.toLowerCase().replace(/[^a-z0-9]/g, " ").trim(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function calculateWasteStats(wasteLog: WasteEntry[], months: number = 3): WasteStats {
+  const cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - months);
+
+  const recentEntries = wasteLog.filter(w => new Date(w.date) >= cutoffDate);
+
+  // Count by ingredient
+  const ingredientCounts = new Map<string, { count: number; lastWasted: string }>();
+  recentEntries.forEach(entry => {
+    const existing = ingredientCounts.get(entry.normalizedName);
+    if (!existing || new Date(entry.date) > new Date(existing.lastWasted)) {
+      ingredientCounts.set(entry.normalizedName, {
+        count: (existing?.count || 0) + 1,
+        lastWasted: entry.date,
+      });
+    } else {
+      ingredientCounts.set(entry.normalizedName, {
+        ...existing,
+        count: existing.count + 1,
+      });
+    }
+  });
+
+  // Top wasted ingredients (sorted by count)
+  const topWastedIngredients = Array.from(ingredientCounts.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // Count by reason
+  const wasteByReason: Record<WasteReason, number> = {
+    expired: 0,
+    forgot: 0,
+    cooked_too_much: 0,
+    didnt_like: 0,
+    spoiled_early: 0,
+    recipe_changed: 0,
+    other: 0,
+  };
+  recentEntries.forEach(entry => {
+    wasteByReason[entry.reason]++;
+  });
+
+  // Total cost
+  const totalEstimatedCost = recentEntries.reduce(
+    (sum, entry) => sum + (entry.estimatedCost || 0),
+    0
+  );
+
+  return {
+    totalEntries: recentEntries.length,
+    totalEstimatedCost,
+    topWastedIngredients,
+    wasteByReason,
+  };
+}
+
+export function getFrequentlyWastedIngredients(
+  wasteLog: WasteEntry[],
+  threshold: number = 2,
+  months: number = 3
+): string[] {
+  const cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - months);
+
+  const recentEntries = wasteLog.filter(w => new Date(w.date) >= cutoffDate);
+
+  const counts = new Map<string, number>();
+  recentEntries.forEach(entry => {
+    counts.set(entry.normalizedName, (counts.get(entry.normalizedName) || 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .filter(([, count]) => count >= threshold)
+    .map(([name]) => name);
 }
 
 export function getExperienceLevelLabel(level: ExperienceLevel): string {

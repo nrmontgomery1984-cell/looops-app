@@ -33545,3 +33545,607 @@ body.modal-open {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==================== Food Waste Tracker ==================== */
+.food-waste-tracker {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.food-waste-tracker__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.food-waste-tracker__title-section h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.food-waste-tracker__subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.food-waste-tracker__back {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.food-waste-tracker__back:hover {
+  text-decoration: underline;
+}
+
+.food-waste-tracker__add-btn {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.food-waste-tracker__add-btn:hover {
+  background: var(--accent-secondary);
+}
+
+/* Waste Stats Grid */
+.waste-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.waste-stats-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.waste-stats-card--highlight {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.waste-stats-card--highlight .waste-stats-card__value,
+.waste-stats-card--highlight .waste-stats-card__label {
+  color: white;
+}
+
+.waste-stats-card__value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.waste-stats-card__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Waste Sections */
+.waste-section {
+  margin-bottom: 24px;
+}
+
+.waste-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.waste-section__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.waste-section__link {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.waste-section__link:hover {
+  text-decoration: underline;
+}
+
+/* Top Offenders List */
+.waste-offenders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.waste-offender-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.waste-offender-item__rank {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  min-width: 24px;
+}
+
+.waste-offender-item__name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.waste-offender-item__count {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Waste Entry List */
+.waste-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.waste-entry-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.waste-entry-item__main {
+  flex: 1;
+  min-width: 150px;
+}
+
+.waste-entry-item__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: block;
+  text-transform: capitalize;
+}
+
+.waste-entry-item__quantity {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.waste-entry-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.waste-entry-item__reason {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.waste-entry-item__date {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.waste-entry-item__cost {
+  font-size: 12px;
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.waste-entry-item__notes {
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.waste-entry-item__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.waste-entry-item__action {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.waste-entry-item__action:hover {
+  color: var(--accent-primary);
+}
+
+.waste-entry-item__action--delete:hover {
+  color: var(--error-color);
+}
+
+/* Empty State */
+.waste-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+}
+
+.waste-empty p {
+  margin: 0 0 8px 0;
+}
+
+.waste-empty__hint {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* Waste Reasons Grid */
+.waste-reasons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.waste-reason-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.waste-reason-item__label {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.waste-reason-item__count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+/* Waste Filters */
+.waste-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.waste-filters__search {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.waste-filters__search::placeholder {
+  color: var(--text-tertiary);
+}
+
+.waste-filters__select {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  min-width: 140px;
+}
+
+/* Waste Entry Form */
+.waste-entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 0;
+}
+
+.waste-entry-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.waste-entry-form__field label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.waste-entry-form__field input,
+.waste-entry-form__field select,
+.waste-entry-form__field textarea {
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.waste-entry-form__field input::placeholder,
+.waste-entry-form__field textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.waste-entry-form__field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.waste-entry-form__row {
+  display: flex;
+  gap: 12px;
+}
+
+.waste-entry-form__field--half {
+  flex: 1;
+}
+
+/* Reason Selection Grid */
+.waste-entry-form__reason-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.waste-entry-form__reason-btn {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.waste-entry-form__reason-btn:hover {
+  border-color: var(--accent-primary);
+}
+
+.waste-entry-form__reason-btn--active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
+}
+
+/* Cost Input */
+.waste-entry-form__cost-input {
+  display: flex;
+  align-items: center;
+}
+
+.waste-entry-form__cost-symbol {
+  padding: 12px 0 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.waste-entry-form__cost-input input {
+  border-radius: 0 8px 8px 0;
+  flex: 1;
+}
+
+/* Form Actions */
+.waste-entry-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.waste-entry-form__btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.waste-entry-form__btn--secondary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.waste-entry-form__btn--secondary:hover {
+  background: var(--bg-tertiary);
+}
+
+.waste-entry-form__btn--primary {
+  background: var(--accent-primary);
+  border: none;
+  color: white;
+}
+
+.waste-entry-form__btn--primary:hover {
+  background: var(--accent-secondary);
+}
+
+.waste-entry-form__btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== Food Waste Tracker - Light Mode ==================== */
+[data-theme="light"] .waste-stats-card {
+  background: #ffffff !important;
+  border-color: #e0e0e0 !important;
+}
+
+[data-theme="light"] .waste-stats-card--highlight {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+[data-theme="light"] .waste-stats-card__value {
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] .waste-stats-card__label {
+  color: #666666 !important;
+}
+
+[data-theme="light"] .waste-stats-card--highlight .waste-stats-card__value,
+[data-theme="light"] .waste-stats-card--highlight .waste-stats-card__label {
+  color: white !important;
+}
+
+[data-theme="light"] .waste-offender-item,
+[data-theme="light"] .waste-entry-item,
+[data-theme="light"] .waste-reason-item {
+  background: #ffffff !important;
+  border-color: #e0e0e0 !important;
+}
+
+[data-theme="light"] .waste-offender-item__name,
+[data-theme="light"] .waste-entry-item__name,
+[data-theme="light"] .waste-reason-item__label,
+[data-theme="light"] .waste-section__title,
+[data-theme="light"] .food-waste-tracker__title-section h1 {
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] .waste-offender-item__count,
+[data-theme="light"] .waste-entry-item__reason {
+  background: #f0f0f0 !important;
+  color: #666666 !important;
+}
+
+[data-theme="light"] .waste-filters__search,
+[data-theme="light"] .waste-filters__select {
+  background: #ffffff !important;
+  border-color: #e0e0e0 !important;
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] .waste-entry-form__field input,
+[data-theme="light"] .waste-entry-form__field select,
+[data-theme="light"] .waste-entry-form__field textarea {
+  background: #ffffff !important;
+  border-color: #e0e0e0 !important;
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] .waste-entry-form__reason-btn {
+  background: #ffffff !important;
+  border-color: #e0e0e0 !important;
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] .waste-entry-form__reason-btn--active {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: white !important;
+}
+
+[data-theme="light"] .waste-entry-form__cost-symbol {
+  background: #f5f5f5 !important;
+  border-color: #e0e0e0 !important;
+  color: #666666 !important;
+}
+
+[data-theme="light"] .waste-entry-form__btn--secondary {
+  background: #f5f5f5 !important;
+  border-color: #e0e0e0 !important;
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] .waste-entry-form__actions {
+  border-top-color: #e0e0e0 !important;
+}
+
+/* ==================== Responsive - Food Waste Tracker ==================== */
+@media (max-width: 768px) {
+  .waste-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .food-waste-tracker__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .food-waste-tracker__add-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .waste-filters {
+    flex-direction: column;
+  }
+
+  .waste-entry-form__row {
+    flex-direction: column;
+  }
+
+  .waste-entry-form__reason-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .waste-entry-form__actions {
+    flex-direction: column;
+  }
+
+  .waste-entry-form__btn {
+    width: 100%;
+    text-align: center;
+  }
+}
