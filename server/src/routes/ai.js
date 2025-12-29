@@ -419,6 +419,44 @@ router.post("/parse-recipe", async (req, res) => {
       });
     }
 
+    // Try to extract JSON-LD structured data first (most recipe sites have this)
+    let jsonLdData = null;
+    const jsonLdMatches = pageContent.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    if (jsonLdMatches) {
+      for (const match of jsonLdMatches) {
+        try {
+          const jsonContent = match.replace(/<script[^>]*>|<\/script>/gi, '').trim();
+          const parsed = JSON.parse(jsonContent);
+          // Look for Recipe type in the JSON-LD
+          if (parsed['@type'] === 'Recipe') {
+            jsonLdData = parsed;
+            break;
+          } else if (Array.isArray(parsed['@graph'])) {
+            const recipe = parsed['@graph'].find(item => item['@type'] === 'Recipe');
+            if (recipe) {
+              jsonLdData = recipe;
+              break;
+            }
+          } else if (Array.isArray(parsed)) {
+            const recipe = parsed.find(item => item['@type'] === 'Recipe');
+            if (recipe) {
+              jsonLdData = recipe;
+              break;
+            }
+          }
+        } catch {
+          // Continue to next match if JSON parse fails
+        }
+      }
+    }
+
+    // If we found JSON-LD recipe data, use it directly
+    if (jsonLdData) {
+      console.log("Found JSON-LD recipe data, parsing directly");
+      const recipe = parseJsonLdRecipe(jsonLdData, url, parsedUrl);
+      return res.json({ success: true, recipe });
+    }
+
     // Truncate content if too long (Claude has limits)
     const maxChars = 50000;
     if (pageContent.length > maxChars) {
@@ -681,6 +719,205 @@ function categorizeIngredient(name) {
   }
 
   return "other";
+}
+
+// Parse ISO 8601 duration (PT1H30M) to minutes
+function parseIsoDuration(duration) {
+  if (!duration) return 0;
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const hours = parseInt(match[1] || 0, 10);
+  const minutes = parseInt(match[2] || 0, 10);
+  const seconds = parseInt(match[3] || 0, 10);
+  return hours * 60 + minutes + Math.round(seconds / 60);
+}
+
+// Parse JSON-LD recipe data into our format
+function parseJsonLdRecipe(jsonLd, url, parsedUrl) {
+  const sourceName = getSourceName(parsedUrl.hostname);
+
+  // Parse ingredients - can be array of strings or objects
+  const ingredients = (jsonLd.recipeIngredient || []).map((ing, i) => {
+    // If it's a string, parse it
+    if (typeof ing === 'string') {
+      // Try to extract quantity, unit, and name
+      const match = ing.match(/^([\d\s\/\.]+)?\s*(\w+)?\s+(.+)$/);
+      if (match) {
+        const [, qty, unit, name] = match;
+        return {
+          id: String(i + 1),
+          name: name?.trim() || ing,
+          quantity: qty ? parseFloat(qty.replace(/\s+/g, '')) || null : null,
+          unit: unit || "",
+          preparation: null,
+          optional: false,
+          normalizedName: (name || ing).toLowerCase().replace(/[^a-z0-9]/g, " ").trim(),
+          category: categorizeIngredient(name || ing),
+        };
+      }
+      return {
+        id: String(i + 1),
+        name: ing,
+        quantity: null,
+        unit: "",
+        preparation: null,
+        optional: false,
+        normalizedName: ing.toLowerCase().replace(/[^a-z0-9]/g, " ").trim(),
+        category: categorizeIngredient(ing),
+      };
+    }
+    return {
+      id: String(i + 1),
+      name: ing.name || ing,
+      quantity: ing.quantity || null,
+      unit: ing.unit || "",
+      preparation: null,
+      optional: false,
+      normalizedName: (ing.name || String(ing)).toLowerCase().replace(/[^a-z0-9]/g, " ").trim(),
+      category: categorizeIngredient(ing.name || ing),
+    };
+  });
+
+  // Parse instructions - can be array of strings or HowToStep objects
+  const instructions = jsonLd.recipeInstructions || [];
+  const steps = instructions.map((step, i) => {
+    if (typeof step === 'string') {
+      return {
+        stepNumber: i + 1,
+        instruction: step,
+        duration: null,
+        tip: null,
+        isActive: true,
+      };
+    }
+    // HowToStep or HowToSection
+    if (step['@type'] === 'HowToSection') {
+      // Flatten sections into steps
+      return (step.itemListElement || []).map((item) => ({
+        stepNumber: i + 1,
+        instruction: item.text || item.name || String(item),
+        duration: null,
+        tip: null,
+        isActive: true,
+      }));
+    }
+    return {
+      stepNumber: i + 1,
+      instruction: step.text || step.name || String(step),
+      duration: null,
+      tip: null,
+      isActive: true,
+    };
+  }).flat();
+
+  // Renumber steps after flattening
+  steps.forEach((step, i) => {
+    step.stepNumber = i + 1;
+  });
+
+  // Get author
+  let author = null;
+  if (jsonLd.author) {
+    if (typeof jsonLd.author === 'string') {
+      author = jsonLd.author;
+    } else if (Array.isArray(jsonLd.author)) {
+      author = jsonLd.author.map(a => a.name || a).join(', ');
+    } else {
+      author = jsonLd.author.name || null;
+    }
+  }
+
+  // Determine difficulty from total time
+  const totalTime = parseIsoDuration(jsonLd.totalTime) ||
+                   parseIsoDuration(jsonLd.prepTime) + parseIsoDuration(jsonLd.cookTime);
+  let difficulty = 'medium';
+  if (totalTime <= 30) difficulty = 'easy';
+  else if (totalTime <= 60) difficulty = 'medium';
+  else if (totalTime <= 180) difficulty = 'advanced';
+  else difficulty = 'project';
+
+  // Get yield/servings
+  let servings = 4;
+  if (jsonLd.recipeYield) {
+    if (typeof jsonLd.recipeYield === 'number') {
+      servings = jsonLd.recipeYield;
+    } else if (typeof jsonLd.recipeYield === 'string') {
+      const match = jsonLd.recipeYield.match(/(\d+)/);
+      if (match) servings = parseInt(match[1], 10);
+    } else if (Array.isArray(jsonLd.recipeYield)) {
+      const match = String(jsonLd.recipeYield[0]).match(/(\d+)/);
+      if (match) servings = parseInt(match[1], 10);
+    }
+  }
+
+  // Get cuisine and category
+  const cuisine = jsonLd.recipeCuisine
+    ? (Array.isArray(jsonLd.recipeCuisine) ? jsonLd.recipeCuisine[0] : jsonLd.recipeCuisine)
+    : null;
+
+  const category = jsonLd.recipeCategory
+    ? (Array.isArray(jsonLd.recipeCategory) ? jsonLd.recipeCategory : [jsonLd.recipeCategory])
+    : ['dinner'];
+
+  // Map category to our course types
+  const courseMap = {
+    'breakfast': 'breakfast',
+    'brunch': 'breakfast',
+    'lunch': 'lunch',
+    'dinner': 'dinner',
+    'main course': 'dinner',
+    'main dish': 'dinner',
+    'entree': 'dinner',
+    'entrée': 'dinner',
+    'side dish': 'dinner',
+    'appetizer': 'snack',
+    'snack': 'snack',
+    'dessert': 'dessert',
+  };
+  const course = category.map(c => courseMap[c?.toLowerCase()] || 'dinner').filter((v, i, a) => a.indexOf(v) === i);
+
+  // Get keywords/tags
+  let tags = [];
+  if (jsonLd.keywords) {
+    if (typeof jsonLd.keywords === 'string') {
+      tags = jsonLd.keywords.split(',').map(t => t.trim()).filter(Boolean);
+    } else if (Array.isArray(jsonLd.keywords)) {
+      tags = jsonLd.keywords;
+    }
+  }
+
+  return {
+    id: `recipe_${Date.now()}`,
+    title: jsonLd.name || "Untitled Recipe",
+    slug: generateSlug(jsonLd.name || "untitled"),
+    description: jsonLd.description || null,
+    source: {
+      type: "website",
+      name: sourceName,
+      approved: isApprovedSource(parsedUrl.hostname),
+    },
+    sourceUrl: url,
+    author,
+    prepTime: parseIsoDuration(jsonLd.prepTime),
+    cookTime: parseIsoDuration(jsonLd.cookTime),
+    totalTime: totalTime || parseIsoDuration(jsonLd.prepTime) + parseIsoDuration(jsonLd.cookTime),
+    servings,
+    difficulty,
+    techniqueLevel: mapDifficultyToTechniqueLevel(difficulty),
+    cuisine,
+    course,
+    tags,
+    ingredients,
+    steps,
+    chefNotes: null,
+    requiredEquipment: [],
+    scalable: true,
+    rating: null,
+    timesMade: 0,
+    isFavorite: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export default router;
