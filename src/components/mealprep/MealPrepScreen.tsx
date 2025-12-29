@@ -7,12 +7,13 @@ import {
   Course,
   APPROVED_SOURCES,
   TechniqueEntry,
+  TechniqueTip,
   MealPlan,
 } from "../../types/mealPrep";
 import { KitchenOnboardingFlow } from "./onboarding";
 import { RecipeCard } from "./RecipeCard";
 import { RecipeDetail } from "./RecipeDetail";
-import { ImportRecipeModal } from "./ImportRecipeModal";
+import { ImportRecipeModal, ExtractedTechnique } from "./ImportRecipeModal";
 import { RecipeForm } from "./RecipeForm";
 import { TechniqueLibrary } from "./TechniqueLibrary";
 import { MealPlanCalendar } from "./MealPlanCalendar";
@@ -548,8 +549,78 @@ export function MealPrepScreen() {
       {/* Import Modal */}
       {showImportModal && (
         <ImportRecipeModal
-          onImport={(recipe) => {
+          onImport={(recipe, extractedTechniques) => {
             dispatch({ type: "ADD_RECIPE", payload: recipe });
+
+            // Convert extracted techniques to TechniqueEntry objects and save them
+            if (extractedTechniques && extractedTechniques.length > 0) {
+              extractedTechniques.forEach((tech: ExtractedTechnique) => {
+                // Build tips array from extracted data
+                const tips: TechniqueTip[] = [];
+                const now = Date.now();
+
+                // Main description as a "how" tip
+                if (tech.description) {
+                  tips.push({
+                    id: `tip_${now}_desc`,
+                    content: tech.description,
+                    source: recipe.source.name,
+                    sourceUrl: recipe.sourceUrl,
+                    category: "how",
+                  });
+                }
+
+                // Why it works as a "why" tip
+                if (tech.whyItWorks) {
+                  tips.push({
+                    id: `tip_${now}_why`,
+                    content: tech.whyItWorks,
+                    source: recipe.source.name,
+                    sourceUrl: recipe.sourceUrl,
+                    category: "why",
+                  });
+                }
+
+                // Common mistakes
+                if (tech.commonMistakes) {
+                  tech.commonMistakes.forEach((mistake, i) => {
+                    tips.push({
+                      id: `tip_${now}_mistake_${i}`,
+                      content: mistake,
+                      source: recipe.source.name,
+                      sourceUrl: recipe.sourceUrl,
+                      category: "common_mistake",
+                    });
+                  });
+                }
+
+                // Key tips
+                if (tech.keyTips) {
+                  tech.keyTips.forEach((tip, i) => {
+                    tips.push({
+                      id: `tip_${now}_key_${i}`,
+                      content: tip,
+                      source: recipe.source.name,
+                      sourceUrl: recipe.sourceUrl,
+                      category: "how",
+                    });
+                  });
+                }
+
+                const techniqueEntry: TechniqueEntry = {
+                  id: `tech_${now}_${Math.random().toString(36).slice(2, 11)}`,
+                  subject: tech.title,
+                  subjectType: "technique",
+                  tips,
+                  relatedRecipeIds: [recipe.id],
+                  lastUpdated: new Date().toISOString(),
+                  sourcesCited: [recipe.source.name],
+                };
+
+                dispatch({ type: "ADD_TECHNIQUE_ENTRY", payload: techniqueEntry });
+              });
+            }
+
             setShowImportModal(false);
           }}
           onClose={() => setShowImportModal(false)}

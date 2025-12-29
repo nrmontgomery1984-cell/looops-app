@@ -8,8 +8,19 @@ import {
   createRecipe,
 } from "../../types/mealPrep";
 
+// Extracted technique format from AI parsing
+export interface ExtractedTechnique {
+  title: string;
+  category: string;
+  description: string;
+  whyItWorks?: string;
+  commonMistakes?: string[];
+  keyTips?: string[];
+  relatedIngredients?: string[];
+}
+
 interface ImportRecipeModalProps {
-  onImport: (recipe: Recipe) => void;
+  onImport: (recipe: Recipe, extractedTechniques?: ExtractedTechnique[]) => void;
   onClose: () => void;
 }
 
@@ -50,6 +61,7 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRecipeData | null>(null);
+  const [extractedTechniques, setExtractedTechniques] = useState<ExtractedTechnique[]>([]);
 
   // Editable fields for review step
   const [editedTitle, setEditedTitle] = useState("");
@@ -104,6 +116,10 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
         setEditedCookTime(data.recipe.cookTime);
         setEditedTags(data.recipe.tags || []);
         setEditedCourse(data.recipe.course || ["dinner"]);
+        // Store extracted techniques if available
+        if (data.recipe.extractedTechniques && data.recipe.extractedTechniques.length > 0) {
+          setExtractedTechniques(data.recipe.extractedTechniques);
+        }
         setStep("review");
       } else {
         throw new Error(data.error || "Failed to parse recipe");
@@ -152,11 +168,12 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
       course: editedCourse as ("breakfast" | "lunch" | "dinner" | "snack" | "dessert")[],
     });
 
-    onImport(recipe);
+    onImport(recipe, extractedTechniques.length > 0 ? extractedTechniques : undefined);
   };
 
   const handleRetry = () => {
     setError(null);
+    setExtractedTechniques([]);
     setStep("url");
   };
 
@@ -313,6 +330,14 @@ export function ImportRecipeModal({ onImport, onClose }: ImportRecipeModalProps)
                   </span>
                   <span className="import-recipe-modal__summary-label">Difficulty</span>
                 </div>
+                {extractedTechniques.length > 0 && (
+                  <div className="import-recipe-modal__summary-item import-recipe-modal__summary-item--highlight">
+                    <span className="import-recipe-modal__summary-count">
+                      {extractedTechniques.length}
+                    </span>
+                    <span className="import-recipe-modal__summary-label">Techniques</span>
+                  </div>
+                )}
               </div>
 
               {/* Equipment */}

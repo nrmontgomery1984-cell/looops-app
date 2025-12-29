@@ -29664,6 +29664,304 @@ body.modal-open {
   color: var(--color-gray-600);
 }
 
+/* Light mode - Meal Prep Screen */
+[data-theme="light"] .meal-prep-screen {
+  background: var(--color-gray-50);
+}
+
+[data-theme="light"] .meal-prep__header {
+  background: transparent;
+}
+
+[data-theme="light"] .meal-prep__header h2 {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .meal-prep__subtitle {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .meal-prep__add-btn {
+  color: white;
+}
+
+[data-theme="light"] .meal-prep__add-btn--secondary {
+  background: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .meal-prep__add-btn--secondary:hover {
+  background: var(--color-gray-300);
+}
+
+[data-theme="light"] .meal-prep__filters {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .meal-prep__search input {
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .meal-prep__search input::placeholder {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .meal-prep__search input:focus {
+  background: var(--color-white);
+  border-color: var(--color-accent);
+}
+
+[data-theme="light"] .meal-prep__search-clear {
+  color: var(--color-gray-400);
+}
+
+[data-theme="light"] .meal-prep__search-clear:hover {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .meal-prep__filter-select {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .meal-prep__filter-select:focus {
+  border-color: var(--color-accent);
+}
+
+[data-theme="light"] .meal-prep__filter-toggle {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .meal-prep__filter-toggle:hover {
+  border-color: var(--color-gray-400);
+}
+
+[data-theme="light"] .meal-prep__filter-toggle--active {
+  background: var(--color-amber-100);
+  border-color: var(--color-amber-300);
+  color: var(--color-amber-700);
+}
+
+[data-theme="light"] .meal-prep__filter-clear {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .meal-prep__filter-clear:hover {
+  color: var(--color-accent);
+}
+
+[data-theme="light"] .meal-prep__sort-label {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .meal-prep__sort-select {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .meal-prep__view-btn {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .meal-prep__view-btn:hover {
+  border-color: var(--color-gray-400);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .meal-prep__view-btn--active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-white);
+}
+
+[data-theme="light"] .meal-prep__count {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .meal-prep__empty {
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .meal-prep__empty h3 {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .meal-prep__empty p {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .meal-prep__empty-sources {
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-200);
+}
+
+[data-theme="light"] .meal-prep__empty-sources-label {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .meal-prep__empty-source {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+/* Light mode - Meal Prep Tabs */
+[data-theme="light"] .meal-prep__tabs {
+  background: transparent;
+  border-bottom-color: var(--color-gray-200);
+}
+
+[data-theme="light"] .meal-prep__tab {
+  color: var(--color-gray-600);
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+}
+
+[data-theme="light"] .meal-prep__tab:hover:not(:disabled) {
+  color: var(--color-gray-900);
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+}
+
+[data-theme="light"] .meal-prep__tab--active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-white);
+}
+
+[data-theme="light"] .meal-prep__tab:disabled {
+  color: var(--color-gray-400);
+}
+
+[data-theme="light"] .meal-prep__tab-count {
+  background: var(--color-gray-200);
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .meal-prep__tab--active .meal-prep__tab-count {
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--color-white);
+}
+
+[data-theme="light"] .meal-prep__tab--suggest {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent-light);
+  color: var(--color-accent);
+}
+
+[data-theme="light"] .meal-prep__tab--suggest:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-white);
+}
+
+/* Light mode - Technique Library */
+[data-theme="light"] .technique-library {
+  background: var(--color-gray-50);
+}
+
+[data-theme="light"] .technique-library__back {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .technique-library__back:hover {
+  background: var(--color-gray-100);
+}
+
+[data-theme="light"] .technique-library__title-section h1 {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .technique-library__subtitle {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .technique-library__search input {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .technique-library__search input::placeholder {
+  color: var(--color-gray-400);
+}
+
+[data-theme="light"] .technique-library__search input:focus {
+  border-color: var(--color-accent);
+}
+
+[data-theme="light"] .technique-library__filter {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .technique-library__category-title {
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .technique-library__category-count {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .technique-library__empty h3 {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .technique-library__empty p {
+  color: var(--color-gray-600);
+}
+
+/* Light mode - Technique Cards */
+[data-theme="light"] .technique-card {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .technique-card:hover {
+  border-color: var(--color-gray-300);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .technique-card__type {
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .technique-card__title {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .technique-card__tip-count {
+  color: var(--color-accent);
+}
+
+[data-theme="light"] .technique-card__tip-preview {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .technique-card__recipes-count {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .technique-card__meta {
+  color: var(--color-gray-400);
+  border-top-color: var(--color-gray-100);
+}
+
 /* Import Recipe Modal */
 .modal-overlay {
   position: fixed;
@@ -29943,6 +30241,17 @@ body.modal-open {
 .import-recipe-modal__summary-label {
   font-size: 12px;
   color: var(--color-gray-500);
+}
+
+.import-recipe-modal__summary-item--highlight {
+  background: linear-gradient(135deg, var(--color-accent), var(--looops-amber));
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.import-recipe-modal__summary-item--highlight .import-recipe-modal__summary-count,
+.import-recipe-modal__summary-item--highlight .import-recipe-modal__summary-label {
+  color: var(--color-white);
 }
 
 .import-recipe-modal__equipment,
