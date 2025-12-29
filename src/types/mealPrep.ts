@@ -545,6 +545,250 @@ export function getFrequentlyWastedIngredients(
     .map(([name]) => name);
 }
 
+// ==================== Price Estimation ====================
+
+// Average prices per unit (USD) - rough estimates for common grocery items
+// These are approximate US supermarket prices as of 2024
+const INGREDIENT_PRICES: Record<string, { pricePerUnit: number; defaultUnit: string }> = {
+  // Produce - Vegetables
+  "onion": { pricePerUnit: 0.75, defaultUnit: "whole" },
+  "onions": { pricePerUnit: 0.75, defaultUnit: "whole" },
+  "garlic": { pricePerUnit: 0.50, defaultUnit: "whole" },
+  "carrot": { pricePerUnit: 0.30, defaultUnit: "whole" },
+  "carrots": { pricePerUnit: 2.00, defaultUnit: "lbs" },
+  "celery": { pricePerUnit: 2.50, defaultUnit: "bunch" },
+  "bell pepper": { pricePerUnit: 1.25, defaultUnit: "whole" },
+  "green pepper": { pricePerUnit: 1.00, defaultUnit: "whole" },
+  "red pepper": { pricePerUnit: 1.50, defaultUnit: "whole" },
+  "pepper": { pricePerUnit: 1.25, defaultUnit: "whole" },
+  "tomato": { pricePerUnit: 0.75, defaultUnit: "whole" },
+  "tomatoes": { pricePerUnit: 3.00, defaultUnit: "lbs" },
+  "potato": { pricePerUnit: 0.50, defaultUnit: "whole" },
+  "potatoes": { pricePerUnit: 3.50, defaultUnit: "bag" },
+  "lettuce": { pricePerUnit: 2.50, defaultUnit: "whole" },
+  "spinach": { pricePerUnit: 4.00, defaultUnit: "bag" },
+  "kale": { pricePerUnit: 3.00, defaultUnit: "bunch" },
+  "broccoli": { pricePerUnit: 2.50, defaultUnit: "whole" },
+  "cauliflower": { pricePerUnit: 3.50, defaultUnit: "whole" },
+  "mushroom": { pricePerUnit: 3.50, defaultUnit: "container" },
+  "mushrooms": { pricePerUnit: 3.50, defaultUnit: "container" },
+  "zucchini": { pricePerUnit: 1.25, defaultUnit: "whole" },
+  "cucumber": { pricePerUnit: 1.00, defaultUnit: "whole" },
+  "cabbage": { pricePerUnit: 2.50, defaultUnit: "whole" },
+  "corn": { pricePerUnit: 0.50, defaultUnit: "whole" },
+  "asparagus": { pricePerUnit: 4.00, defaultUnit: "bunch" },
+  "green beans": { pricePerUnit: 3.00, defaultUnit: "lbs" },
+  "peas": { pricePerUnit: 3.00, defaultUnit: "bag" },
+  "avocado": { pricePerUnit: 1.75, defaultUnit: "whole" },
+  "jalapeño": { pricePerUnit: 0.25, defaultUnit: "whole" },
+  "jalapeno": { pricePerUnit: 0.25, defaultUnit: "whole" },
+  "ginger": { pricePerUnit: 0.50, defaultUnit: "whole" },
+  "scallion": { pricePerUnit: 1.50, defaultUnit: "bunch" },
+  "scallions": { pricePerUnit: 1.50, defaultUnit: "bunch" },
+  "green onion": { pricePerUnit: 1.50, defaultUnit: "bunch" },
+  "green onions": { pricePerUnit: 1.50, defaultUnit: "bunch" },
+  "shallot": { pricePerUnit: 0.75, defaultUnit: "whole" },
+  "leek": { pricePerUnit: 2.00, defaultUnit: "whole" },
+  "eggplant": { pricePerUnit: 2.50, defaultUnit: "whole" },
+  "squash": { pricePerUnit: 2.00, defaultUnit: "whole" },
+  "butternut squash": { pricePerUnit: 3.50, defaultUnit: "whole" },
+
+  // Produce - Fruits
+  "apple": { pricePerUnit: 1.00, defaultUnit: "whole" },
+  "apples": { pricePerUnit: 5.00, defaultUnit: "bag" },
+  "banana": { pricePerUnit: 0.25, defaultUnit: "whole" },
+  "bananas": { pricePerUnit: 1.50, defaultUnit: "bunch" },
+  "orange": { pricePerUnit: 0.75, defaultUnit: "whole" },
+  "oranges": { pricePerUnit: 5.00, defaultUnit: "bag" },
+  "lemon": { pricePerUnit: 0.50, defaultUnit: "whole" },
+  "lime": { pricePerUnit: 0.35, defaultUnit: "whole" },
+  "berries": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "strawberries": { pricePerUnit: 4.50, defaultUnit: "container" },
+  "blueberries": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "raspberries": { pricePerUnit: 5.50, defaultUnit: "container" },
+  "grapes": { pricePerUnit: 4.00, defaultUnit: "bag" },
+  "mango": { pricePerUnit: 1.75, defaultUnit: "whole" },
+  "peach": { pricePerUnit: 1.25, defaultUnit: "whole" },
+  "pear": { pricePerUnit: 1.00, defaultUnit: "whole" },
+  "melon": { pricePerUnit: 4.00, defaultUnit: "whole" },
+  "watermelon": { pricePerUnit: 6.00, defaultUnit: "whole" },
+  "pineapple": { pricePerUnit: 4.00, defaultUnit: "whole" },
+
+  // Herbs
+  "cilantro": { pricePerUnit: 1.50, defaultUnit: "bunch" },
+  "parsley": { pricePerUnit: 1.50, defaultUnit: "bunch" },
+  "basil": { pricePerUnit: 2.50, defaultUnit: "bunch" },
+  "mint": { pricePerUnit: 2.50, defaultUnit: "bunch" },
+  "dill": { pricePerUnit: 2.00, defaultUnit: "bunch" },
+  "thyme": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "rosemary": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "sage": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "oregano": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "chives": { pricePerUnit: 2.50, defaultUnit: "bunch" },
+
+  // Dairy
+  "milk": { pricePerUnit: 4.50, defaultUnit: "container" },
+  "cream": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "half and half": { pricePerUnit: 4.00, defaultUnit: "container" },
+  "butter": { pricePerUnit: 5.00, defaultUnit: "whole" },
+  "eggs": { pricePerUnit: 4.00, defaultUnit: "container" },
+  "cheese": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "cheddar": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "mozzarella": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "parmesan": { pricePerUnit: 7.00, defaultUnit: "container" },
+  "cream cheese": { pricePerUnit: 3.50, defaultUnit: "container" },
+  "sour cream": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "yogurt": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "greek yogurt": { pricePerUnit: 6.00, defaultUnit: "container" },
+
+  // Proteins
+  "chicken": { pricePerUnit: 8.00, defaultUnit: "lbs" },
+  "chicken breast": { pricePerUnit: 9.00, defaultUnit: "lbs" },
+  "chicken thigh": { pricePerUnit: 6.00, defaultUnit: "lbs" },
+  "chicken thighs": { pricePerUnit: 6.00, defaultUnit: "lbs" },
+  "ground beef": { pricePerUnit: 7.00, defaultUnit: "lbs" },
+  "beef": { pricePerUnit: 10.00, defaultUnit: "lbs" },
+  "steak": { pricePerUnit: 15.00, defaultUnit: "lbs" },
+  "pork": { pricePerUnit: 5.00, defaultUnit: "lbs" },
+  "pork chop": { pricePerUnit: 6.00, defaultUnit: "lbs" },
+  "pork chops": { pricePerUnit: 6.00, defaultUnit: "lbs" },
+  "bacon": { pricePerUnit: 7.00, defaultUnit: "container" },
+  "sausage": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "ground turkey": { pricePerUnit: 6.00, defaultUnit: "lbs" },
+  "turkey": { pricePerUnit: 6.00, defaultUnit: "lbs" },
+  "salmon": { pricePerUnit: 12.00, defaultUnit: "lbs" },
+  "fish": { pricePerUnit: 10.00, defaultUnit: "lbs" },
+  "shrimp": { pricePerUnit: 12.00, defaultUnit: "lbs" },
+  "tofu": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "tempeh": { pricePerUnit: 4.00, defaultUnit: "container" },
+
+  // Bread & Grains
+  "bread": { pricePerUnit: 4.00, defaultUnit: "whole" },
+  "rice": { pricePerUnit: 3.00, defaultUnit: "bag" },
+  "pasta": { pricePerUnit: 2.00, defaultUnit: "bag" },
+  "noodles": { pricePerUnit: 2.50, defaultUnit: "bag" },
+  "tortillas": { pricePerUnit: 3.50, defaultUnit: "bag" },
+  "bagels": { pricePerUnit: 4.00, defaultUnit: "bag" },
+  "oatmeal": { pricePerUnit: 4.00, defaultUnit: "container" },
+  "oats": { pricePerUnit: 4.00, defaultUnit: "container" },
+  "cereal": { pricePerUnit: 5.00, defaultUnit: "container" },
+
+  // Canned & Jarred
+  "beans": { pricePerUnit: 1.50, defaultUnit: "container" },
+  "black beans": { pricePerUnit: 1.50, defaultUnit: "container" },
+  "chickpeas": { pricePerUnit: 1.50, defaultUnit: "container" },
+  "tomato sauce": { pricePerUnit: 2.00, defaultUnit: "container" },
+  "tomato paste": { pricePerUnit: 1.50, defaultUnit: "container" },
+  "coconut milk": { pricePerUnit: 2.50, defaultUnit: "container" },
+  "broth": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "stock": { pricePerUnit: 3.50, defaultUnit: "container" },
+  "chicken broth": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "vegetable broth": { pricePerUnit: 3.00, defaultUnit: "container" },
+
+  // Condiments & Sauces
+  "soy sauce": { pricePerUnit: 4.00, defaultUnit: "container" },
+  "hot sauce": { pricePerUnit: 3.50, defaultUnit: "container" },
+  "ketchup": { pricePerUnit: 3.50, defaultUnit: "container" },
+  "mustard": { pricePerUnit: 3.00, defaultUnit: "container" },
+  "mayonnaise": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "salsa": { pricePerUnit: 4.00, defaultUnit: "container" },
+  "olive oil": { pricePerUnit: 10.00, defaultUnit: "container" },
+  "vegetable oil": { pricePerUnit: 5.00, defaultUnit: "container" },
+  "vinegar": { pricePerUnit: 4.00, defaultUnit: "container" },
+};
+
+// Unit conversion multipliers (relative to default unit price)
+const UNIT_MULTIPLIERS: Record<string, number> = {
+  "whole": 1,
+  "each": 1,
+  "lbs": 1,
+  "lb": 1,
+  "oz": 0.0625,      // 1/16 of a pound
+  "cups": 0.5,       // rough estimate
+  "cup": 0.5,
+  "bunch": 1,
+  "bag": 1,
+  "container": 1,
+  "pieces": 0.25,    // quarter of whole
+  "piece": 0.25,
+  "head": 1,
+  "clove": 0.1,      // for garlic
+  "cloves": 0.1,
+  "tbsp": 0.05,
+  "tsp": 0.02,
+  "tablespoon": 0.05,
+  "teaspoon": 0.02,
+};
+
+/**
+ * Estimate the cost of a wasted ingredient based on name, quantity, and unit
+ * Returns null if no estimate can be made
+ */
+export function estimateIngredientCost(
+  ingredientName: string,
+  quantity: number,
+  unit: string
+): number | null {
+  const normalizedName = ingredientName.toLowerCase().trim();
+
+  // Try exact match first
+  let priceData = INGREDIENT_PRICES[normalizedName];
+
+  // Try partial matches if no exact match
+  if (!priceData) {
+    for (const [key, data] of Object.entries(INGREDIENT_PRICES)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName)) {
+        priceData = data;
+        break;
+      }
+    }
+  }
+
+  if (!priceData) {
+    return null; // No price data available
+  }
+
+  const normalizedUnit = unit.toLowerCase().trim();
+  const unitMultiplier = UNIT_MULTIPLIERS[normalizedUnit] ?? 1;
+
+  // If the unit matches the default unit, use price directly
+  // Otherwise, apply the unit multiplier
+  const estimatedCost = priceData.pricePerUnit * quantity * unitMultiplier;
+
+  // Round to 2 decimal places
+  return Math.round(estimatedCost * 100) / 100;
+}
+
+/**
+ * Get a suggested price for an ingredient (for form defaults)
+ * Returns the default price and unit if found, otherwise null
+ */
+export function getSuggestedPrice(ingredientName: string): { price: number; unit: string } | null {
+  const normalizedName = ingredientName.toLowerCase().trim();
+
+  // Try exact match first
+  let priceData = INGREDIENT_PRICES[normalizedName];
+
+  // Try partial matches if no exact match
+  if (!priceData) {
+    for (const [key, data] of Object.entries(INGREDIENT_PRICES)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName)) {
+        priceData = data;
+        break;
+      }
+    }
+  }
+
+  if (!priceData) {
+    return null;
+  }
+
+  return {
+    price: priceData.pricePerUnit,
+    unit: priceData.defaultUnit,
+  };
+}
+
 export function getExperienceLevelLabel(level: ExperienceLevel): string {
   switch (level) {
     case "beginner": return "Beginner";

@@ -33915,6 +33915,13 @@ body.modal-open {
   color: var(--text-primary);
 }
 
+.waste-entry-form__auto-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-accent);
+  font-style: italic;
+}
+
 .waste-entry-form__field input,
 .waste-entry-form__field select,
 .waste-entry-form__field textarea {

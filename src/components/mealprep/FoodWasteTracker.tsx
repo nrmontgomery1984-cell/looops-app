@@ -1,11 +1,12 @@
 // Food Waste Tracker - Track wasted ingredients and identify patterns
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   WasteEntry,
   WasteReason,
   WASTE_REASON_LABELS,
   calculateWasteStats,
   createWasteEntry,
+  estimateIngredientCost,
 } from "../../types/mealPrep";
 
 interface FoodWasteTrackerProps {
@@ -38,8 +39,36 @@ export function FoodWasteTracker({
   const [unit, setUnit] = useState("whole");
   const [reason, setReason] = useState<WasteReason>("expired");
   const [estimatedCost, setEstimatedCost] = useState("");
+  const [costIsAutoEstimate, setCostIsAutoEstimate] = useState(false);
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+
+  // Auto-estimate cost when ingredient, quantity, or unit changes
+  const updateCostEstimate = useCallback(() => {
+    // Only auto-update if user hasn't manually entered a cost
+    if (!costIsAutoEstimate && estimatedCost !== "") return;
+
+    if (ingredientName.trim()) {
+      const qty = parseFloat(quantity) || 1;
+      const estimate = estimateIngredientCost(ingredientName, qty, unit);
+      if (estimate !== null) {
+        setEstimatedCost(estimate.toFixed(2));
+        setCostIsAutoEstimate(true);
+      }
+    }
+  }, [ingredientName, quantity, unit, costIsAutoEstimate, estimatedCost]);
+
+  // Debounce the cost estimation
+  useEffect(() => {
+    const timer = setTimeout(updateCostEstimate, 300);
+    return () => clearTimeout(timer);
+  }, [updateCostEstimate]);
+
+  // Handle manual cost input
+  const handleCostChange = (value: string) => {
+    setEstimatedCost(value);
+    setCostIsAutoEstimate(false); // User is manually editing
+  };
 
   // Calculate stats
   const stats = useMemo(() => calculateWasteStats(wasteLog, 3), [wasteLog]);
@@ -71,6 +100,7 @@ export function FoodWasteTracker({
     setUnit("whole");
     setReason("expired");
     setEstimatedCost("");
+    setCostIsAutoEstimate(false);
     setNotes("");
     setDate(new Date().toISOString().split("T")[0]);
     setEditingEntry(null);
@@ -116,6 +146,7 @@ export function FoodWasteTracker({
     setUnit(entry.unit);
     setReason(entry.reason);
     setEstimatedCost(entry.estimatedCost?.toString() || "");
+    setCostIsAutoEstimate(false); // When editing, treat existing cost as manual
     setNotes(entry.notes || "");
     setDate(entry.date);
     setViewMode("add");
@@ -443,13 +474,18 @@ export function FoodWasteTracker({
         </div>
 
         <div className="waste-entry-form__field">
-          <label>Estimated cost (optional)</label>
+          <label>
+            Estimated cost
+            {costIsAutoEstimate && estimatedCost && (
+              <span className="waste-entry-form__auto-hint"> (auto-estimated)</span>
+            )}
+          </label>
           <div className="waste-entry-form__cost-input">
             <span className="waste-entry-form__cost-symbol">$</span>
             <input
               type="number"
               value={estimatedCost}
-              onChange={e => setEstimatedCost(e.target.value)}
+              onChange={e => handleCostChange(e.target.value)}
               placeholder="0.00"
               min="0"
               step="0.01"
