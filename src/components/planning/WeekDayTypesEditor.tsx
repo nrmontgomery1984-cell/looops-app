@@ -151,64 +151,70 @@ export function WeekDayTypesEditor({ onClose, compact = false }: WeekDayTypesEdi
                 )}
               </button>
 
-              {/* Day type picker dropdown */}
+              {/* Day type picker modal */}
               {isEditing && (
-                <div className="week-editor-picker">
-                  <div className="week-editor-picker-header">
-                    <span>Set day type for {DAY_NAMES[date.getDay()]} {date.getDate()}</span>
-                    <button
-                      className="week-editor-picker-close"
-                      onClick={() => setEditingDate(null)}
-                    >×</button>
-                  </div>
+                <>
+                  <div
+                    className="week-editor-picker-backdrop"
+                    onClick={() => setEditingDate(null)}
+                  />
+                  <div className="week-editor-picker">
+                    <div className="week-editor-picker-header">
+                      <span>Set day type for {DAY_NAMES[date.getDay()]} {date.getDate()}</span>
+                      <button
+                        className="week-editor-picker-close"
+                        onClick={() => setEditingDate(null)}
+                      >×</button>
+                    </div>
 
-                  <div className="week-editor-picker-types">
-                    {BUILT_IN_DAY_TYPES.map((dt) => {
-                      const config = DEFAULT_DAY_TYPE_CONFIGS[dt];
-                      const isActive = currentTypes.includes(dt);
-                      return (
-                        <button
-                          key={dt}
-                          className={`week-editor-type-btn ${isActive ? "active" : ""}`}
-                          onClick={() => handleToggleDayType(dateStr, dt)}
-                          style={isActive ? { backgroundColor: config.color, borderColor: config.color } : {}}
-                        >
-                          <span className="week-editor-type-icon">{config.icon}</span>
-                          <span className="week-editor-type-label">{config.label}</span>
-                          {isActive && <span className="week-editor-type-check">✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Custom day types */}
-                  {(smartSchedule.customDayTypes || []).length > 0 && (
-                    <div className="week-editor-picker-custom">
-                      {(smartSchedule.customDayTypes || []).map((customDt) => {
-                        const isActive = currentTypes.includes(customDt.dayType);
+                    <div className="week-editor-picker-types">
+                      {BUILT_IN_DAY_TYPES.map((dt) => {
+                        const config = DEFAULT_DAY_TYPE_CONFIGS[dt];
+                        const isActive = currentTypes.includes(dt);
                         return (
                           <button
-                            key={customDt.dayType}
+                            key={dt}
                             className={`week-editor-type-btn ${isActive ? "active" : ""}`}
-                            onClick={() => handleToggleDayType(dateStr, customDt.dayType)}
-                            style={isActive ? { backgroundColor: customDt.color, borderColor: customDt.color } : {}}
+                            onClick={() => handleToggleDayType(dateStr, dt)}
+                            style={isActive ? { backgroundColor: config.color, borderColor: config.color } : {}}
                           >
-                            <span className="week-editor-type-icon">{customDt.icon}</span>
-                            <span className="week-editor-type-label">{customDt.label}</span>
+                            <span className="week-editor-type-icon">{config.icon}</span>
+                            <span className="week-editor-type-label">{config.label}</span>
                             {isActive && <span className="week-editor-type-check">✓</span>}
                           </button>
                         );
                       })}
                     </div>
-                  )}
 
-                  <button
-                    className="week-editor-clear-btn"
-                    onClick={() => handleClear(dateStr)}
-                  >
-                    Clear (auto-detect)
-                  </button>
-                </div>
+                    {/* Custom day types */}
+                    {(smartSchedule.customDayTypes || []).length > 0 && (
+                      <div className="week-editor-picker-custom">
+                        {(smartSchedule.customDayTypes || []).map((customDt) => {
+                          const isActive = currentTypes.includes(customDt.dayType);
+                          return (
+                            <button
+                              key={customDt.dayType}
+                              className={`week-editor-type-btn ${isActive ? "active" : ""}`}
+                              onClick={() => handleToggleDayType(dateStr, customDt.dayType)}
+                              style={isActive ? { backgroundColor: customDt.color, borderColor: customDt.color } : {}}
+                            >
+                              <span className="week-editor-type-icon">{customDt.icon}</span>
+                              <span className="week-editor-type-label">{customDt.label}</span>
+                              {isActive && <span className="week-editor-type-check">✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <button
+                      className="week-editor-clear-btn"
+                      onClick={() => handleClear(dateStr)}
+                    >
+                      Clear (auto-detect)
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           );
