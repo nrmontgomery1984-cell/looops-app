@@ -39972,3 +39972,364 @@ body.modal-open {
 [data-theme="light"] .habit-edit-stat-label {
   color: var(--color-gray-500);
 }
+
+/* ========== Week Day Types Editor ========== */
+.week-day-types-editor {
+  background: var(--color-gray-900);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.week-day-types-editor.compact {
+  padding: 1rem;
+  background: transparent;
+}
+
+.week-editor-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.week-editor-header h3 {
+  color: var(--color-white);
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.week-editor-hint {
+  color: var(--color-gray-400);
+  font-size: 0.875rem;
+}
+
+.week-editor-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--color-gray-400);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.week-editor-close:hover {
+  color: var(--color-white);
+}
+
+.week-editor-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.week-editor-day {
+  position: relative;
+}
+
+.week-editor-day.today .week-editor-day-btn {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.week-editor-day-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 0.5rem;
+  background: var(--color-gray-800);
+  border: 2px solid var(--color-gray-700);
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.week-editor-day-btn:hover {
+  background: var(--color-gray-700);
+}
+
+.week-editor-day-name {
+  font-size: 0.7rem;
+  color: var(--color-gray-400);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.week-editor-day-num {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-white);
+}
+
+.week-editor-day-type {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.875rem;
+}
+
+.week-editor-day-multi {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.625rem;
+  background: var(--color-accent);
+  color: white;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* Day type picker dropdown */
+.week-editor-picker {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 12px;
+  padding: 1rem;
+  width: 280px;
+  margin-top: 0.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.week-editor-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  color: var(--color-gray-300);
+  font-size: 0.875rem;
+}
+
+.week-editor-picker-close {
+  background: none;
+  border: none;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.week-editor-picker-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.week-editor-picker-custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-gray-700);
+}
+
+.week-editor-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-gray-700);
+  border: 2px solid var(--color-gray-600);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  color: var(--color-gray-300);
+}
+
+.week-editor-type-btn:hover {
+  background: var(--color-gray-600);
+}
+
+.week-editor-type-btn.active {
+  color: white;
+}
+
+.week-editor-type-icon {
+  font-size: 1rem;
+}
+
+.week-editor-type-label {
+  font-weight: 500;
+}
+
+.week-editor-type-check {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+
+.week-editor-clear-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px dashed var(--color-gray-600);
+  border-radius: 8px;
+  color: var(--color-gray-400);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.week-editor-clear-btn:hover {
+  border-color: var(--color-gray-500);
+  color: var(--color-gray-300);
+}
+
+.week-editor-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-gray-800);
+}
+
+.week-editor-note {
+  color: var(--color-gray-500);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* Floating action button */
+.week-types-fab {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(242, 112, 89, 0.4);
+  transition: all 0.2s ease;
+  z-index: 50;
+}
+
+.week-types-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(242, 112, 89, 0.5);
+}
+
+.week-types-modal {
+  background: var(--color-gray-900);
+  border-radius: 20px;
+  width: 95%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* Light theme */
+[data-theme="light"] .week-day-types-editor {
+  background: var(--color-white);
+}
+
+[data-theme="light"] .week-day-types-editor.compact {
+  background: transparent;
+}
+
+[data-theme="light"] .week-editor-header h3 {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .week-editor-hint {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .week-editor-day-btn {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+}
+
+[data-theme="light"] .week-editor-day-btn:hover {
+  background: var(--color-gray-200);
+}
+
+[data-theme="light"] .week-editor-day-name {
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .week-editor-day-num {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .week-editor-picker {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .week-editor-picker-header {
+  color: var(--color-gray-600);
+}
+
+[data-theme="light"] .week-editor-type-btn {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .week-editor-type-btn:hover {
+  background: var(--color-gray-200);
+}
+
+[data-theme="light"] .week-editor-clear-btn {
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-500);
+}
+
+[data-theme="light"] .week-editor-footer {
+  border-color: var(--color-gray-200);
+}
+
+[data-theme="light"] .week-types-modal {
+  background: var(--color-white);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .week-editor-days {
+    gap: 0.25rem;
+  }
+
+  .week-editor-day-btn {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .week-editor-day-num {
+    font-size: 1rem;
+  }
+
+  .week-editor-day-type {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+
+  .week-editor-picker {
+    width: 260px;
+    left: 0;
+    transform: none;
+  }
+
+  .week-editor-day:nth-child(n+5) .week-editor-picker {
+    left: auto;
+    right: 0;
+  }
+}
