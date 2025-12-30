@@ -13,6 +13,21 @@ interface CalendarEvent {
   calendarId: string;
   calendarName: string;
   color?: string;
+  loop: string;
+  recurring: boolean;
+  status: 'confirmed' | 'tentative' | 'cancelled';
+}
+
+// Map calendar name to loop
+function mapCalendarToLoop(calendarName: string): string {
+  const name = calendarName.toLowerCase();
+  if (name.includes('health') || name.includes('fitness') || name.includes('workout') || name.includes('medical') || name.includes('doctor')) return 'Health';
+  if (name.includes('wealth') || name.includes('finance') || name.includes('investment') || name.includes('money')) return 'Wealth';
+  if (name.includes('family') || name.includes('kids') || name.includes('birthday') || name.includes('school')) return 'Family';
+  if (name.includes('work') || name.includes('meeting') || name.includes('business') || name.includes('project')) return 'Work';
+  if (name.includes('fun') || name.includes('entertainment') || name.includes('social') || name.includes('hobby')) return 'Fun';
+  if (name.includes('meaning') || name.includes('personal growth') || name.includes('volunteer') || name.includes('spiritual')) return 'Meaning';
+  return 'Maintenance';
 }
 
 interface CalendarInfo {
@@ -98,6 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               if (event.status === 'cancelled') continue;
 
               const isAllDay = !!event.start?.date;
+              const calendarName = calendar.summary || 'Calendar';
               allEvents.push({
                 id: event.id,
                 title: event.summary || '(No title)',
@@ -107,8 +123,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 location: event.location,
                 description: event.description,
                 calendarId: calendar.id,
-                calendarName: calendar.summary || 'Calendar',
+                calendarName,
                 color: calendar.backgroundColor,
+                loop: mapCalendarToLoop(calendarName),
+                recurring: !!event.recurringEventId,
+                status: event.status || 'confirmed',
               });
             }
           }
