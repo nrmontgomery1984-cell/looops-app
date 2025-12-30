@@ -1,6 +1,6 @@
 // Weekly Planning Component - Sunday Ritual for setting up the week
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Task,
   LoopId,
@@ -156,6 +156,39 @@ export function WeeklyPlanning({
 
   // Get the upcoming week's dates
   const weekDates = useMemo(() => getUpcomingWeekDates(), []);
+
+  // Fetch calendar events when component mounts
+  useEffect(() => {
+    const fetchCalendarEvents = async () => {
+      try {
+        const stored = localStorage.getItem('looops_google_calendar_tokens');
+        if (!stored) return;
+
+        const tokens = JSON.parse(stored);
+        if (!tokens?.access_token) return;
+
+        const headers = { 'Authorization': `Bearer ${tokens.access_token}` };
+        const res = await fetch('/api/calendar?action=week', { headers });
+        const data = await res.json();
+
+        if (data.needsReauth) {
+          localStorage.removeItem('looops_google_calendar_tokens');
+          return;
+        }
+
+        if (data.source === 'google' && data.data) {
+          dispatch({ type: 'SET_CALENDAR_EVENTS', payload: data.data });
+        }
+      } catch (err) {
+        console.error('Failed to fetch calendar events:', err);
+      }
+    };
+
+    // Only fetch if we don't already have events
+    if (calendarEvents.length === 0) {
+      fetchCalendarEvents();
+    }
+  }, [dispatch, calendarEvents.length]);
 
   // Get day types for each day of the upcoming week (now returns array)
   const weekDayTypes = useMemo(() => {
