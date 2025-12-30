@@ -436,6 +436,7 @@ export const SEED_RECIPES: Recipe[] = [
 export const SEED_TECHNIQUES: TechniqueEntry[] = [
   {
     id: "tech_reverse_sear",
+    slug: "reverse-searing",
     subject: "Reverse Searing",
     subjectType: "technique",
     tips: [
@@ -466,6 +467,7 @@ export const SEED_TECHNIQUES: TechniqueEntry[] = [
   },
   {
     id: "tech_maillard",
+    slug: "maillard-reaction",
     subject: "Maillard Reaction",
     subjectType: "technique",
     tips: [
@@ -494,6 +496,7 @@ export const SEED_TECHNIQUES: TechniqueEntry[] = [
   },
   {
     id: "tech_emulsification",
+    slug: "pasta-water-emulsions",
     subject: "Pasta Water Emulsions",
     subjectType: "technique",
     tips: [
@@ -523,6 +526,7 @@ export const SEED_TECHNIQUES: TechniqueEntry[] = [
   },
   {
     id: "tech_cast_iron",
+    slug: "cast-iron-pan",
     subject: "Cast Iron Pan",
     subjectType: "equipment",
     tips: [
@@ -552,6 +556,7 @@ export const SEED_TECHNIQUES: TechniqueEntry[] = [
   },
   {
     id: "tech_salt",
+    slug: "salt",
     subject: "Salt",
     subjectType: "ingredient",
     tips: [
@@ -580,6 +585,7 @@ export const SEED_TECHNIQUES: TechniqueEntry[] = [
   },
   {
     id: "tech_braising",
+    slug: "braising",
     subject: "Braising",
     subjectType: "technique",
     tips: [
@@ -608,6 +614,7 @@ export const SEED_TECHNIQUES: TechniqueEntry[] = [
   },
   {
     id: "tech_wok_hei",
+    slug: "wok-hei",
     subject: "Wok Hei",
     subjectType: "technique",
     tips: [
@@ -637,6 +644,7 @@ export const SEED_TECHNIQUES: TechniqueEntry[] = [
   },
   {
     id: "tech_eggs",
+    slug: "eggs",
     subject: "Eggs",
     subjectType: "ingredient",
     tips: [

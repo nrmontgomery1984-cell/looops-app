@@ -9,22 +9,38 @@ import {
   LOOP_COLORS,
   LoopStateType,
   ArchetypeId,
+  CalendarEvent,
 } from "../../types";
 import { Goal } from "../../types";
+import {
+  DayType,
+  SmartScheduleState,
+  DEFAULT_DAY_TYPE_CONFIGS,
+  BUILT_IN_DAY_TYPES,
+  MarkedDate,
+  DayTypeConfig,
+  createCustomDayType,
+} from "../../types/dayTypes";
+import { getDayTypes } from "../../engines/smartSchedulerEngine";
 import { StateSelector } from "../common";
 import { getRandomMotivation, celebrateCompletion } from "../../engines/voiceEngine";
+import { AppAction } from "../../context/AppContext";
 
 type WeeklyPlanningProps = {
   loopStates: Record<LoopId, { currentState: LoopStateType }>;
   tasks: Task[];
   goals: Goal[];
+  calendarEvents?: CalendarEvent[];
+  calendarEmbedUrl?: string; // Google Calendar embed URL
   archetype?: ArchetypeId;
+  smartSchedule: SmartScheduleState;
+  dispatch: React.Dispatch<AppAction>;
   onLoopStateChange: (loopId: LoopId, state: LoopStateType) => void;
   onTaskUpdate: (task: Task) => void;
   onComplete: () => void;
 };
 
-type PlanningStep = "review" | "reflect" | "states" | "priorities" | "schedule" | "complete";
+type PlanningStep = "review" | "reflect" | "states" | "dayTypes" | "priorities" | "schedule" | "complete";
 
 const STEPS: { id: PlanningStep; title: string; description: string }[] = [
   {
@@ -41,6 +57,11 @@ const STEPS: { id: PlanningStep; title: string; description: string }[] = [
     id: "states",
     title: "Set Loop States",
     description: "Choose your focus for each life area",
+  },
+  {
+    id: "dayTypes",
+    title: "Plan Day Types",
+    description: "Set context for each day this week",
   },
   {
     id: "priorities",
@@ -68,11 +89,57 @@ const REFLECTION_PROMPTS = [
   "What would make this week feel successful?",
 ];
 
+// Helper to get NEXT week's dates (Mon-Sun) for planning ahead
+// If today is Thursday-Sunday, show the upcoming Monday-Sunday
+// If today is Mon-Wed, show the current week (since you're still in it)
+function getUpcomingWeekDates(): Date[] {
+  const dates: Date[] = [];
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+  // Thursday (4), Friday (5), Saturday (6), or Sunday (0) = plan NEXT week
+  // Monday (1), Tuesday (2), Wednesday (3) = plan current week
+  const planNextWeek = currentDay === 0 || currentDay >= 4;
+
+  let daysToTargetMonday: number;
+  if (planNextWeek) {
+    // Days until next Monday
+    // Sunday (0) -> 1 day to Monday
+    // Thursday (4) -> 4 days to Monday
+    // Friday (5) -> 3 days to Monday
+    // Saturday (6) -> 2 days to Monday
+    daysToTargetMonday = currentDay === 0 ? 1 : 8 - currentDay;
+  } else {
+    // Days back to current week's Monday
+    // Monday (1) -> 0 days back
+    // Tuesday (2) -> 1 day back
+    // Wednesday (3) -> 2 days back
+    daysToTargetMonday = -(currentDay - 1);
+  }
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + daysToTargetMonday + i);
+    dates.push(date);
+  }
+
+  return dates;
+}
+
+// Format date to YYYY-MM-DD
+function formatDateKey(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
 export function WeeklyPlanning({
   loopStates,
   tasks,
   goals,
+  calendarEvents = [],
+  calendarEmbedUrl,
   archetype,
+  smartSchedule,
+  dispatch,
   onLoopStateChange,
   onTaskUpdate,
   onComplete,
@@ -81,6 +148,109 @@ export function WeeklyPlanning({
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
   const [reflections, setReflections] = useState<Record<number, string>>({});
   const [weeklyIntention, setWeeklyIntention] = useState<string>("");
+  const [activeDayTypePicker, setActiveDayTypePicker] = useState<string | null>(null);
+  const [showCreateDayType, setShowCreateDayType] = useState(false);
+  const [newDayTypeName, setNewDayTypeName] = useState("");
+  const [newDayTypeIcon, setNewDayTypeIcon] = useState("📌");
+  const [newDayTypeColor, setNewDayTypeColor] = useState("#6366F1");
+
+  // Get the upcoming week's dates
+  const weekDates = useMemo(() => getUpcomingWeekDates(), []);
+
+  // Get day types for each day of the upcoming week (now returns array)
+  const weekDayTypes = useMemo(() => {
+    const types: Record<string, DayType[]> = {};
+    weekDates.forEach((date) => {
+      const dateKey = formatDateKey(date);
+      types[dateKey] = getDayTypes(date, smartSchedule);
+    });
+    return types;
+  }, [weekDates, smartSchedule]);
+
+  // Toggle a day type for a specific date (multi-select)
+  const handleDayTypeToggle = (dateKey: string, dayType: DayType) => {
+    const date = new Date(dateKey);
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    const autoType = isWeekend ? "weekend" : "regular";
+    const currentTypes = weekDayTypes[dateKey] || [autoType];
+
+    let newTypes: DayType[];
+
+    if (currentTypes.includes(dayType)) {
+      // Remove this type
+      newTypes = currentTypes.filter(t => t !== dayType);
+      // If empty, revert to auto-detected type
+      if (newTypes.length === 0) {
+        newTypes = [autoType];
+      }
+    } else {
+      // Add this type
+      // If it's one of the auto types and we're adding a different type, remove auto
+      if (dayType !== autoType && currentTypes.includes(autoType) && currentTypes.length === 1) {
+        newTypes = [dayType];
+      } else if (dayType === autoType) {
+        // If adding auto type back, just use auto
+        newTypes = [autoType];
+      } else {
+        newTypes = [...currentTypes.filter(t => t !== autoType), dayType];
+      }
+    }
+
+    // If just the auto type, remove the mark entirely
+    if (newTypes.length === 1 && newTypes[0] === autoType) {
+      dispatch({ type: "UNMARK_DATE", payload: dateKey });
+    } else {
+      // Mark the date with multiple types
+      dispatch({
+        type: "MARK_DATE",
+        payload: {
+          date: dateKey,
+          dayType: newTypes[0], // Primary for backward compat
+          dayTypes: newTypes,
+        },
+      });
+    }
+  };
+
+  // Get all day types (built-in + custom)
+  const allDayTypes = useMemo(() => {
+    const customTypes = smartSchedule.customDayTypes || [];
+    return [
+      ...BUILT_IN_DAY_TYPES,
+      ...customTypes.map((c) => c.dayType),
+    ];
+  }, [smartSchedule.customDayTypes]);
+
+  // Get config for any day type (built-in or custom)
+  const getDayTypeConfigForType = (dt: DayType): DayTypeConfig => {
+    return (
+      smartSchedule.dayTypeConfigs[dt] ||
+      DEFAULT_DAY_TYPE_CONFIGS[dt] ||
+      { dayType: dt, label: dt, color: "#666", icon: "📌" }
+    );
+  };
+
+  // Handle creating a new custom day type
+  const handleCreateCustomDayType = () => {
+    if (!newDayTypeName.trim()) return;
+
+    const newDayType = createCustomDayType(
+      newDayTypeName.trim(),
+      newDayTypeIcon,
+      newDayTypeColor
+    );
+
+    dispatch({
+      type: "ADD_CUSTOM_DAY_TYPE",
+      payload: newDayType,
+    });
+
+    // Reset form
+    setNewDayTypeName("");
+    setNewDayTypeIcon("📌");
+    setNewDayTypeColor("#6366F1");
+    setShowCreateDayType(false);
+  };
 
   // Get archetype-specific motivation for this session
   const [motivationPhrase] = useState(() =>
@@ -323,6 +493,168 @@ export function WeeklyPlanning({
           </div>
         );
 
+      case "dayTypes":
+        return (
+          <div className="weekly-step-content">
+            <p className="weekly-step-intro">
+              Set the context for each day. Days can have multiple types (e.g., workday + custody).
+            </p>
+
+            <div className="weekly-daytype-grid">
+              {weekDates.map((date) => {
+                const dateKey = formatDateKey(date);
+                const dayTypes = weekDayTypes[dateKey] || ["regular"];
+                const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+                const dayNum = date.getDate();
+                const isPickerOpen = activeDayTypePicker === dateKey;
+
+                return (
+                  <div key={dateKey} className="weekly-daytype-card">
+                    <div className="weekly-daytype-date">
+                      <span className="weekly-daytype-day">{dayName}</span>
+                      <span className="weekly-daytype-num">{dayNum}</span>
+                    </div>
+                    {/* Show all selected day type badges */}
+                    <div
+                      className="weekly-daytype-badges"
+                      onClick={() => setActiveDayTypePicker(isPickerOpen ? null : dateKey)}
+                    >
+                      {dayTypes.map((dt) => {
+                        const config = getDayTypeConfigForType(dt);
+                        return (
+                          <span
+                            key={dt}
+                            className="weekly-daytype-badge-mini"
+                            style={{ background: config.color }}
+                            title={config.label}
+                          >
+                            {config.icon}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {isPickerOpen && (
+                      <div className="weekly-daytype-picker">
+                        <div className="weekly-daytype-picker-header">
+                          Select day types (can pick multiple)
+                        </div>
+                        {allDayTypes.map((dt) => {
+                          const dtConfig = getDayTypeConfigForType(dt);
+                          const isSelected = dayTypes.includes(dt);
+                          return (
+                            <button
+                              key={dt}
+                              className={`weekly-daytype-option ${isSelected ? "selected" : ""}`}
+                              style={{ "--dt-color": dtConfig.color } as React.CSSProperties}
+                              onClick={() => handleDayTypeToggle(dateKey, dt)}
+                            >
+                              <span className="weekly-daytype-option-check">
+                                {isSelected ? "✓" : ""}
+                              </span>
+                              <span className="weekly-daytype-option-icon">{dtConfig.icon}</span>
+                              <span className="weekly-daytype-option-label">{dtConfig.label}</span>
+                            </button>
+                          );
+                        })}
+                        <button
+                          className="weekly-daytype-add-new"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowCreateDayType(true);
+                          }}
+                        >
+                          <span>+</span>
+                          <span>Add New Day Type</span>
+                        </button>
+                        <button
+                          className="weekly-daytype-done"
+                          onClick={() => setActiveDayTypePicker(null)}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Create Custom Day Type Modal */}
+            {showCreateDayType && (
+              <div className="weekly-daytype-create-modal">
+                <div className="weekly-daytype-create-content">
+                  <h4>Create Custom Day Type</h4>
+                  <div className="weekly-daytype-create-field">
+                    <label>Name</label>
+                    <input
+                      type="text"
+                      value={newDayTypeName}
+                      onChange={(e) => setNewDayTypeName(e.target.value)}
+                      placeholder="e.g., Deep Work Day"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="weekly-daytype-create-row">
+                    <div className="weekly-daytype-create-field">
+                      <label>Icon</label>
+                      <input
+                        type="text"
+                        value={newDayTypeIcon}
+                        onChange={(e) => setNewDayTypeIcon(e.target.value)}
+                        placeholder="📌"
+                        className="weekly-daytype-icon-input"
+                      />
+                    </div>
+                    <div className="weekly-daytype-create-field">
+                      <label>Color</label>
+                      <input
+                        type="color"
+                        value={newDayTypeColor}
+                        onChange={(e) => setNewDayTypeColor(e.target.value)}
+                        className="weekly-daytype-color-input"
+                      />
+                    </div>
+                  </div>
+                  <div className="weekly-daytype-create-preview">
+                    <span
+                      className="weekly-daytype-badge-mini"
+                      style={{ background: newDayTypeColor }}
+                    >
+                      {newDayTypeIcon}
+                    </span>
+                    <span>{newDayTypeName || "Preview"}</span>
+                  </div>
+                  <div className="weekly-daytype-create-actions">
+                    <button
+                      className="weekly-daytype-create-cancel"
+                      onClick={() => setShowCreateDayType(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="weekly-daytype-create-save"
+                      onClick={handleCreateCustomDayType}
+                      disabled={!newDayTypeName.trim()}
+                    >
+                      Create
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="weekly-daytype-tips">
+              <h4>Day Type Combinations</h4>
+              <ul>
+                <li><strong>Workday + Custody</strong> - Work during day, family evening</li>
+                <li><strong>Workday + Solo</strong> - Work focus, personal time after</li>
+                <li><strong>Weekend + Custody</strong> - Family weekend time</li>
+                <li><strong>Travel</strong> - Minimal commitments while traveling</li>
+              </ul>
+            </div>
+          </div>
+        );
+
       case "priorities":
         return (
           <div className="weekly-step-content">
@@ -392,27 +724,120 @@ export function WeeklyPlanning({
         return (
           <div className="weekly-step-content">
             <p className="weekly-step-intro">
-              Assign your priorities to specific days for better execution.
+              Review your week. Tap day type badges to change them.
             </p>
 
             <div className="weekly-schedule">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => {
-                const dayDate = new Date();
-                const today = dayDate.getDay();
-                const diff = idx + 1 - today;
-                dayDate.setDate(dayDate.getDate() + diff);
-                const dateStr = dayDate.toISOString().split("T")[0];
+              {weekDates.map((date, idx) => {
+                const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                const day = dayNames[date.getDay()];
+                const dateStr = formatDateKey(date);
+                const dayTypes = weekDayTypes[dateStr] || ["regular"];
+                const isPickerOpen = activeDayTypePicker === dateStr;
 
                 const dayTasks = pendingTasks.filter((t) => t.dueDate === dateStr);
 
                 return (
-                  <div key={day} className="weekly-day-column">
+                  <div key={dateStr} className="weekly-day-column">
                     <div className="weekly-day-header">
                       <span className="weekly-day-name">{day}</span>
                       <span className="weekly-day-date">
-                        {dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                     </div>
+                    {/* Day type badges - clickable to change */}
+                    <div
+                      className="weekly-schedule-daytypes"
+                      onClick={() => setActiveDayTypePicker(isPickerOpen ? null : dateStr)}
+                    >
+                      {dayTypes.map((dt) => {
+                        const config = getDayTypeConfigForType(dt);
+                        return (
+                          <span
+                            key={dt}
+                            className="weekly-daytype-badge-mini"
+                            style={{ background: config.color }}
+                            title={config.label}
+                          >
+                            {config.icon}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {isPickerOpen && (
+                      <div className="weekly-daytype-picker weekly-daytype-picker-schedule">
+                        <div className="weekly-daytype-picker-header">
+                          Select day types
+                        </div>
+                        {allDayTypes.map((dt) => {
+                          const dtConfig = getDayTypeConfigForType(dt);
+                          const isSelected = dayTypes.includes(dt);
+                          return (
+                            <button
+                              key={dt}
+                              className={`weekly-daytype-option ${isSelected ? "selected" : ""}`}
+                              style={{ "--dt-color": dtConfig.color } as React.CSSProperties}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDayTypeToggle(dateStr, dt);
+                              }}
+                            >
+                              <span className="weekly-daytype-option-check">
+                                {isSelected ? "✓" : ""}
+                              </span>
+                              <span className="weekly-daytype-option-icon">{dtConfig.icon}</span>
+                              <span className="weekly-daytype-option-label">{dtConfig.label}</span>
+                            </button>
+                          );
+                        })}
+                        <button
+                          className="weekly-daytype-done"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDayTypePicker(null);
+                          }}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    )}
+                    {/* Calendar Events */}
+                    {calendarEvents.filter((e) => {
+                      const eventDate = e.startTime.split("T")[0];
+                      return eventDate === dateStr;
+                    }).length > 0 && (
+                      <div className="weekly-day-events">
+                        {calendarEvents
+                          .filter((e) => {
+                            const eventDate = e.startTime.split("T")[0];
+                            return eventDate === dateStr;
+                          })
+                          .slice(0, 3)
+                          .map((event) => {
+                            const startTime = event.allDay
+                              ? "All day"
+                              : new Date(event.startTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                            return (
+                              <div key={event.id} className="weekly-day-event">
+                                <span className="weekly-event-time">{startTime}</span>
+                                <span className="weekly-event-title">{event.title}</span>
+                              </div>
+                            );
+                          })}
+                        {calendarEvents.filter((e) => {
+                          const eventDate = e.startTime.split("T")[0];
+                          return eventDate === dateStr;
+                        }).length > 3 && (
+                          <div className="weekly-day-more">
+                            +{calendarEvents.filter((e) => {
+                              const eventDate = e.startTime.split("T")[0];
+                              return eventDate === dateStr;
+                            }).length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Tasks */}
                     <div className="weekly-day-tasks">
                       {dayTasks.map((task) => (
                         <div key={task.id} className="weekly-day-task">
@@ -423,8 +848,11 @@ export function WeeklyPlanning({
                           <span className="weekly-task-title">{task.title}</span>
                         </div>
                       ))}
-                      {dayTasks.length === 0 && (
-                        <div className="weekly-day-empty">No tasks</div>
+                      {dayTasks.length === 0 && calendarEvents.filter((e) => {
+                        const eventDate = e.startTime.split("T")[0];
+                        return eventDate === dateStr;
+                      }).length === 0 && (
+                        <div className="weekly-day-empty">No events</div>
                       )}
                     </div>
                   </div>
@@ -475,50 +903,109 @@ export function WeeklyPlanning({
   };
 
   return (
-    <div className="weekly-planning-wizard">
-      {/* Progress Steps */}
-      <div className="weekly-steps">
-        {STEPS.map((step, idx) => (
-          <div
-            key={step.id}
-            className={`weekly-step ${
-              idx < currentStepIndex
-                ? "completed"
-                : idx === currentStepIndex
-                ? "active"
-                : ""
-            }`}
-            onClick={() => idx <= currentStepIndex && setCurrentStep(step.id)}
-          >
-            <div className="weekly-step-indicator">
-              {idx < currentStepIndex ? "✓" : idx + 1}
+    <div className="weekly-planning-container with-calendar">
+      <div className="weekly-planning-wizard">
+        {/* Progress Steps */}
+        <div className="weekly-steps">
+          {STEPS.map((step, idx) => (
+            <div
+              key={step.id}
+              className={`weekly-step ${
+                idx < currentStepIndex
+                  ? "completed"
+                  : idx === currentStepIndex
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() => idx <= currentStepIndex && setCurrentStep(step.id)}
+            >
+              <div className="weekly-step-indicator">
+                {idx < currentStepIndex ? "✓" : idx + 1}
+              </div>
+              <div className="weekly-step-info">
+                <span className="weekly-step-title">{step.title}</span>
+                <span className="weekly-step-desc">{step.description}</span>
+              </div>
             </div>
-            <div className="weekly-step-info">
-              <span className="weekly-step-title">{step.title}</span>
-              <span className="weekly-step-desc">{step.description}</span>
-            </div>
+          ))}
+        </div>
+
+        {/* Step Content */}
+        <div className="weekly-content">{renderStepContent()}</div>
+
+        {/* Navigation */}
+        {currentStep !== "complete" && (
+          <div className="weekly-nav">
+            <button
+              className="weekly-nav-btn secondary"
+              onClick={goPrev}
+              disabled={currentStepIndex === 0}
+            >
+              Back
+            </button>
+            <button className="weekly-nav-btn primary" onClick={goNext}>
+              {currentStepIndex === STEPS.length - 2 ? "Complete" : "Next"}
+            </button>
           </div>
-        ))}
+        )}
       </div>
 
-      {/* Step Content */}
-      <div className="weekly-content">{renderStepContent()}</div>
+      {/* Calendar Events Panel - Always show */}
+      <div className="weekly-calendar-panel">
+          <div className="weekly-calendar-panel-header">
+            <span className="weekly-calendar-panel-icon">📅</span>
+            <span className="weekly-calendar-panel-title">Week's Events</span>
+          </div>
+          <div className="weekly-calendar-panel-content">
+            {weekDates.map((date) => {
+              const dateStr = formatDateKey(date);
+              const dayEvents = calendarEvents.filter((e) => {
+                const eventDate = e.startTime.split("T")[0];
+                return eventDate === dateStr;
+              });
+              const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+              const dayNum = date.getDate();
+              const month = date.toLocaleDateString("en-US", { month: "short" });
+              const isToday = formatDateKey(new Date()) === dateStr;
 
-      {/* Navigation */}
-      {currentStep !== "complete" && (
-        <div className="weekly-nav">
-          <button
-            className="weekly-nav-btn secondary"
-            onClick={goPrev}
-            disabled={currentStepIndex === 0}
-          >
-            Back
-          </button>
-          <button className="weekly-nav-btn primary" onClick={goNext}>
-            {currentStepIndex === STEPS.length - 2 ? "Complete" : "Next"}
-          </button>
+              return (
+                <div key={dateStr} className={`weekly-calendar-day ${isToday ? "today" : ""}`}>
+                  <div className="weekly-calendar-day-header">
+                    <span className="weekly-calendar-day-name">{dayName}</span>
+                    <span className="weekly-calendar-day-date">{month} {dayNum}</span>
+                  </div>
+                  <div className="weekly-calendar-day-events">
+                    {dayEvents.length === 0 ? (
+                      <div className="weekly-calendar-no-events">No events</div>
+                    ) : (
+                      dayEvents.map((event) => {
+                        const startTime = event.allDay
+                          ? "All day"
+                          : new Date(event.startTime).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            });
+                        return (
+                          <div
+                            key={event.id}
+                            className="weekly-calendar-event"
+                            style={{ borderLeftColor: event.color || "#6366F1" }}
+                          >
+                            <span className="weekly-calendar-event-time">{startTime}</span>
+                            <span className="weekly-calendar-event-title">{event.title}</span>
+                            {event.location && (
+                              <span className="weekly-calendar-event-location">📍 {event.location}</span>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      )}
     </div>
   );
 }

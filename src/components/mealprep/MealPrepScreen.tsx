@@ -9,6 +9,7 @@ import {
   TechniqueEntry,
   TechniqueTip,
   MealPlan,
+  generateTechniqueSlug,
 } from "../../types/mealPrep";
 import { KitchenOnboardingFlow } from "./onboarding";
 import { RecipeCard } from "./RecipeCard";
@@ -207,6 +208,10 @@ export function MealPrepScreen() {
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
           onEdit={() => handleEditRecipe(selectedRecipe)}
+          onDelete={(recipeId) => {
+            dispatch({ type: "DELETE_RECIPE", payload: recipeId });
+            setSelectedRecipe(null);
+          }}
         />
       </div>
     );
@@ -246,6 +251,9 @@ export function MealPrepScreen() {
           onAddTechnique={handleAddTechnique}
           onUpdateTechnique={handleUpdateTechnique}
           onDeleteTechnique={handleDeleteTechnique}
+          onToggleFavorite={(id) => dispatch({ type: "TOGGLE_TECHNIQUE_FAVORITE", payload: id })}
+          onUpdateNotes={(techniqueId, notes) => dispatch({ type: "UPDATE_TECHNIQUE_NOTES", payload: { techniqueId, notes } })}
+          onToggleTipHighlight={(techniqueId, tipId) => dispatch({ type: "TOGGLE_TIP_HIGHLIGHT", payload: { techniqueId, tipId } })}
           onSelectRecipe={(recipe) => {
             setSelectedRecipe(recipe);
             setMainView("recipes");
@@ -635,6 +643,7 @@ export function MealPrepScreen() {
 
                 const techniqueEntry: TechniqueEntry = {
                   id: `tech_${now}_${Math.random().toString(36).slice(2, 11)}`,
+                  slug: generateTechniqueSlug(tech.title),
                   subject: tech.title,
                   subjectType: "technique",
                   tips,

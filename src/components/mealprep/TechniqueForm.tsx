@@ -1,5 +1,5 @@
 // Technique Form - Add or edit a technique entry
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   TechniqueEntry,
   TechniqueTip,
@@ -7,10 +7,14 @@ import {
   TipCategory,
   Recipe,
   ExperienceLevel,
+  DEFAULT_KNOWLEDGE_SOURCES,
+  generateTechniqueSlug,
+  findMatchingTechnique,
 } from "../../types/mealPrep";
 
 interface TechniqueFormProps {
   technique?: TechniqueEntry;
+  techniques: TechniqueEntry[];  // For duplicate detection and linking
   recipes: Recipe[];
   onSave: (technique: TechniqueEntry) => void;
   onCancel: () => void;
@@ -36,6 +40,7 @@ const SKILL_LEVELS: ExperienceLevel[] = ["beginner", "comfortable", "experienced
 
 export function TechniqueForm({
   technique,
+  techniques,
   recipes,
   onSave,
   onCancel,
@@ -43,12 +48,20 @@ export function TechniqueForm({
   const isEditing = !!technique;
 
   const [subject, setSubject] = useState(technique?.subject || "");
+  const [aliases, setAliases] = useState<string[]>(technique?.aliases || []);
+  const [summary, setSummary] = useState(technique?.summary || "");
   const [subjectType, setSubjectType] = useState<TechniqueSubjectType>(
     technique?.subjectType || "technique"
   );
   const [tips, setTips] = useState<TechniqueTip[]>(technique?.tips || []);
   const [relatedRecipeIds, setRelatedRecipeIds] = useState<string[]>(
     technique?.relatedRecipeIds || []
+  );
+  const [relatedTechniqueIds, setRelatedTechniqueIds] = useState<string[]>(
+    technique?.relatedTechniqueIds || []
+  );
+  const [prerequisites, setPrerequisites] = useState<string[]>(
+    technique?.prerequisites || []
   );
   const [sourcesCited, setSourcesCited] = useState<string[]>(
     technique?.sourcesCited || []
@@ -62,8 +75,26 @@ export function TechniqueForm({
   const [newTipSkillLevels, setNewTipSkillLevels] = useState<ExperienceLevel[]>([]);
   const [newTipEquipment, setNewTipEquipment] = useState("");
 
+  // New alias input
+  const [newAlias, setNewAlias] = useState("");
+
   // New source input
   const [newSource, setNewSource] = useState("");
+
+  // Check for existing technique with same name (for duplicate warning)
+  const existingMatch = useMemo(() => {
+    if (isEditing) return null;
+    if (!subject.trim()) return null;
+    return findMatchingTechnique(subject, techniques);
+  }, [subject, techniques, isEditing]);
+
+  // Get source ID from name
+  const getSourceId = (sourceName: string): string | undefined => {
+    const source = DEFAULT_KNOWLEDGE_SOURCES.find(
+      s => s.name.toLowerCase() === sourceName.toLowerCase()
+    );
+    return source?.id;
+  };
 
   const handleAddTip = () => {
     if (!newTipContent.trim()) return;
@@ -72,12 +103,14 @@ export function TechniqueForm({
       id: `tip_${Date.now()}`,
       content: newTipContent.trim(),
       source: newTipSource.trim(),
+      sourceId: getSourceId(newTipSource.trim()),
       sourceUrl: newTipSourceUrl.trim() || undefined,
       category: newTipCategory,
       appliesToSkillLevel: newTipSkillLevels.length > 0 ? newTipSkillLevels : undefined,
       appliesToEquipment: newTipEquipment.trim()
         ? newTipEquipment.split(",").map((e) => e.trim())
         : undefined,
+      addedAt: new Date().toISOString(),
     };
 
     setTips([...tips, newTip]);
@@ -100,6 +133,18 @@ export function TechniqueForm({
     setTips(tips.filter((t) => t.id !== tipId));
   };
 
+  const handleAddAlias = () => {
+    const trimmed = newAlias.trim().toLowerCase();
+    if (trimmed && !aliases.includes(trimmed)) {
+      setAliases([...aliases, trimmed]);
+      setNewAlias("");
+    }
+  };
+
+  const handleRemoveAlias = (alias: string) => {
+    setAliases(aliases.filter((a) => a !== alias));
+  };
+
   const handleAddSource = () => {
     if (newSource.trim() && !sourcesCited.includes(newSource.trim())) {
       setSourcesCited([...sourcesCited, newSource.trim()]);
@@ -119,6 +164,22 @@ export function TechniqueForm({
     }
   };
 
+  const toggleRelatedTechnique = (techId: string) => {
+    if (relatedTechniqueIds.includes(techId)) {
+      setRelatedTechniqueIds(relatedTechniqueIds.filter((id) => id !== techId));
+    } else {
+      setRelatedTechniqueIds([...relatedTechniqueIds, techId]);
+    }
+  };
+
+  const togglePrerequisite = (techId: string) => {
+    if (prerequisites.includes(techId)) {
+      setPrerequisites(prerequisites.filter((id) => id !== techId));
+    } else {
+      setPrerequisites([...prerequisites, techId]);
+    }
+  };
+
   const toggleSkillLevel = (level: ExperienceLevel) => {
     if (newTipSkillLevels.includes(level)) {
       setNewTipSkillLevels(newTipSkillLevels.filter((l) => l !== level));
@@ -134,22 +195,32 @@ export function TechniqueForm({
 
     const techniqueData: TechniqueEntry = {
       id: technique?.id || `tech_${Date.now()}`,
+      slug: technique?.slug || generateTechniqueSlug(subject.trim()),
       subject: subject.trim(),
+      aliases: aliases.length > 0 ? aliases : undefined,
+      summary: summary.trim() || undefined,
       subjectType,
       tips,
       relatedRecipeIds,
+      relatedTechniqueIds: relatedTechniqueIds.length > 0 ? relatedTechniqueIds : undefined,
+      prerequisites: prerequisites.length > 0 ? prerequisites : undefined,
       lastUpdated: new Date().toISOString(),
       sourcesCited,
+      userNotes: technique?.userNotes,
+      isFavorite: technique?.isFavorite,
     };
 
     onSave(techniqueData);
   };
 
+  // Filter out current technique from related/prerequisite lists
+  const otherTechniques = techniques.filter(t => t.id !== technique?.id);
+
   return (
     <div className="technique-form">
       <div className="technique-form__header">
         <h2>{isEditing ? "Edit Technique" : "Add Technique Entry"}</h2>
-        <button className="technique-form__close" onClick={onCancel}>
+        <button type="button" className="technique-form__close" onClick={onCancel}>
           ×
         </button>
       </div>
@@ -164,6 +235,64 @@ export function TechniqueForm({
             onChange={(e) => setSubject(e.target.value)}
             placeholder="e.g., Searing, Chicken Breast, Cast Iron Pan..."
             required
+          />
+          {existingMatch && (
+            <div className="technique-form__duplicate-warning">
+              A technique called "{existingMatch.subject}" already exists.
+              Consider adding tips to it instead of creating a duplicate.
+            </div>
+          )}
+        </div>
+
+        {/* Aliases */}
+        <div className="technique-form__field">
+          <label>Also Known As (aliases)</label>
+          {aliases.length > 0 && (
+            <div className="technique-form__aliases-list">
+              {aliases.map((alias) => (
+                <span key={alias} className="technique-form__alias-chip">
+                  {alias}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAlias(alias)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="technique-form__add-alias">
+            <input
+              type="text"
+              value={newAlias}
+              onChange={(e) => setNewAlias(e.target.value)}
+              placeholder="Add alternative name..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddAlias();
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleAddAlias}
+              disabled={!newAlias.trim()}
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div className="technique-form__field">
+          <label>Summary</label>
+          <textarea
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="Brief description of this technique..."
+            rows={2}
           />
         </div>
 
@@ -247,8 +376,14 @@ export function TechniqueForm({
                   type="text"
                   value={newTipSource}
                   onChange={(e) => setNewTipSource(e.target.value)}
-                  placeholder="e.g., Serious Eats, Chris Young"
+                  placeholder="e.g., Serious Eats, Kenji..."
+                  list="known-sources"
                 />
+                <datalist id="known-sources">
+                  {DEFAULT_KNOWLEDGE_SOURCES.map((source) => (
+                    <option key={source.id} value={source.name} />
+                  ))}
+                </datalist>
               </div>
             </div>
 
@@ -299,23 +434,79 @@ export function TechniqueForm({
           </div>
         </div>
 
+        {/* Related Techniques */}
+        {otherTechniques.length > 0 && (
+          <div className="technique-form__section">
+            <h3>Related Techniques</h3>
+            <p className="technique-form__section-desc">
+              Link to techniques that complement or build upon this one.
+            </p>
+            <div className="technique-form__techniques-grid">
+              {otherTechniques.slice(0, 12).map((tech) => (
+                <label key={tech.id} className="technique-form__tech-option">
+                  <input
+                    type="checkbox"
+                    checked={relatedTechniqueIds.includes(tech.id)}
+                    onChange={() => toggleRelatedTechnique(tech.id)}
+                  />
+                  <span>{tech.subject}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Prerequisites */}
+        {otherTechniques.length > 0 && (
+          <div className="technique-form__section">
+            <h3>Prerequisites</h3>
+            <p className="technique-form__section-desc">
+              Techniques someone should know before learning this one.
+            </p>
+            <div className="technique-form__techniques-grid">
+              {otherTechniques.slice(0, 12).map((tech) => (
+                <label key={tech.id} className="technique-form__tech-option">
+                  <input
+                    type="checkbox"
+                    checked={prerequisites.includes(tech.id)}
+                    onChange={() => togglePrerequisite(tech.id)}
+                  />
+                  <span>{tech.subject}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Sources */}
         <div className="technique-form__section">
           <h3>Sources Cited ({sourcesCited.length})</h3>
           {sourcesCited.length > 0 && (
             <div className="technique-form__sources-list">
-              {sourcesCited.map((source) => (
-                <div key={source} className="technique-form__source-item">
-                  <span>{source}</span>
-                  <button
-                    type="button"
-                    className="technique-form__source-remove"
-                    onClick={() => handleRemoveSource(source)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              {sourcesCited.map((source) => {
+                const knownSource = DEFAULT_KNOWLEDGE_SOURCES.find(
+                  s => s.name.toLowerCase() === source.toLowerCase()
+                );
+                return (
+                  <div key={source} className="technique-form__source-item">
+                    <span>
+                      {source}
+                      {knownSource && (
+                        <span className="technique-form__source-reputation">
+                          ({knownSource.reputationScore}/10)
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="technique-form__source-remove"
+                      onClick={() => handleRemoveSource(source)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
           <div className="technique-form__add-source">
@@ -324,6 +515,7 @@ export function TechniqueForm({
               value={newSource}
               onChange={(e) => setNewSource(e.target.value)}
               placeholder="Add source..."
+              list="known-sources"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();

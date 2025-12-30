@@ -2,6 +2,7 @@
 // Inspired by behavior change research - built for Looops
 
 import { LoopId } from "./loops";
+import { DayType } from "./dayTypes";
 
 // =============================================================================
 // IDENTITY - Who you want to become
@@ -23,9 +24,17 @@ export type HabitFrequency = "daily" | "weekdays" | "weekends" | "weekly" | "cus
 
 export type HabitType = "build" | "break"; // Building good habits or breaking bad ones
 
+export type HabitTimeOfDay = "morning" | "afternoon" | "evening" | "anytime";
+
 export interface HabitCue {
   type: "time" | "location" | "preceding_action" | "emotional_state";
   value: string; // "7:00 AM", "Kitchen", "After morning coffee", "When stressed"
+}
+
+// Day type time override for habits - different times for different day types
+export interface HabitDayTypeOverride {
+  timeOfDay?: HabitTimeOfDay;
+  cueValue?: string; // Override the cue value for this day type
 }
 
 export interface Habit {
@@ -44,7 +53,14 @@ export interface Habit {
   // Scheduling
   frequency: HabitFrequency;
   customDays?: number[]; // 0-6, Sunday-Saturday for custom frequency
-  timeOfDay?: "morning" | "afternoon" | "evening" | "anytime";
+  timeOfDay?: HabitTimeOfDay;
+
+  // Day type filtering - which day types this habit applies to
+  // If undefined or empty, habit applies to ALL day types (backward compatible)
+  dayTypes?: DayType[];
+
+  // Day type schedule overrides - different times for different day types
+  dayTypeOverrides?: Partial<Record<DayType, HabitDayTypeOverride>>;
 
   // Habit stacking
   stackedAfter?: string; // ID of another habit this comes after
@@ -321,28 +337,94 @@ export function formatIntention(intention: ImplementationIntention): string {
   return `I will ${intention.behavior} ${intention.when.value} ${intention.where}`;
 }
 
+// Check if habit matches frequency for the given date
+function habitMatchesFrequency(habit: Habit, date: Date = new Date()): boolean {
+  const dayOfWeek = date.getDay();
+
+  switch (habit.frequency) {
+    case "daily":
+      return true;
+    case "weekdays":
+      return dayOfWeek !== 0 && dayOfWeek !== 6;
+    case "weekends":
+      return dayOfWeek === 0 || dayOfWeek === 6;
+    case "weekly":
+      return true; // Show weekly habits every day, user decides when
+    case "custom":
+      return habit.customDays?.includes(dayOfWeek) ?? false;
+    default:
+      return false;
+  }
+}
+
+// Legacy function - no day type filtering
 export function getHabitsDueToday(habits: Habit[]): Habit[] {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
+  return habits.filter(habit => {
+    if (habit.status !== "active") return false;
+    return habitMatchesFrequency(habit);
+  });
+}
+
+// Get habits due today with day type filtering
+// This is the primary function to use when smart scheduling is enabled
+// Accepts single dayType for backward compatibility, or array of dayTypes for multi-type days
+export function getHabitsDueTodayWithDayType(
+  habits: Habit[],
+  dayType: DayType | DayType[],
+  date: Date = new Date()
+): Habit[] {
+  // Normalize to array for consistent handling
+  const dayTypes = Array.isArray(dayType) ? dayType : [dayType];
 
   return habits.filter(habit => {
     if (habit.status !== "active") return false;
 
-    switch (habit.frequency) {
-      case "daily":
-        return true;
-      case "weekdays":
-        return dayOfWeek !== 0 && dayOfWeek !== 6;
-      case "weekends":
-        return dayOfWeek === 0 || dayOfWeek === 6;
-      case "weekly":
-        return true; // Show weekly habits every day, user decides when
-      case "custom":
-        return habit.customDays?.includes(dayOfWeek) ?? false;
-      default:
-        return false;
+    // Check frequency match first
+    if (!habitMatchesFrequency(habit, date)) return false;
+
+    // If habit has no dayTypes set, it applies to ALL day types (backward compatible)
+    if (!habit.dayTypes || habit.dayTypes.length === 0) {
+      return true;
     }
+
+    // Check if ANY of the habit's dayTypes matches ANY of the day's dayTypes
+    return habit.dayTypes.some(ht => dayTypes.includes(ht));
   });
+}
+
+// Get the effective time of day for a habit on a specific day type
+export function getEffectiveHabitTimeOfDay(
+  habit: Habit,
+  dayType: DayType
+): HabitTimeOfDay | undefined {
+  // If no overrides, return base time
+  if (!habit.dayTypeOverrides || !habit.dayTypeOverrides[dayType]) {
+    return habit.timeOfDay;
+  }
+
+  const override = habit.dayTypeOverrides[dayType];
+  return override.timeOfDay ?? habit.timeOfDay;
+}
+
+// Get the effective cue value for a habit on a specific day type
+export function getEffectiveHabitCue(
+  habit: Habit,
+  dayType: DayType
+): HabitCue {
+  // If no overrides, return base cue
+  if (!habit.dayTypeOverrides || !habit.dayTypeOverrides[dayType]) {
+    return habit.cue;
+  }
+
+  const override = habit.dayTypeOverrides[dayType];
+  if (!override.cueValue) {
+    return habit.cue;
+  }
+
+  return {
+    ...habit.cue,
+    value: override.cueValue,
+  };
 }
 
 // =============================================================================

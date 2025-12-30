@@ -10,6 +10,7 @@ import {
   MarkedDate,
   SmartScheduleState,
   DEFAULT_DAY_TYPE_CONFIGS,
+  getMarkedDateDayTypes,
 } from "../types/dayTypes";
 
 // Format date as YYYY-MM-DD for consistent key usage
@@ -17,18 +18,16 @@ export function formatDateKey(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-// Get the day type for a specific date
-export function getDayType(date: Date, state: SmartScheduleState): DayType {
-  if (!state.enabled) {
-    return "regular";
-  }
-
+// Get ALL day types for a specific date (supports multiple types per day)
+// Note: Even when smart schedule is "disabled", we still respect manually marked dates
+// The "enabled" flag controls whether day types affect routines/tasks, not date marking
+export function getDayTypes(date: Date, state: SmartScheduleState): DayType[] {
   const dateStr = formatDateKey(date);
 
   // 1. Check explicitly marked dates first (highest priority)
   const marked = state.markedDates.find((m) => m.date === dateStr);
   if (marked) {
-    return marked.dayType;
+    return getMarkedDateDayTypes(marked);
   }
 
   // 2. Check yearly repeating dates (for holidays)
@@ -37,17 +36,23 @@ export function getDayType(date: Date, state: SmartScheduleState): DayType {
     (m) => m.repeatsYearly && m.date.slice(5) === monthDay
   );
   if (yearlyMatch) {
-    return yearlyMatch.dayType;
+    return getMarkedDateDayTypes(yearlyMatch);
   }
 
   // 3. Auto-detect weekends
   const dayOfWeek = date.getDay();
   if (dayOfWeek === 0 || dayOfWeek === 6) {
-    return "weekend";
+    return ["weekend"];
   }
 
   // 4. Default to regular weekday
-  return "regular";
+  return ["regular"];
+}
+
+// Get the PRIMARY day type for a specific date (backward compatible)
+export function getDayType(date: Date, state: SmartScheduleState): DayType {
+  const types = getDayTypes(date, state);
+  return types[0];
 }
 
 // Get the configuration for a day type

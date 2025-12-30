@@ -29,6 +29,7 @@ export interface CalendarState {
   loading: boolean;
   error: string | null;
   lastFetched: string | null;
+  embedUrl?: string; // Google Calendar embed URL for weekly planner
 }
 
 export interface CalendarInfo {

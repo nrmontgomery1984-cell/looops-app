@@ -35,7 +35,8 @@ export type WidgetType =
   | "good_times"
   | "steps"
   | "loop_ai"
-  | "wasted_money";
+  | "wasted_money"
+  | "workout";
 
 export type WidgetSize = "small" | "medium" | "large" | "full";
 
@@ -393,6 +394,18 @@ export const WIDGET_DEFINITIONS: Record<WidgetType, WidgetDefinition> = {
       showBreakdown: true,
     },
   },
+  workout: {
+    type: "workout",
+    name: "Workout",
+    description: "Generate workouts, track exercises, and plan training",
+    icon: "🏋️",
+    defaultSize: "large",
+    availableSizes: ["medium", "large", "full"],
+    defaultSettings: {
+      showQuickGenerate: true,
+      compact: false,
+    },
+  },
 };
 
 // =============================================================================
@@ -527,6 +540,13 @@ export function getDefaultDashboard(loopId: LoopId): LoopDashboard {
         size: "medium",
         position: { row: 3, col: 1 },
         settings: { showStreak: true },
+      },
+      {
+        id: `${loopId}_workout`,
+        type: "workout",
+        size: "large",
+        position: { row: 4, col: 0 },
+        settings: { showQuickGenerate: true, compact: false },
       },
     ],
     Wealth: [

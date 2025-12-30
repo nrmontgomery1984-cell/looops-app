@@ -239,12 +239,24 @@ export function getSourceFromUrl(url: string): RecipeSource | null {
 
 // ==================== Meal Plan Types ====================
 
-export interface PlannedMeal {
+// Individual item in a meal (recipe or custom)
+export interface PlannedMealItem {
+  id: string;                    // Unique ID for this item
   recipeId?: string;
   customMeal?: string;
   servings: number;
   prepDay?: string;
   notes?: string;
+}
+
+// A meal slot can have multiple items (main + sides)
+export interface PlannedMeal {
+  recipeId?: string;             // DEPRECATED: for backwards compatibility
+  customMeal?: string;           // DEPRECATED: for backwards compatibility
+  servings: number;
+  prepDay?: string;
+  notes?: string;
+  items?: PlannedMealItem[];     // Array of meal items (main + sides)
 }
 
 export interface MealPlanDay {
@@ -282,25 +294,160 @@ export interface MealPlan {
 
 export type TechniqueSubjectType = "ingredient" | "technique" | "dish" | "equipment";
 export type TipCategory = "why" | "how" | "common_mistake" | "variation" | "science" | "shortcut";
+export type SourceType = "publication" | "author" | "video_channel" | "cookbook" | "personal";
+
+// Knowledge sources with reputation scoring (Wikipedia-style)
+export interface KnowledgeSource {
+  id: string;
+  name: string;                      // "Serious Eats", "Kenji Lopez-Alt"
+  type: SourceType;
+  url?: string;
+  reputationScore: number;           // 1-10, higher = more authoritative
+  isVerified: boolean;               // Manually marked as trusted
+  citationCount: number;             // How many times referenced across all techniques
+}
+
+// Default reputable sources with pre-set reputation scores
+export const DEFAULT_KNOWLEDGE_SOURCES: KnowledgeSource[] = [
+  { id: "serious_eats", name: "Serious Eats", type: "publication", url: "https://seriouseats.com", reputationScore: 9, isVerified: true, citationCount: 0 },
+  { id: "kenji", name: "J. Kenji López-Alt", type: "author", reputationScore: 10, isVerified: true, citationCount: 0 },
+  { id: "bon_appetit", name: "Bon Appétit", type: "publication", url: "https://bonappetit.com", reputationScore: 8, isVerified: true, citationCount: 0 },
+  { id: "americas_test_kitchen", name: "America's Test Kitchen", type: "publication", reputationScore: 9, isVerified: true, citationCount: 0 },
+  { id: "food_lab", name: "The Food Lab", type: "cookbook", reputationScore: 10, isVerified: true, citationCount: 0 },
+  { id: "salt_fat_acid_heat", name: "Salt Fat Acid Heat", type: "cookbook", reputationScore: 9, isVerified: true, citationCount: 0 },
+  { id: "thomas_keller", name: "Thomas Keller", type: "author", reputationScore: 10, isVerified: true, citationCount: 0 },
+  { id: "babish", name: "Babish Culinary Universe", type: "video_channel", reputationScore: 7, isVerified: true, citationCount: 0 },
+  { id: "chef_john", name: "Chef John (Food Wishes)", type: "video_channel", reputationScore: 8, isVerified: true, citationCount: 0 },
+  { id: "jacques_pepin", name: "Jacques Pépin", type: "author", reputationScore: 10, isVerified: true, citationCount: 0 },
+  { id: "alton_brown", name: "Alton Brown", type: "author", reputationScore: 9, isVerified: true, citationCount: 0 },
+  { id: "personal", name: "My Own Experience", type: "personal", reputationScore: 5, isVerified: false, citationCount: 0 },
+];
 
 export interface TechniqueTip {
   id: string;
   content: string;
   source: string;
+  sourceId?: string;                 // Reference to KnowledgeSource for reputation
   sourceUrl?: string;
   category: TipCategory;
   appliesToEquipment?: string[];
   appliesToSkillLevel?: ExperienceLevel[];
+  // User interaction
+  isHighlighted?: boolean;           // User-marked as important
+  recipeId?: string;                 // If learned from a specific recipe
+  addedAt?: string;                  // When this tip was added
+  verifiedCount?: number;            // How many other sources agree with this
 }
 
 export interface TechniqueEntry {
   id: string;
+  slug: string;                      // URL-friendly identifier for canonical lookup
   subject: string;
+  aliases?: string[];                // Alternative names ("reverse searing" = "reverse sear")
   subjectType: TechniqueSubjectType;
+  summary?: string;                  // Brief description of the technique
   tips: TechniqueTip[];
   relatedRecipeIds: string[];
+  relatedTechniqueIds?: string[];    // Links to other techniques (wiki-style graph)
+  prerequisites?: string[];           // Technique IDs you should know first
   lastUpdated: string;
   sourcesCited: string[];
+  // User personalization
+  userNotes?: string;                // Personal notes about this technique
+  isFavorite?: boolean;              // Quick access to important techniques
+  // Computed credibility (based on sources and citations)
+  credibilityScore?: number;         // Calculated from tip sources' reputation
+}
+
+// Helper to generate a slug from subject name
+export function generateTechniqueSlug(subject: string): string {
+  return subject
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+// Calculate credibility score based on tips and their sources
+export function calculateCredibilityScore(
+  tips: TechniqueTip[],
+  sources: KnowledgeSource[]
+): number {
+  if (tips.length === 0) return 0;
+
+  let totalScore = 0;
+  let weightedCount = 0;
+
+  tips.forEach(tip => {
+    // Find the source for this tip
+    const source = sources.find(s =>
+      s.id === tip.sourceId ||
+      s.name.toLowerCase() === tip.source.toLowerCase()
+    );
+
+    const sourceScore = source?.reputationScore ?? 5; // Default to 5 if unknown
+    const verifiedBonus = (tip.verifiedCount ?? 0) * 0.5; // Bonus for corroboration
+
+    totalScore += sourceScore + Math.min(verifiedBonus, 2); // Cap bonus at 2
+    weightedCount++;
+  });
+
+  // Return average score (0-10 scale)
+  return Math.round((totalScore / weightedCount) * 10) / 10;
+}
+
+// Find or suggest matching technique by name/alias
+export function findMatchingTechnique(
+  searchTerm: string,
+  techniques: TechniqueEntry[]
+): TechniqueEntry | null {
+  const normalized = searchTerm.toLowerCase().trim();
+
+  // Exact match on subject
+  const exactMatch = techniques.find(t =>
+    t.subject.toLowerCase() === normalized
+  );
+  if (exactMatch) return exactMatch;
+
+  // Match on slug
+  const slugMatch = techniques.find(t =>
+    t.slug === generateTechniqueSlug(normalized)
+  );
+  if (slugMatch) return slugMatch;
+
+  // Match on aliases
+  const aliasMatch = techniques.find(t =>
+    t.aliases?.some(a => a.toLowerCase() === normalized)
+  );
+  if (aliasMatch) return aliasMatch;
+
+  // Partial match
+  const partialMatch = techniques.find(t =>
+    t.subject.toLowerCase().includes(normalized) ||
+    normalized.includes(t.subject.toLowerCase())
+  );
+
+  return partialMatch || null;
+}
+
+// Create a new technique entry with defaults
+export function createTechniqueEntry(data: Partial<TechniqueEntry>): TechniqueEntry {
+  const subject = data.subject || "Untitled Technique";
+  return {
+    id: data.id || `tech_${Date.now()}`,
+    slug: data.slug || generateTechniqueSlug(subject),
+    subject,
+    aliases: data.aliases || [],
+    subjectType: data.subjectType || "technique",
+    summary: data.summary,
+    tips: data.tips || [],
+    relatedRecipeIds: data.relatedRecipeIds || [],
+    relatedTechniqueIds: data.relatedTechniqueIds || [],
+    prerequisites: data.prerequisites || [],
+    lastUpdated: new Date().toISOString(),
+    sourcesCited: data.sourcesCited || [],
+    userNotes: data.userNotes,
+    isFavorite: data.isFavorite || false,
+  };
 }
 
 // ==================== Food Waste Tracking ====================
@@ -392,7 +539,7 @@ export function generateSlug(title: string): string {
 export function createRecipe(data: Partial<Recipe>): Recipe {
   const now = new Date().toISOString();
   return {
-    id: `recipe_${Date.now()}`,
+    id: data.id || `recipe_${Date.now()}`,
     title: data.title || "Untitled Recipe",
     slug: data.slug || generateSlug(data.title || "untitled"),
     source: data.source || { type: "manual", name: "Manual Entry", approved: true },

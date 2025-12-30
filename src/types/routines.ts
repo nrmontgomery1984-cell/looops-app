@@ -2,6 +2,7 @@
 
 import { LoopId, LoopStateType, Priority } from "./core";
 import { TaskConstraints } from "./tasks";
+import { DayType, SmartScheduleState } from "./dayTypes";
 
 // Time of day preference for routines
 export type TimeOfDay = "morning" | "afternoon" | "evening" | "night" | "anytime";
@@ -26,6 +27,12 @@ export type RoutineSchedule = {
   dayOfMonth?: number; // For monthly routines (1-31)
   timeOfDay: TimeOfDay;
   specificTime?: string; // HH:MM format for specific times
+};
+
+// Day type schedule override - different times for different day types
+export type DayTypeScheduleOverride = {
+  timeOfDay?: TimeOfDay;
+  specificTime?: string; // HH:MM format
 };
 
 // Routine streak tracking
@@ -62,6 +69,14 @@ export type Routine = {
 
   // Schedule
   schedule: RoutineSchedule;
+
+  // Day type filtering - which day types this routine applies to
+  // If undefined or empty, routine applies to ALL day types (backward compatible)
+  dayTypes?: DayType[];
+
+  // Day type schedule overrides - different times for different day types
+  // Key is the day type, value is the schedule override
+  dayTypeScheduleOverrides?: Partial<Record<DayType, DayTypeScheduleOverride>>;
 
   // Metadata
   status: RoutineStatus;
@@ -338,55 +353,105 @@ export function createRoutineFromTemplate(template: RoutineTemplate): Routine {
   });
 }
 
-// Get routines due today
-export function getRoutinesDueToday(routines: Routine[], date: Date = new Date()): Routine[] {
+// Check if routine matches frequency for the given date
+function matchesFrequency(routine: Routine, date: Date): boolean {
   const dayOfWeek = date.getDay() as DayOfWeek;
   const dayOfMonth = date.getDate();
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const isWeekday = !isWeekend;
+  const { schedule } = routine;
+
+  switch (schedule.frequency) {
+    case "daily":
+      return true;
+
+    case "weekdays":
+      return isWeekday;
+
+    case "weekends":
+      return isWeekend;
+
+    case "weekly":
+      if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
+        return schedule.daysOfWeek.includes(dayOfWeek);
+      }
+      return true;
+
+    case "biweekly":
+      if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
+        return schedule.daysOfWeek.includes(dayOfWeek);
+      }
+      return false;
+
+    case "monthly":
+      return schedule.dayOfMonth === dayOfMonth;
+
+    case "custom":
+      if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
+        return schedule.daysOfWeek.includes(dayOfWeek);
+      }
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+// Get routines due today (legacy - no day type filtering)
+export function getRoutinesDueToday(routines: Routine[], date: Date = new Date()): Routine[] {
+  return routines.filter((routine) => {
+    if (routine.status !== "active") return false;
+    return matchesFrequency(routine, date);
+  });
+}
+
+// Get routines due today with day type filtering
+// This is the primary function to use when smart scheduling is enabled
+// Accepts single dayType for backward compatibility, or array of dayTypes for multi-type days
+export function getRoutinesDueTodayWithDayType(
+  routines: Routine[],
+  dayType: DayType | DayType[],
+  date: Date = new Date()
+): Routine[] {
+  // Normalize to array for consistent handling
+  const dayTypes = Array.isArray(dayType) ? dayType : [dayType];
 
   return routines.filter((routine) => {
     if (routine.status !== "active") return false;
 
-    const { schedule } = routine;
+    // Check frequency match first
+    if (!matchesFrequency(routine, date)) return false;
 
-    switch (schedule.frequency) {
-      case "daily":
-        return true;
-
-      case "weekdays":
-        return isWeekday;
-
-      case "weekends":
-        return isWeekend;
-
-      case "weekly":
-        if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
-          return schedule.daysOfWeek.includes(dayOfWeek);
-        }
-        // Default to same day as routine was created
-        return true;
-
-      case "biweekly":
-        // Simplified: check if daysOfWeek matches
-        if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
-          return schedule.daysOfWeek.includes(dayOfWeek);
-        }
-        return false;
-
-      case "monthly":
-        return schedule.dayOfMonth === dayOfMonth;
-
-      case "custom":
-        if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
-          return schedule.daysOfWeek.includes(dayOfWeek);
-        }
-        return false;
-
-      default:
-        return false;
+    // If routine has no dayTypes set, it applies to ALL day types (backward compatible)
+    if (!routine.dayTypes || routine.dayTypes.length === 0) {
+      return true;
     }
+
+    // Check if ANY of the routine's dayTypes matches ANY of the day's dayTypes
+    return routine.dayTypes.some(rt => dayTypes.includes(rt));
   });
+}
+
+// Get the effective schedule for a routine on a specific day type
+// Returns the base schedule with any day type overrides applied
+export function getEffectiveSchedule(
+  routine: Routine,
+  dayType: DayType
+): RoutineSchedule {
+  const baseSchedule = routine.schedule;
+
+  // If no overrides, return base schedule
+  if (!routine.dayTypeScheduleOverrides || !routine.dayTypeScheduleOverrides[dayType]) {
+    return baseSchedule;
+  }
+
+  const override = routine.dayTypeScheduleOverrides[dayType];
+
+  return {
+    ...baseSchedule,
+    timeOfDay: override.timeOfDay ?? baseSchedule.timeOfDay,
+    specificTime: override.specificTime ?? baseSchedule.specificTime,
+  };
 }
 
 // Get schedule description

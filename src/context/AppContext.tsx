@@ -85,6 +85,16 @@ import {
   WasteEntry,
   getDefaultMealPrepState,
 } from "../types/mealPrep";
+import {
+  WorkoutState,
+  GymProfile,
+  Exercise,
+  TrainingTipEntry,
+  WorkoutPlan,
+  WorkoutLog,
+  getDefaultWorkoutState,
+  getDefaultExercises,
+} from "../types/workout";
 import { SEED_RECIPES, SEED_TECHNIQUES } from "../data/mealPrepSeedData";
 
 // User profile type
@@ -189,6 +199,9 @@ export type AppState = {
   // Meal Prep (Health loop)
   mealPrep: MealPrepState;
 
+  // Workout (Health loop)
+  workout: WorkoutState;
+
   // Active task timer (only one can run at a time)
   activeTimer: ActiveTimer | null;
 
@@ -289,6 +302,8 @@ const defaultState: AppState = {
     recipes: SEED_RECIPES,
     techniqueLibrary: SEED_TECHNIQUES,
   },
+  // Workout
+  workout: getDefaultWorkoutState(),
   // Active Timer
   activeTimer: null,
   ui: {
@@ -427,6 +442,7 @@ export type AppAction =
   | { type: "SET_CALENDAR_CALENDARS"; payload: CalendarInfo[] }
   | { type: "SET_CALENDAR_LOADING"; payload: boolean }
   | { type: "SET_CALENDAR_ERROR"; payload: string | null }
+  | { type: "SET_CALENDAR_EMBED_URL"; payload: string | undefined }
 
   // Media actions
   | { type: "ADD_MEDIA_ENTRY"; payload: MediaEntry }
@@ -469,11 +485,34 @@ export type AppAction =
   | { type: "ADD_TECHNIQUE_ENTRY"; payload: TechniqueEntry }
   | { type: "UPDATE_TECHNIQUE_ENTRY"; payload: TechniqueEntry }
   | { type: "DELETE_TECHNIQUE_ENTRY"; payload: string }
+  | { type: "TOGGLE_TECHNIQUE_FAVORITE"; payload: string }
+  | { type: "UPDATE_TECHNIQUE_NOTES"; payload: { techniqueId: string; notes: string } }
+  | { type: "TOGGLE_TIP_HIGHLIGHT"; payload: { techniqueId: string; tipId: string } }
 
   // Waste tracking actions
   | { type: "ADD_WASTE_ENTRY"; payload: WasteEntry }
   | { type: "UPDATE_WASTE_ENTRY"; payload: WasteEntry }
   | { type: "DELETE_WASTE_ENTRY"; payload: string }
+
+  // Workout actions
+  | { type: "SET_GYM_PROFILE"; payload: GymProfile }
+  | { type: "UPDATE_GYM_PROFILE"; payload: Partial<GymProfile> }
+  | { type: "COMPLETE_WORKOUT_ONBOARDING" }
+  | { type: "ADD_EXERCISE"; payload: Exercise }
+  | { type: "UPDATE_EXERCISE"; payload: Exercise }
+  | { type: "DELETE_EXERCISE"; payload: string }
+  | { type: "TOGGLE_EXERCISE_FAVORITE"; payload: string }
+  | { type: "LOG_EXERCISE_PERFORMED"; payload: { exerciseId: string; date: string } }
+  | { type: "ADD_TRAINING_TIP"; payload: TrainingTipEntry }
+  | { type: "UPDATE_TRAINING_TIP"; payload: TrainingTipEntry }
+  | { type: "DELETE_TRAINING_TIP"; payload: string }
+  | { type: "TOGGLE_TRAINING_TIP_FAVORITE"; payload: string }
+  | { type: "SET_WORKOUT_PLAN"; payload: WorkoutPlan }
+  | { type: "UPDATE_WORKOUT_PLAN"; payload: WorkoutPlan }
+  | { type: "DELETE_WORKOUT_PLAN"; payload: string }
+  | { type: "ADD_WORKOUT_LOG"; payload: WorkoutLog }
+  | { type: "UPDATE_WORKOUT_LOG"; payload: WorkoutLog }
+  | { type: "DELETE_WORKOUT_LOG"; payload: string }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -1382,6 +1421,15 @@ function appReducer(state: AppState, action: AppAction): AppState {
         },
       };
 
+    case "SET_CALENDAR_EMBED_URL":
+      return {
+        ...state,
+        calendar: {
+          ...state.calendar,
+          embedUrl: action.payload,
+        },
+      };
+
     // Media
     case "ADD_MEDIA_ENTRY":
       return {
@@ -1800,6 +1848,53 @@ function appReducer(state: AppState, action: AppAction): AppState {
         },
       };
 
+    case "TOGGLE_TECHNIQUE_FAVORITE":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          techniqueLibrary: state.mealPrep.techniqueLibrary.map(te =>
+            te.id === action.payload
+              ? { ...te, isFavorite: !te.isFavorite, lastUpdated: new Date().toISOString() }
+              : te
+          ),
+        },
+      };
+
+    case "UPDATE_TECHNIQUE_NOTES":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          techniqueLibrary: state.mealPrep.techniqueLibrary.map(te =>
+            te.id === action.payload.techniqueId
+              ? { ...te, userNotes: action.payload.notes, lastUpdated: new Date().toISOString() }
+              : te
+          ),
+        },
+      };
+
+    case "TOGGLE_TIP_HIGHLIGHT":
+      return {
+        ...state,
+        mealPrep: {
+          ...state.mealPrep,
+          techniqueLibrary: state.mealPrep.techniqueLibrary.map(te =>
+            te.id === action.payload.techniqueId
+              ? {
+                  ...te,
+                  tips: te.tips.map(tip =>
+                    tip.id === action.payload.tipId
+                      ? { ...tip, isHighlighted: !tip.isHighlighted }
+                      : tip
+                  ),
+                  lastUpdated: new Date().toISOString(),
+                }
+              : te
+          ),
+        },
+      };
+
     // Waste tracking actions
     case "ADD_WASTE_ENTRY":
       return {
@@ -1827,6 +1922,194 @@ function appReducer(state: AppState, action: AppAction): AppState {
         mealPrep: {
           ...state.mealPrep,
           wasteLog: state.mealPrep.wasteLog.filter(w => w.id !== action.payload),
+        },
+      };
+
+    // Workout
+    case "SET_GYM_PROFILE":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          gymProfile: action.payload,
+        },
+      };
+
+    case "UPDATE_GYM_PROFILE":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          gymProfile: state.workout.gymProfile
+            ? { ...state.workout.gymProfile, ...action.payload, updatedAt: new Date().toISOString() }
+            : null,
+        },
+      };
+
+    case "COMPLETE_WORKOUT_ONBOARDING":
+      // Load default exercises if exercise library is empty
+      const defaultExercises = state.workout.exercises.length === 0
+        ? getDefaultExercises()
+        : state.workout.exercises;
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          exercises: defaultExercises,
+          onboardingComplete: true,
+        },
+      };
+
+    case "ADD_EXERCISE":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          exercises: [...state.workout.exercises, action.payload],
+        },
+      };
+
+    case "UPDATE_EXERCISE":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          exercises: state.workout.exercises.map(e =>
+            e.id === action.payload.id ? { ...action.payload, updatedAt: new Date().toISOString() } : e
+          ),
+        },
+      };
+
+    case "DELETE_EXERCISE":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          exercises: state.workout.exercises.filter(e => e.id !== action.payload),
+        },
+      };
+
+    case "TOGGLE_EXERCISE_FAVORITE":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          exercises: state.workout.exercises.map(e =>
+            e.id === action.payload ? { ...e, isFavorite: !e.isFavorite, updatedAt: new Date().toISOString() } : e
+          ),
+        },
+      };
+
+    case "LOG_EXERCISE_PERFORMED":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          exercises: state.workout.exercises.map(e =>
+            e.id === action.payload.exerciseId
+              ? { ...e, timesPerformed: e.timesPerformed + 1, lastPerformed: action.payload.date, updatedAt: new Date().toISOString() }
+              : e
+          ),
+        },
+      };
+
+    case "ADD_TRAINING_TIP":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          trainingTips: [...state.workout.trainingTips, action.payload],
+        },
+      };
+
+    case "UPDATE_TRAINING_TIP":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          trainingTips: state.workout.trainingTips.map(t =>
+            t.id === action.payload.id ? { ...action.payload, lastUpdated: new Date().toISOString() } : t
+          ),
+        },
+      };
+
+    case "DELETE_TRAINING_TIP":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          trainingTips: state.workout.trainingTips.filter(t => t.id !== action.payload),
+        },
+      };
+
+    case "TOGGLE_TRAINING_TIP_FAVORITE":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          trainingTips: state.workout.trainingTips.map(t =>
+            t.id === action.payload
+              ? { ...t, isFavorite: !t.isFavorite, lastUpdated: new Date().toISOString() }
+              : t
+          ),
+        },
+      };
+
+    case "SET_WORKOUT_PLAN":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          workoutPlans: [...state.workout.workoutPlans.filter(wp => wp.weekOf !== action.payload.weekOf), action.payload],
+        },
+      };
+
+    case "UPDATE_WORKOUT_PLAN":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          workoutPlans: state.workout.workoutPlans.map(wp =>
+            wp.id === action.payload.id ? { ...action.payload, updatedAt: new Date().toISOString() } : wp
+          ),
+        },
+      };
+
+    case "DELETE_WORKOUT_PLAN":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          workoutPlans: state.workout.workoutPlans.filter(wp => wp.id !== action.payload),
+        },
+      };
+
+    case "ADD_WORKOUT_LOG":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          workoutLogs: [...state.workout.workoutLogs, action.payload],
+        },
+      };
+
+    case "UPDATE_WORKOUT_LOG":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          workoutLogs: state.workout.workoutLogs.map(wl =>
+            wl.id === action.payload.id ? action.payload : wl
+          ),
+        },
+      };
+
+    case "DELETE_WORKOUT_LOG":
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          workoutLogs: state.workout.workoutLogs.filter(wl => wl.id !== action.payload),
         },
       };
 
@@ -1940,6 +2223,13 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
             : defaultState.mealPrep.techniqueLibrary,
         }
       : defaultState.mealPrep,
+    // Workout - persists
+    workout: savedState.workout
+      ? {
+          ...defaultState.workout,
+          ...savedState.workout,
+        }
+      : defaultState.workout,
     // Active Timer - persists (allows resuming timer across sessions)
     activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
@@ -2149,4 +2439,19 @@ export function useKitchenProfile() {
 export function useRecipes() {
   const { state } = useApp();
   return state.mealPrep.recipes;
+}
+
+export function useWorkout() {
+  const { state } = useApp();
+  return state.workout;
+}
+
+export function useGymProfile() {
+  const { state } = useApp();
+  return state.workout.gymProfile;
+}
+
+export function useExercises() {
+  const { state } = useApp();
+  return state.workout.exercises;
 }

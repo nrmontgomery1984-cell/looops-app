@@ -10,9 +10,10 @@ import {
   Habit,
   HabitCompletion,
   getHabitsDueToday,
+  getHabitsDueTodayWithDayType,
 } from "../../types";
 import { useSmartSchedule } from "../../context/AppContext";
-import { getDayType, getDayTypeConfig } from "../../engines/smartSchedulerEngine";
+import { getDayTypes, getDayTypeConfig } from "../../engines/smartSchedulerEngine";
 
 type TodaysStackProps = {
   tasks: Task[];
@@ -40,15 +41,21 @@ export function TodaysStack({
   const today = new Date().toISOString().split("T")[0];
   const smartSchedule = useSmartSchedule();
 
-  // Get today's day type for badge display
-  const todayDayType = useMemo(() => {
-    const dayType = getDayType(new Date(), smartSchedule);
-    const config = getDayTypeConfig(dayType, smartSchedule);
-    return { dayType, config };
+  // Get today's day types for badge display (now supports multiple day types per day)
+  const todayDayTypes = useMemo(() => {
+    const dayTypes = getDayTypes(new Date(), smartSchedule);
+    const primaryDayType = dayTypes[0] || "regular";
+    const config = getDayTypeConfig(primaryDayType, smartSchedule);
+    return { dayTypes, primaryDayType, config };
   }, [smartSchedule]);
 
-  // Get habits due today
-  const todaysHabits = useMemo(() => getHabitsDueToday(habits), [habits]);
+  // Get habits due today (with day type filtering if smart schedule is enabled)
+  const todaysHabits = useMemo(() => {
+    if (smartSchedule.enabled) {
+      return getHabitsDueTodayWithDayType(habits, todayDayTypes.dayTypes);
+    }
+    return getHabitsDueToday(habits);
+  }, [habits, smartSchedule.enabled, todayDayTypes.dayTypes]);
 
   // Check if habit is completed today
   const isHabitCompletedToday = (habitId: string) => {
@@ -81,12 +88,12 @@ export function TodaysStack({
       <div className="todays-stack__header">
         <div className="todays-stack__title-row">
           <h3>Today's Stack</h3>
-          {smartSchedule.enabled && todayDayType.dayType !== "regular" && (
+          {smartSchedule.enabled && todayDayTypes.primaryDayType !== "regular" && (
             <span
               className="todays-stack__day-badge"
-              style={{ backgroundColor: todayDayType.config.color }}
+              style={{ backgroundColor: todayDayTypes.config.color }}
             >
-              {todayDayType.config.icon} {todayDayType.config.label}
+              {todayDayTypes.config.icon} {todayDayTypes.config.label}
             </span>
           )}
         </div>

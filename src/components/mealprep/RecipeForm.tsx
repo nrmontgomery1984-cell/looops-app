@@ -13,6 +13,101 @@ import {
   APPROVED_SOURCES,
 } from "../../types/mealPrep";
 
+// Special quantity terms that map to small amounts
+const SPECIAL_QUANTITIES: Record<string, number> = {
+  "pinch": 0.0625,      // 1/16
+  "a pinch": 0.0625,
+  "dash": 0.0625,
+  "a dash": 0.0625,
+  "splash": 0.125,
+  "a splash": 0.125,
+  "handful": 0.5,
+  "a handful": 0.5,
+  "some": 1,
+  "to taste": 0,
+};
+
+// Parse fraction strings like "1/2", "1 1/2", "3/4", "pinch" to decimal numbers
+function parseFraction(input: string): number {
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed) return 0;
+
+  // Check for special quantity terms first
+  if (SPECIAL_QUANTITIES[trimmed] !== undefined) {
+    return SPECIAL_QUANTITIES[trimmed];
+  }
+
+  // Try parsing as plain number first
+  const plainNum = parseFloat(trimmed);
+  if (!isNaN(plainNum) && !trimmed.includes("/")) {
+    return plainNum;
+  }
+
+  // Check for mixed number like "1 1/2"
+  const mixedMatch = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixedMatch) {
+    const whole = parseInt(mixedMatch[1], 10);
+    const numerator = parseInt(mixedMatch[2], 10);
+    const denominator = parseInt(mixedMatch[3], 10);
+    if (denominator !== 0) {
+      return whole + numerator / denominator;
+    }
+  }
+
+  // Check for simple fraction like "1/2"
+  const fractionMatch = trimmed.match(/^(\d+)\/(\d+)$/);
+  if (fractionMatch) {
+    const numerator = parseInt(fractionMatch[1], 10);
+    const denominator = parseInt(fractionMatch[2], 10);
+    if (denominator !== 0) {
+      return numerator / denominator;
+    }
+  }
+
+  // Fallback to parseFloat
+  return parseFloat(trimmed) || 0;
+}
+
+// Convert decimal back to fraction string for display
+function formatAsFraction(num: number | null | undefined): string {
+  if (num === null || num === undefined) return "1";
+  if (num === 0) return "0";
+
+  const whole = Math.floor(num);
+  const decimal = num - whole;
+
+  // Common fractions mapping
+  const fractions: [number, string][] = [
+    [0.125, "1/8"],
+    [0.25, "1/4"],
+    [0.333, "1/3"],
+    [0.375, "3/8"],
+    [0.5, "1/2"],
+    [0.625, "5/8"],
+    [0.667, "2/3"],
+    [0.75, "3/4"],
+    [0.875, "7/8"],
+  ];
+
+  // Find closest fraction
+  let closestFraction = "";
+  let minDiff = 0.05; // Tolerance
+  for (const [dec, frac] of fractions) {
+    const diff = Math.abs(decimal - dec);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestFraction = frac;
+    }
+  }
+
+  if (closestFraction) {
+    return whole > 0 ? `${whole} ${closestFraction}` : closestFraction;
+  }
+
+  // No matching fraction, return as decimal
+  return num.toString();
+}
+
 interface RecipeFormProps {
   recipe?: Recipe | null;
   onSave: (recipe: Recipe) => void;
@@ -69,6 +164,18 @@ export function RecipeForm({ recipe, onSave, onCancel }: RecipeFormProps) {
   const [ingredients, setIngredients] = useState<Ingredient[]>(
     recipe?.ingredients || []
   );
+  // Track quantity display strings (to allow typing fractions like "1/2")
+  const [quantityStrings, setQuantityStrings] = useState<Record<string, string>>(
+    () => {
+      const initial: Record<string, string> = {};
+      if (recipe?.ingredients) {
+        recipe.ingredients.forEach((ing) => {
+          initial[ing.id] = formatAsFraction(ing.quantity);
+        });
+      }
+      return initial;
+    }
+  );
   const [steps, setSteps] = useState<RecipeStep[]>(
     recipe?.steps || []
   );
@@ -82,8 +189,9 @@ export function RecipeForm({ recipe, onSave, onCancel }: RecipeFormProps) {
   const cookbookSources = APPROVED_SOURCES.filter((s) => s.type === "cookbook");
 
   const handleAddIngredient = () => {
+    const newId = `ing_${Date.now()}`;
     const newIngredient: Ingredient = {
-      id: `ing_${Date.now()}`,
+      id: newId,
       name: "",
       quantity: 1,
       unit: "",
@@ -92,6 +200,7 @@ export function RecipeForm({ recipe, onSave, onCancel }: RecipeFormProps) {
       category: "other",
     };
     setIngredients([...ingredients, newIngredient]);
+    setQuantityStrings((prev) => ({ ...prev, [newId]: "1" }));
   };
 
   const handleUpdateIngredient = (index: number, updates: Partial<Ingredient>) => {
@@ -101,6 +210,15 @@ export function RecipeForm({ recipe, onSave, onCancel }: RecipeFormProps) {
       newIngredients[index].normalizedName = updates.name.toLowerCase();
     }
     setIngredients(newIngredients);
+  };
+
+  const handleQuantityChange = (index: number, value: string) => {
+    const ing = ingredients[index];
+    // Update the display string
+    setQuantityStrings((prev) => ({ ...prev, [ing.id]: value }));
+    // Parse and update the numeric quantity
+    const numericValue = parseFraction(value);
+    handleUpdateIngredient(index, { quantity: numericValue });
   };
 
   const handleRemoveIngredient = (index: number) => {
@@ -462,17 +580,47 @@ export function RecipeForm({ recipe, onSave, onCancel }: RecipeFormProps) {
             {ingredients.map((ing, index) => (
               <div key={ing.id} className="recipe-form__ingredient">
                 <div className="recipe-form__ingredient-row">
-                  <input
-                    type="number"
-                    value={ing.quantity}
-                    onChange={(e) =>
-                      handleUpdateIngredient(index, { quantity: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="Qty"
-                    className="recipe-form__ingredient-qty"
-                    step="0.25"
-                    min="0"
-                  />
+                  <div className="recipe-form__qty-wrapper">
+                    <input
+                      type="text"
+                      value={quantityStrings[ing.id] ?? formatAsFraction(ing.quantity)}
+                      onChange={(e) => handleQuantityChange(index, e.target.value)}
+                      placeholder="1/2"
+                      className="recipe-form__ingredient-qty"
+                    />
+                    <select
+                      className="recipe-form__qty-preset"
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const currentValue = (quantityStrings[ing.id] ?? formatAsFraction(ing.quantity)).trim();
+                          const selectedFraction = e.target.value;
+
+                          // If current value is a whole number and we're adding a fraction, combine them
+                          if (currentValue && /^\d+$/.test(currentValue) && selectedFraction.includes("/")) {
+                            handleQuantityChange(index, `${currentValue} ${selectedFraction}`);
+                          } else {
+                            // Otherwise replace the value
+                            handleQuantityChange(index, selectedFraction);
+                          }
+                        }
+                      }}
+                      title="Quick fraction select"
+                    >
+                      <option value="">⌄</option>
+                      <option value="pinch">pinch</option>
+                      <option value="1/8">⅛</option>
+                      <option value="1/4">¼</option>
+                      <option value="1/3">⅓</option>
+                      <option value="1/2">½</option>
+                      <option value="2/3">⅔</option>
+                      <option value="3/4">¾</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </select>
+                  </div>
                   <input
                     type="text"
                     value={ing.unit}

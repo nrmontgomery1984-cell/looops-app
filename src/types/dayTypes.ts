@@ -18,9 +18,18 @@ export type DayType = BuiltInDayType | string;
 // A marked date in the calendar
 export interface MarkedDate {
   date: string;           // YYYY-MM-DD format
-  dayType: DayType;
+  dayType: DayType;       // Primary day type (for backward compatibility)
+  dayTypes?: DayType[];   // Multiple day types (e.g., ["regular", "custody"])
   label?: string;         // Optional label for the day
   repeatsYearly?: boolean; // For recurring holidays
+}
+
+// Helper to get all day types for a marked date
+export function getMarkedDateDayTypes(mark: MarkedDate): DayType[] {
+  if (mark.dayTypes && mark.dayTypes.length > 0) {
+    return mark.dayTypes;
+  }
+  return [mark.dayType];
 }
 
 // Configuration for a day type - how it affects the system

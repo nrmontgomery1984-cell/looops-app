@@ -1,5 +1,5 @@
 // Recipe Detail View Component
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useApp, useKitchenProfile } from "../../context";
 import {
   Recipe,
@@ -12,9 +12,10 @@ interface RecipeDetailProps {
   recipe: Recipe;
   onClose: () => void;
   onEdit?: () => void;
+  onDelete?: (recipeId: string) => void;
 }
 
-export function RecipeDetail({ recipe, onClose, onEdit }: RecipeDetailProps) {
+export function RecipeDetail({ recipe, onClose, onEdit, onDelete }: RecipeDetailProps) {
   const { dispatch } = useApp();
   const kitchenProfile = useKitchenProfile();
 
@@ -24,6 +25,71 @@ export function RecipeDetail({ recipe, onClose, onEdit }: RecipeDetailProps) {
   const [userNotes, setUserNotes] = useState(recipe.userNotes || "");
   const [showNotesEditor, setShowNotesEditor] = useState(false);
   const [rating, setRating] = useState(recipe.rating || 0);
+
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+
+  // Cook mode state (prevents screen from sleeping)
+  const [cookModeActive, setCookModeActive] = useState(false);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  // Wake Lock effect for cook mode
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if (cookModeActive && "wakeLock" in navigator) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request("screen");
+          wakeLockRef.current.addEventListener("release", () => {
+            // Wake lock was released (e.g., tab became hidden)
+          });
+        } catch (err) {
+          // Wake lock request failed (e.g., low battery)
+          console.log("Wake lock request failed:", err);
+        }
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLockRef.current) {
+        try {
+          await wakeLockRef.current.release();
+          wakeLockRef.current = null;
+        } catch (err) {
+          console.log("Wake lock release failed:", err);
+        }
+      }
+    };
+
+    if (cookModeActive) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    // Re-acquire wake lock when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (cookModeActive && document.visibilityState === "visible") {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      releaseWakeLock();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [cookModeActive]);
+
+  // Cleanup wake lock when component unmounts
+  useEffect(() => {
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+      }
+    };
+  }, []);
 
   const scaleFactor = servings / recipe.servings;
 
@@ -82,28 +148,73 @@ export function RecipeDetail({ recipe, onClose, onEdit }: RecipeDetailProps) {
     });
   };
 
-  const formatQuantity = (quantity: number): string => {
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+    setDeleteStep(1);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteStep === 1) {
+      setDeleteStep(2);
+    } else {
+      // Step 2 - actually delete
+      if (onDelete) {
+        onDelete(recipe.id);
+      }
+      setShowDeleteConfirm(false);
+      onClose();
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setDeleteStep(1);
+  };
+
+  const formatQuantity = (quantity: number | null | undefined): string => {
+    if (quantity === null || quantity === undefined) return "1";
     const scaled = quantity * scaleFactor;
-    // Handle fractions nicely
+
+    // Special small quantities (when not scaled or scaled to similar values)
+    if (scaled === 0) return "to taste";
+    if (Math.abs(scaled - 0.0625) < 0.02) return "pinch";
+
+    // Handle whole numbers
     if (scaled === Math.floor(scaled)) {
       return scaled.toString();
     }
-    // Common fractions
-    const fractions: Record<number, string> = {
-      0.25: "¼",
-      0.33: "⅓",
-      0.5: "½",
-      0.67: "⅔",
-      0.75: "¾",
-    };
-    const decimal = scaled - Math.floor(scaled);
-    for (const [dec, frac] of Object.entries(fractions)) {
-      if (Math.abs(decimal - parseFloat(dec)) < 0.05) {
-        return Math.floor(scaled) > 0
-          ? `${Math.floor(scaled)} ${frac}`
-          : frac;
+
+    // Common fractions with Unicode symbols
+    const fractions: [number, string][] = [
+      [0.125, "⅛"],
+      [0.25, "¼"],
+      [0.333, "⅓"],
+      [0.375, "⅜"],
+      [0.5, "½"],
+      [0.625, "⅝"],
+      [0.667, "⅔"],
+      [0.75, "¾"],
+      [0.875, "⅞"],
+    ];
+
+    const whole = Math.floor(scaled);
+    const decimal = scaled - whole;
+
+    // Find closest matching fraction
+    let closestFraction = "";
+    let minDiff = 0.05; // Tolerance
+    for (const [dec, frac] of fractions) {
+      const diff = Math.abs(decimal - dec);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestFraction = frac;
       }
     }
+
+    if (closestFraction) {
+      return whole > 0 ? `${whole} ${closestFraction}` : closestFraction;
+    }
+
     return scaled.toFixed(1);
   };
 
@@ -116,6 +227,13 @@ export function RecipeDetail({ recipe, onClose, onEdit }: RecipeDetailProps) {
         </button>
         <div className="recipe-detail__actions">
           <button
+            className={`recipe-detail__action recipe-detail__action--cook-mode ${cookModeActive ? "recipe-detail__action--cook-mode-active" : ""}`}
+            onClick={() => setCookModeActive(!cookModeActive)}
+            title={cookModeActive ? "Turn off Cook Mode (screen will sleep)" : "Turn on Cook Mode (keeps screen on)"}
+          >
+            {cookModeActive ? "🍳 Cooking" : "🍳 Cook"}
+          </button>
+          <button
             className={`recipe-detail__action ${recipe.isFavorite ? "recipe-detail__action--active" : ""}`}
             onClick={handleToggleFavorite}
             title={recipe.isFavorite ? "Remove from favorites" : "Add to favorites"}
@@ -127,8 +245,52 @@ export function RecipeDetail({ recipe, onClose, onEdit }: RecipeDetailProps) {
               Edit
             </button>
           )}
+          {onDelete && (
+            <button
+              className="recipe-detail__action recipe-detail__action--delete"
+              onClick={handleDeleteClick}
+              title="Delete recipe"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="recipe-detail__delete-modal-overlay" onClick={handleDeleteCancel}>
+          <div className="recipe-detail__delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="recipe-detail__delete-modal-icon">
+              {deleteStep === 1 ? "⚠️" : "🗑️"}
+            </div>
+            <h3 className="recipe-detail__delete-modal-title">
+              {deleteStep === 1 ? "Delete Recipe?" : "Are you absolutely sure?"}
+            </h3>
+            <p className="recipe-detail__delete-modal-text">
+              {deleteStep === 1
+                ? `This will permanently delete "${recipe.title}" from your collection.`
+                : "This action cannot be undone. The recipe will be permanently removed."}
+            </p>
+            <div className="recipe-detail__delete-modal-actions">
+              <button
+                type="button"
+                className="recipe-detail__delete-modal-btn recipe-detail__delete-modal-btn--cancel"
+                onClick={handleDeleteCancel}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="recipe-detail__delete-modal-btn recipe-detail__delete-modal-btn--confirm"
+                onClick={handleDeleteConfirm}
+              >
+                {deleteStep === 1 ? "Yes, Delete" : "Permanently Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <div className="recipe-detail__hero">

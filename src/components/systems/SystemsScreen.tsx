@@ -1,7 +1,7 @@
 // Systems Screen - View and manage all behavior change systems
 // Shows systems, habits, and system health across all loops
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   System,
   Habit,
@@ -13,7 +13,10 @@ import {
   SYSTEM_TEMPLATES,
   calculateSystemHealth,
   getHabitsDueToday,
+  getHabitsDueTodayWithDayType,
 } from "../../types";
+import { SmartScheduleState, DayType } from "../../types/dayTypes";
+import { getDayTypes } from "../../engines/smartSchedulerEngine";
 import { SystemBuilder } from "./SystemBuilder";
 import { HabitsTracker } from "./HabitsTracker";
 
@@ -23,6 +26,7 @@ interface SystemsScreenProps {
   systems: System[];
   habits: Habit[];
   completions: HabitCompletion[];
+  smartSchedule?: SmartScheduleState;
   onAddSystem: (system: System) => void;
   onUpdateSystem: (system: System) => void;
   onDeleteSystem: (systemId: string) => void;
@@ -37,6 +41,7 @@ export function SystemsScreen({
   systems,
   habits,
   completions,
+  smartSchedule,
   onAddSystem,
   onUpdateSystem,
   onDeleteSystem,
@@ -52,7 +57,21 @@ export function SystemsScreen({
   const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
-  const todayHabits = getHabitsDueToday(habits);
+
+  // Get today's day types (now supports multiple day types per day)
+  const todayDayTypes = useMemo(() => {
+    if (!smartSchedule?.enabled) return ["regular"] as DayType[];
+    return getDayTypes(new Date(), smartSchedule);
+  }, [smartSchedule]);
+
+  // Get habits due today with day type filtering
+  const todayHabits = useMemo(() => {
+    if (smartSchedule?.enabled) {
+      return getHabitsDueTodayWithDayType(habits, todayDayTypes);
+    }
+    return getHabitsDueToday(habits);
+  }, [habits, smartSchedule?.enabled, todayDayTypes]);
+
   const completedToday = todayHabits.filter(h =>
     completions.some(c => c.habitId === h.id && c.date === today)
   ).length;

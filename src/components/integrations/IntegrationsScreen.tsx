@@ -234,6 +234,8 @@ export function IntegrationsScreen() {
   const [syncingService, setSyncingService] = useState<string | null>(null);
   const [fitbitData, setFitbitData] = useState<FitbitHealthData | null>(null);
   const [todoistTaskCount, setTodoistTaskCount] = useState<number | null>(null);
+  const [embedUrlInput, setEmbedUrlInput] = useState(state.calendar.embedUrl || "");
+  const [embedSaved, setEmbedSaved] = useState(false);
 
   // Fetch all integration statuses
   const fetchStatuses = useCallback(async () => {
@@ -430,6 +432,49 @@ export function IntegrationsScreen() {
           onConnect={() => handleConnect(getSpotifyAuthUrl())}
           isLoading={isLoading}
         />
+      </div>
+
+      {/* Google Calendar Embed URL */}
+      <div className="integrations-embed-section">
+        <h3>Calendar Embed</h3>
+        <p className="integrations-embed-description">
+          Add your Google Calendar embed URL to display your calendar in the Weekly Planner.
+        </p>
+        <div className="integrations-embed-form">
+          <input
+            type="url"
+            className="integrations-embed-input"
+            placeholder="https://calendar.google.com/calendar/embed?src=your_email@gmail.com"
+            value={embedUrlInput}
+            onChange={(e) => {
+              setEmbedUrlInput(e.target.value);
+              setEmbedSaved(false);
+            }}
+          />
+          <button
+            className="integrations-embed-save"
+            onClick={() => {
+              dispatch({ type: "SET_CALENDAR_EMBED_URL", payload: embedUrlInput || undefined });
+              setEmbedSaved(true);
+              setTimeout(() => setEmbedSaved(false), 3000);
+            }}
+          >
+            {embedSaved ? "✓ Saved" : "Save"}
+          </button>
+        </div>
+        <div className="integrations-embed-footer">
+          <p className="integrations-embed-hint">
+            Go to Google Calendar Settings → Your calendar → "Integrate calendar" → Copy the embed code URL.
+          </p>
+          <a
+            href="https://support.google.com/calendar/answer/41207"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="integrations-embed-help"
+          >
+            How to get embed URL ↗
+          </a>
+        </div>
       </div>
 
       {/* Setup Instructions */}

@@ -11,6 +11,9 @@ interface TechniqueLibraryProps {
   onAddTechnique: (technique: TechniqueEntry) => void;
   onUpdateTechnique: (technique: TechniqueEntry) => void;
   onDeleteTechnique: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
+  onUpdateNotes: (techniqueId: string, notes: string) => void;
+  onToggleTipHighlight: (techniqueId: string, tipId: string) => void;
   onSelectRecipe: (recipe: Recipe) => void;
   onBack: () => void;
 }
@@ -28,6 +31,9 @@ export function TechniqueLibrary({
   onAddTechnique,
   onUpdateTechnique,
   onDeleteTechnique,
+  onToggleFavorite,
+  onUpdateNotes,
+  onToggleTipHighlight,
   onSelectRecipe,
   onBack,
 }: TechniqueLibraryProps) {
@@ -37,7 +43,7 @@ export function TechniqueLibrary({
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<TechniqueSubjectType | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<TechniqueSubjectType | "all" | "favorites">("all");
 
   // Get unique types that have techniques
   const availableTypes = useMemo(() => {
@@ -46,14 +52,25 @@ export function TechniqueLibrary({
     return Array.from(types).sort();
   }, [techniques]);
 
+  // Count favorites
+  const favoritesCount = useMemo(() => {
+    return techniques.filter(t => t.isFavorite).length;
+  }, [techniques]);
+
   // Filter techniques
   const filteredTechniques = useMemo(() => {
     return techniques.filter((t) => {
-      if (typeFilter !== "all" && t.subjectType !== typeFilter) return false;
+      // Favorites filter
+      if (typeFilter === "favorites" && !t.isFavorite) return false;
+      // Type filter
+      if (typeFilter !== "all" && typeFilter !== "favorites" && t.subjectType !== typeFilter) return false;
+      // Search filter
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
           t.subject.toLowerCase().includes(q) ||
+          t.aliases?.some(a => a.toLowerCase().includes(q)) ||
+          t.summary?.toLowerCase().includes(q) ||
           t.tips.some((tip) => tip.content.toLowerCase().includes(q)) ||
           t.sourcesCited.some((s) => s.toLowerCase().includes(q))
         );
@@ -64,6 +81,16 @@ export function TechniqueLibrary({
 
   // Group by type for display
   const groupedTechniques = useMemo(() => {
+    if (typeFilter === "favorites") {
+      // Group favorites by type
+      const groups: Partial<Record<TechniqueSubjectType, TechniqueEntry[]>> = {};
+      filteredTechniques.forEach((t) => {
+        if (!groups[t.subjectType]) groups[t.subjectType] = [];
+        groups[t.subjectType]!.push(t);
+      });
+      return groups;
+    }
+
     if (typeFilter !== "all") {
       return { [typeFilter]: filteredTechniques };
     }
@@ -118,12 +145,18 @@ export function TechniqueLibrary({
     setEditingTechnique(undefined);
   };
 
+  // Keep selectedTechnique in sync with techniques array (for updates)
+  const currentTechnique = selectedTechnique
+    ? techniques.find(t => t.id === selectedTechnique.id) || selectedTechnique
+    : null;
+
   // Render Form View
   if (view === "form") {
     return (
       <div className="technique-library technique-library--form">
         <TechniqueForm
           technique={editingTechnique}
+          techniques={techniques}
           recipes={recipes}
           onSave={handleSave}
           onCancel={handleBackToList}
@@ -133,16 +166,21 @@ export function TechniqueLibrary({
   }
 
   // Render Detail View
-  if (view === "detail" && selectedTechnique) {
+  if (view === "detail" && currentTechnique) {
     return (
       <div className="technique-library technique-library--detail">
         <TechniqueDetail
-          technique={selectedTechnique}
+          technique={currentTechnique}
+          techniques={techniques}
           recipes={recipes}
           onBack={handleBackToList}
           onSelectRecipe={onSelectRecipe}
+          onSelectTechnique={handleSelectTechnique}
           onDelete={handleDelete}
           onAddTip={handleEdit}
+          onToggleFavorite={() => onToggleFavorite(currentTechnique.id)}
+          onUpdateNotes={(notes) => onUpdateNotes(currentTechnique.id, notes)}
+          onToggleTipHighlight={(tipId) => onToggleTipHighlight(currentTechnique.id, tipId)}
         />
         <div className="technique-library__detail-actions">
           <button
@@ -169,6 +207,7 @@ export function TechniqueLibrary({
           <p className="technique-library__subtitle">
             {techniques.length} entr{techniques.length !== 1 ? "ies" : "y"} ·{" "}
             {techniques.reduce((sum, t) => sum + t.tips.length, 0)} tips
+            {favoritesCount > 0 && ` · ${favoritesCount} favorites`}
           </p>
         </div>
         <button
@@ -193,10 +232,13 @@ export function TechniqueLibrary({
         <div className="technique-library__filter-group">
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as TechniqueSubjectType | "all")}
+            onChange={(e) => setTypeFilter(e.target.value as TechniqueSubjectType | "all" | "favorites")}
             className="technique-library__filter"
           >
             <option value="all">All Types</option>
+            {favoritesCount > 0 && (
+              <option value="favorites">★ Favorites ({favoritesCount})</option>
+            )}
             {availableTypes.map((type) => (
               <option key={type} value={type}>
                 {SUBJECT_TYPE_LABELS[type]}
@@ -224,6 +266,18 @@ export function TechniqueLibrary({
                 Add Your First Entry
               </button>
             </>
+          ) : typeFilter === "favorites" ? (
+            <>
+              <span className="technique-library__empty-icon">★</span>
+              <h3>No Favorites Yet</h3>
+              <p>Mark techniques as favorites for quick access.</p>
+              <button
+                className="technique-library__empty-btn"
+                onClick={() => setTypeFilter("all")}
+              >
+                View All Techniques
+              </button>
+            </>
           ) : (
             <>
               <span className="technique-library__empty-icon">🔍</span>
@@ -249,7 +303,7 @@ export function TechniqueLibrary({
 
             return (
               <div key={type} className="technique-library__category">
-                {typeFilter === "all" && (
+                {(typeFilter === "all" || typeFilter === "favorites") && (
                   <h2 className="technique-library__category-title">
                     {SUBJECT_TYPE_LABELS[type]}
                     <span className="technique-library__category-count">

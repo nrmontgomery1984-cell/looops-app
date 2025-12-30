@@ -2,7 +2,7 @@
 // Shows today's habits with visual streak indicators
 // Enhanced with archetype-aware personalization
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Habit,
   HabitCompletion,
@@ -10,7 +10,10 @@ import {
   LOOP_COLORS,
   LOOP_DEFINITIONS,
   getHabitsDueToday,
+  getHabitsDueTodayWithDayType,
 } from "../../types";
+import { SmartScheduleState, DayType } from "../../types/dayTypes";
+import { getDayTypes } from "../../engines/smartSchedulerEngine";
 import {
   getHabitActionPhrase,
   getHabitCompletionMessage,
@@ -20,6 +23,7 @@ import { useApp } from "../../context";
 interface HabitsTrackerProps {
   habits: Habit[];
   completions: HabitCompletion[];
+  smartSchedule?: SmartScheduleState;
   onComplete: (habitId: string, date: string, notes?: string) => void;
   onUncomplete: (habitId: string, date: string) => void;
   onEditHabit?: (habit: Habit) => void;
@@ -30,6 +34,7 @@ interface HabitsTrackerProps {
 export function HabitsTracker({
   habits,
   completions,
+  smartSchedule,
   onComplete,
   onUncomplete,
   onEditHabit,
@@ -46,8 +51,21 @@ export function HabitsTracker({
   const [celebratingHabitId, setCelebratingHabitId] = useState<string | null>(null);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
 
-  // Filter habits
-  let displayHabits = showAll ? habits : getHabitsDueToday(habits);
+  // Get today's day types (now supports multiple day types per day)
+  const todayDayTypes = useMemo(() => {
+    if (!smartSchedule?.enabled) return ["regular"] as DayType[];
+    return getDayTypes(new Date(), smartSchedule);
+  }, [smartSchedule]);
+
+  // Filter habits with day type awareness
+  let displayHabits = useMemo(() => {
+    if (showAll) return habits;
+    if (smartSchedule?.enabled) {
+      return getHabitsDueTodayWithDayType(habits, todayDayTypes);
+    }
+    return getHabitsDueToday(habits);
+  }, [habits, showAll, smartSchedule?.enabled, todayDayTypes]);
+
   if (filterLoop) {
     displayHabits = displayHabits.filter(h => h.loop === filterLoop);
   }
@@ -217,10 +235,24 @@ export function HabitsWidget({
 }: HabitsWidgetProps) {
   const { state } = useApp();
   const archetype = state.user.prototype?.archetypeBlend?.primary;
+  const smartSchedule = state.smartSchedule;
 
   const today = new Date().toISOString().split("T")[0];
 
-  let displayHabits = getHabitsDueToday(habits);
+  // Get today's day types (now supports multiple day types per day)
+  const todayDayTypes = useMemo(() => {
+    if (!smartSchedule?.enabled) return ["regular"] as DayType[];
+    return getDayTypes(new Date(), smartSchedule);
+  }, [smartSchedule]);
+
+  // Filter habits with day type awareness
+  let displayHabits = useMemo(() => {
+    if (smartSchedule?.enabled) {
+      return getHabitsDueTodayWithDayType(habits, todayDayTypes);
+    }
+    return getHabitsDueToday(habits);
+  }, [habits, smartSchedule?.enabled, todayDayTypes]);
+
   if (loop) {
     displayHabits = displayHabits.filter(h => h.loop === loop);
   }

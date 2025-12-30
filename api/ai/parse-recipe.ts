@@ -104,6 +104,92 @@ function extractImageUrl(html: string): string | undefined {
   return undefined;
 }
 
+// Post-process quantities to fix common AI parsing errors
+// Detects suspiciously large quantities and attempts to fix them
+function fixQuantities(recipe: ParsedRecipe): ParsedRecipe {
+  const fixedIngredients = recipe.ingredients.map((ing) => {
+    let { quantity, unit } = ing;
+
+    // Detect suspiciously large quantities that are likely concatenation errors
+    // e.g., "3 1/2" parsed as 31 or 312, "1 1/3" parsed as 11 or 113
+
+    // Common patterns for teaspoons/tablespoons - rarely over 10
+    if ((unit.includes("teaspoon") || unit.includes("tsp") ||
+         unit.includes("tablespoon") || unit.includes("tbsp")) && quantity > 10) {
+      // Try to detect concatenation: 31 -> 3.5, 112 -> 1.5, 113 -> 1.33, etc.
+      quantity = attemptQuantityFix(quantity);
+    }
+
+    // Cups - rarely over 8 for most ingredients
+    if ((unit.includes("cup") || unit === "c") && quantity > 8) {
+      quantity = attemptQuantityFix(quantity);
+    }
+
+    // Large eggs - rarely more than 12
+    if (ing.name.toLowerCase().includes("egg") && unit.includes("large") && quantity > 12) {
+      quantity = attemptQuantityFix(quantity);
+    }
+
+    // Generic fix for any suspiciously large whole numbers
+    if (quantity >= 10 && Number.isInteger(quantity)) {
+      const potentialFix = attemptQuantityFix(quantity);
+      // Only apply fix if it results in a reasonable number
+      if (potentialFix < quantity && potentialFix > 0) {
+        quantity = potentialFix;
+      }
+    }
+
+    return { ...ing, quantity };
+  });
+
+  return { ...recipe, ingredients: fixedIngredients };
+}
+
+// Attempt to fix a quantity that looks like concatenated digits
+function attemptQuantityFix(qty: number): number {
+  const str = qty.toString();
+
+  // Pattern: two digits where second might be fraction numerator
+  // 31 -> 3 + 1/2 = 3.5
+  // 11 -> 1 + 1/? (ambiguous, could be 1.5, 1.33, 1.25)
+  // 14 -> 1 + 1/4 = 1.25 or 1 + 4 (unlikely)
+  // 34 -> 3 + 1/4 = 3.25 or 3/4 = 0.75
+
+  if (str.length === 2) {
+    const first = parseInt(str[0], 10);
+    const second = parseInt(str[1], 10);
+
+    // Common patterns
+    if (second === 1) return first + 0.5;      // X1 -> X + 1/2
+    if (second === 2) return first + 0.5;      // X2 -> X + 1/2 (from "1/2")
+    if (second === 3) return first + 0.333;    // X3 -> X + 1/3
+    if (second === 4) return first + 0.25;     // X4 -> X + 1/4
+    if (second === 8) return first + 0.125;    // X8 -> X + 1/8
+
+    // If first digit is reasonable on its own, use it
+    if (first <= 4) return first + 0.5; // Default assumption: was a half
+  }
+
+  // Pattern: three digits (e.g., 112 from "1 1/2", 134 from "1 3/4")
+  if (str.length === 3) {
+    const first = parseInt(str[0], 10);
+    const rest = str.slice(1);
+
+    // Check if rest looks like a fraction: 12 (1/2), 13 (1/3), 14 (1/4), 34 (3/4), 23 (2/3)
+    if (rest === "12") return first + 0.5;
+    if (rest === "13") return first + 0.333;
+    if (rest === "14") return first + 0.25;
+    if (rest === "34") return first + 0.75;
+    if (rest === "23") return first + 0.667;
+    if (rest === "38") return first + 0.375;
+    if (rest === "58") return first + 0.625;
+    if (rest === "78") return first + 0.875;
+  }
+
+  // No pattern matched, return original
+  return qty;
+}
+
 function cleanHtmlForParsing(html: string): string {
   // Remove script, style, and nav elements
   let cleaned = html
@@ -171,7 +257,17 @@ Return ONLY a valid JSON object with this exact structure, no other text:
 }
 
 Guidelines:
-- Parse quantities intelligently (e.g., "1/2 cup" = 0.5, "2-3 cloves" = 2.5)
+- CRITICAL: Parse fractions to decimal numbers correctly:
+  - "1/2" = 0.5
+  - "1/4" = 0.25
+  - "1/3" = 0.333
+  - "2/3" = 0.667
+  - "3/4" = 0.75
+  - "1 1/2" (one and a half) = 1.5
+  - "3 1/2" (three and a half) = 3.5
+  - "1 1/3" (one and a third) = 1.333
+  - "2-3" (range) = 2.5
+  - Never concatenate numbers - "3 1/2" is NOT 31, it is 3.5
 - Determine difficulty based on techniques, time, and complexity
 - Categorize ingredients appropriately
 - Extract equipment mentioned in ingredients or steps
@@ -265,7 +361,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const imageUrl = extractImageUrl(html);
 
     // Parse with Claude
-    const recipe = await parseWithClaude(html, url);
+    let recipe = await parseWithClaude(html, url);
+
+    // Post-process to fix common quantity parsing errors
+    recipe = fixQuantities(recipe);
 
     // Add image URL if found
     if (imageUrl) {

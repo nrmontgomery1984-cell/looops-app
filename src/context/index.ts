@@ -26,6 +26,9 @@ export {
   useMealPrep,
   useKitchenProfile,
   useRecipes,
+  useWorkout,
+  useGymProfile,
+  useExercises,
 } from "./AppContext";
 
 export type { UserProfile, AppState, AppAction } from "./AppContext";

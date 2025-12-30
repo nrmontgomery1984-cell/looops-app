@@ -13,15 +13,19 @@ import {
   TimeOfDay,
   RoutineFrequency,
   getRoutinesDueToday,
+  getRoutinesDueTodayWithDayType,
   getScheduleDescription,
   sortRoutinesByTimeOfDay,
   createRoutineFromTemplate,
   getRoutineDuration,
   getRoutineLoops,
 } from "../../types";
+import { SmartScheduleState, DayType, DEFAULT_DAY_TYPE_CONFIGS } from "../../types/dayTypes";
+import { getDayTypes } from "../../engines/smartSchedulerEngine";
 
 type RoutinesScreenProps = {
   routines: Routine[];
+  smartSchedule?: SmartScheduleState;
   onAddRoutine: (routine: Routine) => void;
   onUpdateRoutine: (routine: Routine) => void;
   onDeleteRoutine: (routineId: string) => void;
@@ -33,6 +37,7 @@ type RoutineView = "today" | "all" | "time";
 
 export function RoutinesScreen({
   routines,
+  smartSchedule,
   onAddRoutine,
   onUpdateRoutine,
   onDeleteRoutine,
@@ -46,10 +51,23 @@ export function RoutinesScreen({
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Get routines due today
+  // Get today's day types (now supports multiple day types per day)
+  const todayDayTypes = useMemo(() => {
+    if (!smartSchedule?.enabled) return ["regular"] as DayType[];
+    return getDayTypes(new Date(), smartSchedule);
+  }, [smartSchedule]);
+
+  // Use the primary day type for display purposes
+  const primaryDayType = todayDayTypes[0] || "regular";
+  const todayDayTypeConfig = DEFAULT_DAY_TYPE_CONFIGS[primaryDayType] || DEFAULT_DAY_TYPE_CONFIGS.regular;
+
+  // Get routines due today (with day type filtering if smart schedule is enabled)
   const todayRoutines = useMemo(() => {
+    if (smartSchedule?.enabled) {
+      return sortRoutinesByTimeOfDay(getRoutinesDueTodayWithDayType(routines, todayDayTypes));
+    }
     return sortRoutinesByTimeOfDay(getRoutinesDueToday(routines));
-  }, [routines]);
+  }, [routines, smartSchedule, todayDayTypes]);
 
   // Get active routines
   const activeRoutines = useMemo(() => {

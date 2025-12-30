@@ -879,6 +879,7 @@ function AppContent() {
         return (
           <RoutinesScreen
             routines={routines.items}
+            smartSchedule={state.smartSchedule}
             onAddRoutine={(routine) => dispatch({ type: "ADD_ROUTINE", payload: routine })}
             onUpdateRoutine={(routine) => dispatch({ type: "UPDATE_ROUTINE", payload: routine })}
             onDeleteRoutine={(routineId) => dispatch({ type: "DELETE_ROUTINE", payload: routineId })}
@@ -915,6 +916,7 @@ function AppContent() {
             systems={systems.items}
             habits={habits.items}
             completions={habits.completions}
+            smartSchedule={state.smartSchedule}
             onAddSystem={(system) => dispatch({ type: "ADD_SYSTEM", payload: system })}
             onUpdateSystem={(system) => dispatch({ type: "UPDATE_SYSTEM", payload: system })}
             onDeleteSystem={(systemId) => dispatch({ type: "DELETE_SYSTEM", payload: systemId })}
@@ -1205,7 +1207,11 @@ function AppContent() {
                 loopStates={loops.states}
                 tasks={tasks.items}
                 goals={Object.values(state.goals).flat()}
+                calendarEvents={state.calendar.events}
+                calendarEmbedUrl={state.calendar.embedUrl}
                 archetype={user.prototype?.archetypeBlend?.primary}
+                smartSchedule={state.smartSchedule}
+                dispatch={dispatch}
                 onLoopStateChange={handleLoopStateChange}
                 onTaskUpdate={(task) => dispatch({ type: "UPDATE_TASK", payload: task })}
                 onComplete={() => setPlanningView("goals")}

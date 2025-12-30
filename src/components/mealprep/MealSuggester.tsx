@@ -156,19 +156,68 @@ export function MealSuggester({
     setStep("questions");
   };
 
+  // Determine if light mode
+  const isLightMode = document.documentElement.getAttribute("data-theme") === "light";
+
   // Questions Step
   if (step === "questions") {
     return createPortal(
-      <div className="meal-suggester__overlay" onClick={onClose}>
-        <div className="meal-suggester" onClick={(e) => e.stopPropagation()}>
-          <div className="meal-suggester__header">
-            <h2>What should I cook?</h2>
-            <button className="meal-suggester__close" onClick={onClose}>
+      <div
+        className="meal-suggester__overlay"
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: isLightMode ? "rgba(0, 0, 0, 0.6)" : "rgba(0, 0, 0, 0.9)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 999999,
+        }}
+      >
+        <div
+          className="meal-suggester"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: isLightMode ? "#ffffff" : "#1a1a2e",
+            borderRadius: "16px",
+            width: "100%",
+            maxWidth: "500px",
+            maxHeight: "85vh",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            boxShadow: isLightMode
+              ? "0 25px 60px rgba(0, 0, 0, 0.25)"
+              : "0 20px 60px rgba(0, 0, 0, 0.5)",
+            border: isLightMode ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          <div
+            className="meal-suggester__header"
+            style={{
+              background: isLightMode ? "#f9fafb" : undefined,
+              borderBottom: isLightMode ? "1px solid #e5e7eb" : undefined,
+            }}
+          >
+            <h2 style={{ color: isLightMode ? "#111827" : undefined }}>What should I cook?</h2>
+            <button
+              type="button"
+              className="meal-suggester__close"
+              onClick={onClose}
+              style={{ color: isLightMode ? "#6b7280" : undefined }}
+            >
               ×
             </button>
           </div>
 
-          <div className="meal-suggester__content">
+          <div
+            className="meal-suggester__content"
+            style={{ background: isLightMode ? "#ffffff" : undefined }}
+          >
             <p className="meal-suggester__intro">
               Answer a few quick questions and I'll suggest the perfect recipe for you!
             </p>
@@ -179,6 +228,7 @@ export function MealSuggester({
               <div className="meal-suggester__options">
                 {TIME_OPTIONS.map((option) => (
                   <button
+                    type="button"
                     key={option.value}
                     className={`meal-suggester__option ${filters.time === option.value ? "meal-suggester__option--selected" : ""}`}
                     onClick={() => setFilters({ ...filters, time: option.value })}
@@ -195,6 +245,7 @@ export function MealSuggester({
               <div className="meal-suggester__options meal-suggester__options--mood">
                 {MOOD_OPTIONS.map((option) => (
                   <button
+                    type="button"
                     key={option.value}
                     className={`meal-suggester__option meal-suggester__option--mood ${filters.mood === option.value ? "meal-suggester__option--selected" : ""}`}
                     onClick={() => setFilters({ ...filters, mood: option.value })}
@@ -212,6 +263,7 @@ export function MealSuggester({
               <div className="meal-suggester__options">
                 {["breakfast", "lunch", "dinner", "snack"].map((course) => (
                   <button
+                    type="button"
                     key={course}
                     className={`meal-suggester__option ${filters.course === course ? "meal-suggester__option--selected" : ""}`}
                     onClick={() => setFilters({ ...filters, course })}
@@ -223,10 +275,11 @@ export function MealSuggester({
             </div>
 
             <button
+              type="button"
               className="meal-suggester__submit"
               onClick={handleGetSuggestions}
             >
-              Get Suggestions ✨
+              Get Suggestions
             </button>
           </div>
         </div>
@@ -237,24 +290,71 @@ export function MealSuggester({
 
   // Results Step
   return createPortal(
-    <div className="meal-suggester__overlay" onClick={onClose}>
-      <div className="meal-suggester" onClick={(e) => e.stopPropagation()}>
-        <div className="meal-suggester__header">
-          <h2>Here's what I suggest!</h2>
-          <button className="meal-suggester__close" onClick={onClose}>
+    <div
+      className="meal-suggester__overlay"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: isLightMode ? "rgba(0, 0, 0, 0.6)" : "rgba(0, 0, 0, 0.9)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 999999,
+      }}
+    >
+      <div
+        className="meal-suggester"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: isLightMode ? "#ffffff" : "#1a1a2e",
+          borderRadius: "16px",
+          width: "100%",
+          maxWidth: "500px",
+          maxHeight: "85vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: isLightMode
+            ? "0 25px 60px rgba(0, 0, 0, 0.25)"
+            : "0 20px 60px rgba(0, 0, 0, 0.5)",
+          border: isLightMode ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.1)",
+        }}
+      >
+        <div
+          className="meal-suggester__header"
+          style={{
+            background: isLightMode ? "#f9fafb" : undefined,
+            borderBottom: isLightMode ? "1px solid #e5e7eb" : undefined,
+          }}
+        >
+          <h2 style={{ color: isLightMode ? "#111827" : undefined }}>Here's what I suggest!</h2>
+          <button
+            type="button"
+            className="meal-suggester__close"
+            onClick={onClose}
+            style={{ color: isLightMode ? "#6b7280" : undefined }}
+          >
             ×
           </button>
         </div>
 
-        <div className="meal-suggester__content">
+        <div
+          className="meal-suggester__content"
+          style={{ background: isLightMode ? "#ffffff" : undefined }}
+        >
           {suggestedRecipes.length === 0 ? (
             <div className="meal-suggester__no-results">
-              <span className="meal-suggester__no-results-icon">🤔</span>
+              <span className="meal-suggester__no-results-icon">?</span>
               <h3>No matches found</h3>
               <p>
                 Try adjusting your preferences or add more recipes to your collection!
               </p>
               <button
+                type="button"
                 className="meal-suggester__retry-btn"
                 onClick={handleStartOver}
               >
@@ -266,9 +366,18 @@ export function MealSuggester({
               <div className="meal-suggester__results">
                 {suggestedRecipes.map((recipe, index) => (
                   <button
+                    type="button"
                     key={recipe.id}
                     className={`meal-suggester__result ${index === 0 ? "meal-suggester__result--top" : ""}`}
                     onClick={() => onSelectRecipe(recipe)}
+                    style={{
+                      background: isLightMode
+                        ? index === 0 ? "rgba(139, 92, 246, 0.1)" : "#f3f4f6"
+                        : undefined,
+                      border: isLightMode
+                        ? index === 0 ? "1px solid #8b5cf6" : "1px solid #d1d5db"
+                        : undefined,
+                    }}
                   >
                     {index === 0 && (
                       <span className="meal-suggester__result-badge">Top Pick</span>
@@ -281,15 +390,23 @@ export function MealSuggester({
                       />
                     )}
                     <div className="meal-suggester__result-info">
-                      <h4 className="meal-suggester__result-title">{recipe.title}</h4>
-                      <div className="meal-suggester__result-meta">
+                      <h4
+                        className="meal-suggester__result-title"
+                        style={{ color: isLightMode ? "#111827" : undefined }}
+                      >
+                        {recipe.title}
+                      </h4>
+                      <div
+                        className="meal-suggester__result-meta"
+                        style={{ color: isLightMode ? "#6b7280" : undefined }}
+                      >
                         <span>{recipe.totalTime} min</span>
-                        <span>·</span>
+                        <span>.</span>
                         <span>{recipe.difficulty}</span>
                         {recipe.rating && (
                           <>
-                            <span>·</span>
-                            <span>{"★".repeat(Math.round(recipe.rating))}</span>
+                            <span>.</span>
+                            <span>{"*".repeat(Math.round(recipe.rating))}</span>
                           </>
                         )}
                       </div>
@@ -305,6 +422,7 @@ export function MealSuggester({
 
               <div className="meal-suggester__actions">
                 <button
+                  type="button"
                   className="meal-suggester__retry-btn"
                   onClick={handleStartOver}
                 >

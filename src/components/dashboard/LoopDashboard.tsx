@@ -40,6 +40,7 @@ import { GoodTimesWidget } from "./GoodTimesWidget";
 import { StepsWidget } from "./StepsWidget";
 import { LoopAIWidget } from "./LoopAIWidget";
 import { WastedMoneyWidget } from "./WastedMoneyWidget";
+import { WorkoutWidget } from "./WorkoutWidget";
 
 interface LoopDashboardProps {
   loop: LoopId;
@@ -269,6 +270,14 @@ export function LoopDashboard({
 
       case "wasted_money":
         return <WastedMoneyWidget />;
+
+      case "workout":
+        return (
+          <WorkoutWidget
+            compact={config.settings.compact as boolean}
+            showQuickGenerate={config.settings.showQuickGenerate as boolean}
+          />
+        );
 
       default:
         return (
