@@ -171,8 +171,11 @@ export function SystemsScreen({
               <HabitsTracker
                 habits={habits}
                 completions={completions}
+                smartSchedule={smartSchedule}
                 onComplete={onCompleteHabit}
                 onUncomplete={onUncompleteHabit}
+                onUpdateHabit={onUpdateHabit}
+                onDeleteHabit={onDeleteHabit}
               />
             </section>
 
@@ -285,8 +288,11 @@ export function SystemsScreen({
             <HabitsTracker
               habits={habits}
               completions={completions}
+              smartSchedule={smartSchedule}
               onComplete={onCompleteHabit}
               onUncomplete={onUncompleteHabit}
+              onUpdateHabit={onUpdateHabit}
+              onDeleteHabit={onDeleteHabit}
               filterLoop={selectedLoop || undefined}
               showAll={false}
             />

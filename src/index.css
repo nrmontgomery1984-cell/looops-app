@@ -39829,3 +39829,146 @@ body.modal-open {
     grid-template-columns: 1fr;
   }
 }
+
+/* ========== Day Type Selector ========== */
+.day-type-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.day-type-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-gray-800);
+  border: 2px solid var(--color-gray-700);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  color: var(--color-gray-300);
+}
+
+.day-type-chip:hover {
+  background: var(--color-gray-700);
+  border-color: var(--color-gray-600);
+}
+
+.day-type-chip.selected {
+  color: white;
+  border-color: currentColor;
+}
+
+.day-type-chip-icon {
+  font-size: 1rem;
+}
+
+.day-type-chip-label {
+  font-weight: 500;
+}
+
+.form-field-hint {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.form-field-note {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* ========== Habit Edit Modal ========== */
+.habit-edit-modal {
+  background: var(--color-gray-900);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.habit-edit-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.habit-edit-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: var(--color-gray-800);
+  border-radius: 12px;
+}
+
+.habit-edit-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.habit-edit-stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-white);
+}
+
+.habit-edit-stat-label {
+  font-size: 0.7rem;
+  color: var(--color-gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ========== Light Theme - Day Type Selector ========== */
+[data-theme="light"] .day-type-chip {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-700);
+}
+
+[data-theme="light"] .day-type-chip:hover {
+  background: var(--color-gray-200);
+  border-color: var(--color-gray-400);
+}
+
+[data-theme="light"] .day-type-chip.selected {
+  color: white;
+}
+
+[data-theme="light"] .form-field-hint,
+[data-theme="light"] .form-field-note {
+  color: var(--color-gray-500);
+}
+
+/* ========== Light Theme - Habit Edit Modal ========== */
+[data-theme="light"] .habit-edit-modal {
+  background: var(--color-white);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .habit-edit-stats {
+  background: var(--color-gray-100);
+}
+
+[data-theme="light"] .habit-edit-stat-value {
+  color: var(--color-gray-900);
+}
+
+[data-theme="light"] .habit-edit-stat-label {
+  color: var(--color-gray-500);
+}

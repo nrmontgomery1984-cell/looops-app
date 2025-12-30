@@ -20,7 +20,7 @@ import {
   getRoutineDuration,
   getRoutineLoops,
 } from "../../types";
-import { SmartScheduleState, DayType, DEFAULT_DAY_TYPE_CONFIGS } from "../../types/dayTypes";
+import { SmartScheduleState, DayType, DEFAULT_DAY_TYPE_CONFIGS, BUILT_IN_DAY_TYPES } from "../../types/dayTypes";
 import { getDayTypes } from "../../engines/smartSchedulerEngine";
 
 type RoutinesScreenProps = {
@@ -594,6 +594,7 @@ function AddRoutineModal({
   const [customIcon, setCustomIcon] = useState("📋");
   const [customFrequency, setCustomFrequency] = useState<"daily" | "weekdays" | "weekends" | "weekly">("daily");
   const [customTimeOfDay, setCustomTimeOfDay] = useState<TimeOfDay>("morning");
+  const [customDayTypes, setCustomDayTypes] = useState<DayType[]>([]); // Empty = all day types
   const [customSteps, setCustomSteps] = useState<Array<{
     id: string;
     title: string;
@@ -643,6 +644,14 @@ function AddRoutineModal({
     );
   };
 
+  const handleToggleDayType = (dayType: DayType) => {
+    setCustomDayTypes((prev) =>
+      prev.includes(dayType)
+        ? prev.filter((dt) => dt !== dayType)
+        : [...prev, dayType]
+    );
+  };
+
   const handleCreateCustom = () => {
     if (!customTitle.trim() || customSteps.length === 0) return;
 
@@ -656,6 +665,7 @@ function AddRoutineModal({
         frequency: customFrequency,
         timeOfDay: customTimeOfDay,
       },
+      dayTypes: customDayTypes.length > 0 ? customDayTypes : undefined, // Empty = all day types
       status: "active",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -863,6 +873,33 @@ function AddRoutineModal({
                 </div>
               </div>
 
+              {/* Day Types */}
+              <div className="form-field">
+                <label>Active on Day Types</label>
+                <p className="form-field-hint">Leave empty to run on all days, or select specific day types</p>
+                <div className="day-type-selector">
+                  {BUILT_IN_DAY_TYPES.map((dt) => {
+                    const config = DEFAULT_DAY_TYPE_CONFIGS[dt];
+                    const isSelected = customDayTypes.includes(dt);
+                    return (
+                      <button
+                        key={dt}
+                        type="button"
+                        className={`day-type-chip ${isSelected ? "selected" : ""}`}
+                        onClick={() => handleToggleDayType(dt)}
+                        style={isSelected ? { backgroundColor: config.color, borderColor: config.color } : {}}
+                      >
+                        <span className="day-type-chip-icon">{config.icon}</span>
+                        <span className="day-type-chip-label">{config.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {customDayTypes.length === 0 && (
+                  <p className="form-field-note">This routine will run on all day types</p>
+                )}
+              </div>
+
               {/* Steps */}
               <div className="routine-custom-steps">
                 <label>Steps ({customSteps.length})</label>
@@ -994,6 +1031,7 @@ function EditRoutineModal({
   const [status, setStatus] = useState(routine.status);
   const [frequency, setFrequency] = useState(routine.schedule.frequency);
   const [timeOfDay, setTimeOfDay] = useState(routine.schedule.timeOfDay);
+  const [dayTypes, setDayTypes] = useState<DayType[]>(routine.dayTypes || []);
   const [steps, setSteps] = useState(routine.steps || []);
 
   // New step form
@@ -1035,6 +1073,14 @@ function EditRoutineModal({
     );
   };
 
+  const handleToggleDayType = (dayType: DayType) => {
+    setDayTypes((prev) =>
+      prev.includes(dayType)
+        ? prev.filter((dt) => dt !== dayType)
+        : [...prev, dayType]
+    );
+  };
+
   const handleMoveStep = (stepId: string, direction: "up" | "down") => {
     const index = steps.findIndex((s) => s.id === stepId);
     if (index === -1) return;
@@ -1060,6 +1106,7 @@ function EditRoutineModal({
         frequency,
         timeOfDay,
       },
+      dayTypes: dayTypes.length > 0 ? dayTypes : undefined,
       steps: steps.map((s, i) => ({ ...s, order: i })),
       updatedAt: new Date().toISOString(),
     });
@@ -1146,6 +1193,33 @@ function EditRoutineModal({
                 <option value="archived">Archived</option>
               </select>
             </div>
+          </div>
+
+          {/* Day Types */}
+          <div className="form-field">
+            <label>Active on Day Types</label>
+            <p className="form-field-hint">Leave empty to run on all days</p>
+            <div className="day-type-selector">
+              {BUILT_IN_DAY_TYPES.map((dt) => {
+                const config = DEFAULT_DAY_TYPE_CONFIGS[dt];
+                const isSelected = dayTypes.includes(dt);
+                return (
+                  <button
+                    key={dt}
+                    type="button"
+                    className={`day-type-chip ${isSelected ? "selected" : ""}`}
+                    onClick={() => handleToggleDayType(dt)}
+                    style={isSelected ? { backgroundColor: config.color, borderColor: config.color } : {}}
+                  >
+                    <span className="day-type-chip-icon">{config.icon}</span>
+                    <span className="day-type-chip-label">{config.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {dayTypes.length === 0 && (
+              <p className="form-field-note">This routine will run on all day types</p>
+            )}
           </div>
 
           {/* Loop badges */}
