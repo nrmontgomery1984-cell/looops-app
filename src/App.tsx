@@ -49,7 +49,7 @@ import { MediaWidget } from "./components/dashboard/MediaWidget";
 import { CalendarWidget as GoogleCalendarWidget } from "./components/dashboard/CalendarWidget";
 import { HistoryScreen } from "./components/history";
 import { WeeklyPlanning, SmartScheduler } from "./components/planning";
-import { WeekDayTypesButton } from "./components/planning/WeekDayTypesEditor";
+import { QuickActionsFAB } from "./components/common/QuickActionsFAB";
 import { IntegrationsScreen } from "./components/integrations";
 import { DirectionalDocumentWizard, DirectionalDocumentView } from "./components/directional";
 import { DirectionalDocument } from "./types/directional";
@@ -1974,8 +1974,8 @@ function AppContent() {
 
       <main className="app-main">{renderScreen()}</main>
 
-      {/* Floating button to edit week's day types */}
-      <WeekDayTypesButton />
+      {/* Floating action button for quick actions */}
+      <QuickActionsFAB />
 
       {showOnboarding && !skipOnboarding && (
         <OnboardingFlow

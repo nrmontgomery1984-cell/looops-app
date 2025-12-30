@@ -2,3 +2,4 @@
 
 export { StateIndicator, StateSelector } from "./StateIndicator";
 export { LogoWordmark, LogoMark, LogoDots, LogoSimple } from "./Logo";
+export { QuickActionsFAB } from "./QuickActionsFAB";

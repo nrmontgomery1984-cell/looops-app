@@ -7,11 +7,11 @@ import {
   DayType,
   BUILT_IN_DAY_TYPES,
   DEFAULT_DAY_TYPE_CONFIGS,
+  getMarkedDateDayTypes,
 } from "../../types/dayTypes";
 import {
   formatDateKey,
   getDayTypes,
-  getMarkedDateDayTypes,
 } from "../../engines/smartSchedulerEngine";
 
 interface WeekDayTypesEditorProps {
@@ -59,20 +59,21 @@ export function WeekDayTypesEditor({ onClose, compact = false }: WeekDayTypesEdi
 
     if (currentTypes.includes(dayType)) {
       // Remove this day type
-      const newTypes = currentTypes.filter(dt => dt !== dayType);
+      const newTypes = currentTypes.filter((dt: DayType) => dt !== dayType);
       if (newTypes.length === 0) {
         dispatch({ type: "UNMARK_DATE", payload: dateStr });
       } else {
         dispatch({
           type: "MARK_DATE",
-          payload: { date: dateStr, dayTypes: newTypes },
+          payload: { date: dateStr, dayType: newTypes[0], dayTypes: newTypes },
         });
       }
     } else {
       // Add this day type
+      const newTypes = [...currentTypes, dayType];
       dispatch({
         type: "MARK_DATE",
-        payload: { date: dateStr, dayTypes: [...currentTypes, dayType] },
+        payload: { date: dateStr, dayType: newTypes[0], dayTypes: newTypes },
       });
     }
   };
