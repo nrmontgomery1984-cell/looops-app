@@ -18971,19 +18971,33 @@ body.modal-open {
   color: white;
 }
 
-.dashboard-action-btn--active {
-  background: var(--color-bg-tertiary);
-  border-color: var(--loop-color, var(--looops-sage));
-  color: var(--loop-color, var(--looops-sage));
-}
-
-/* Embedded Section */
-.loop-dashboard-embedded-section {
+/* Full-width Widget Section */
+.loop-dashboard-full-widget {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   margin-bottom: 24px;
+}
+
+.full-widget-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.full-widget-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.full-widget-icon {
+  font-size: 20px;
 }
 
 /* Dashboard Stats */

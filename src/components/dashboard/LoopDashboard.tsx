@@ -104,8 +104,6 @@ export function LoopDashboard({
   onBack,
 }: LoopDashboardProps) {
   const [showWidgetPicker, setShowWidgetPicker] = useState(false);
-  const [showFinance, setShowFinance] = useState(false);
-  const [showMealPrep, setShowMealPrep] = useState(false);
 
   const loopColor = LOOP_COLORS[loop];
   const loopDef = LOOP_DEFINITIONS[loop];
@@ -307,22 +305,6 @@ export function LoopDashboard({
           <h1>{loop}</h1>
         </div>
         <div className="loop-dashboard-actions">
-          {loop === "Wealth" && (
-            <button
-              className={`dashboard-action-btn ${showFinance ? "dashboard-action-btn--active" : "dashboard-action-btn--primary"}`}
-              onClick={() => setShowFinance(!showFinance)}
-            >
-              💰 {showFinance ? "Hide Finance" : "Finance Manager"}
-            </button>
-          )}
-          {loop === "Health" && (
-            <button
-              className={`dashboard-action-btn ${showMealPrep ? "dashboard-action-btn--active" : "dashboard-action-btn--primary"}`}
-              onClick={() => setShowMealPrep(!showMealPrep)}
-            >
-              🍽️ {showMealPrep ? "Hide Meal Prep" : "Meal Prep"}
-            </button>
-          )}
           <button
             className="dashboard-action-btn"
             onClick={() => setShowWidgetPicker(true)}
@@ -353,16 +335,24 @@ export function LoopDashboard({
         )}
       </div>
 
-      {/* Embedded Finance Screen for Wealth loop */}
-      {loop === "Wealth" && showFinance && (
-        <div className="loop-dashboard-embedded-section">
+      {/* Finance Widget for Wealth loop */}
+      {loop === "Wealth" && (
+        <div className="loop-dashboard-full-widget">
+          <div className="full-widget-header">
+            <span className="full-widget-icon">💰</span>
+            <h3>Finance Manager</h3>
+          </div>
           <FinanceScreen embedded />
         </div>
       )}
 
-      {/* Embedded Meal Prep Screen for Health loop */}
-      {loop === "Health" && showMealPrep && (
-        <div className="loop-dashboard-embedded-section">
+      {/* Meal Prep Widget for Health loop */}
+      {loop === "Health" && (
+        <div className="loop-dashboard-full-widget">
+          <div className="full-widget-header">
+            <span className="full-widget-icon">🍽️</span>
+            <h3>Meal Prep</h3>
+          </div>
           <MealPrepScreen embedded />
         </div>
       )}
