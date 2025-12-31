@@ -431,6 +431,7 @@ export function TodaysStack({
                           {task.dueDate && (
                             <span className="task-card__due">
                               Due: {new Date(task.dueDate).toLocaleDateString()}
+                              {task.dueTime && ` at ${task.dueTime}`}
                             </span>
                           )}
                         </div>

@@ -11911,7 +11911,8 @@ body.modal-open {
 }
 
 .property-row select,
-.property-row input[type="date"] {
+.property-row input[type="date"],
+.property-row input[type="time"] {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid var(--color-border);
@@ -11919,6 +11920,21 @@ body.modal-open {
   font-size: 13px;
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.property-row-inputs {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+
+.property-row-inputs input[type="date"] {
+  flex: 1.5;
+}
+
+.property-row-inputs input[type="time"] {
+  flex: 1;
+  min-width: 100px;
 }
 
 .priority-select {

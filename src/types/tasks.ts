@@ -93,6 +93,7 @@ export type Task = {
 
   // Timing
   dueDate?: string; // YYYY-MM-DD
+  dueTime?: string; // HH:MM (24-hour format)
   startDate?: string;
   recurrence?: RecurrencePattern; // Recurring task pattern
 

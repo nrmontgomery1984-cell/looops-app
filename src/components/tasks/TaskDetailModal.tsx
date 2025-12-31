@@ -49,6 +49,7 @@ export function TaskDetailModal({
   const [projectId, setProjectId] = useState(task.projectId || "");
   const [priority, setPriority] = useState<Priority>(task.priority);
   const [dueDate, setDueDate] = useState(task.dueDate || "");
+  const [dueTime, setDueTime] = useState(task.dueTime || "");
   const [startDate, setStartDate] = useState(task.startDate || "");
   const [estimateMinutes, setEstimateMinutes] = useState(task.estimateMinutes?.toString() || "");
   const [requiredState, setRequiredState] = useState<LoopStateType | "">(task.requiredState || "");
@@ -103,6 +104,7 @@ export function TaskDetailModal({
       projectId: projectId || undefined,
       priority,
       dueDate: dueDate || undefined,
+      dueTime: dueTime || undefined,
       startDate: startDate || undefined,
       estimateMinutes: estimateMinutes ? parseInt(estimateMinutes) : undefined,
       requiredState: requiredState || undefined,
@@ -331,7 +333,7 @@ export function TaskDetailModal({
               </div>
             </div>
 
-            {/* Due date */}
+            {/* Due date & time */}
             <div className="property-row">
               <label>
                 <svg viewBox="0 0 24 24" fill="currentColor" className="property-icon">
@@ -339,11 +341,20 @@ export function TaskDetailModal({
                 </svg>
                 Due date
               </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+              <div className="property-row-inputs">
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+                <input
+                  type="time"
+                  value={dueTime}
+                  onChange={(e) => setDueTime(e.target.value)}
+                  placeholder="Time"
+                  className="time-input"
+                />
+              </div>
             </div>
 
             {/* Start date */}
