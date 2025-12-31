@@ -307,9 +307,14 @@ export function WeeklyPlanning({
     );
   }, [tasks]);
 
-  // Get pending tasks
+  // Get pending tasks (exclude Someday tasks)
   const pendingTasks = useMemo(() => {
-    return tasks.filter((t) => t.status === "todo" || t.status === "doing");
+    return tasks.filter((t) => (t.status === "todo" || t.status === "doing") && t.priority !== 0);
+  }, [tasks]);
+
+  // Get Someday/unscheduled tasks for review
+  const somedayTasks = useMemo(() => {
+    return tasks.filter((t) => t.priority === 0 && t.status !== "done" && t.status !== "dropped");
   }, [tasks]);
 
   // Get active weekly goals
@@ -408,6 +413,34 @@ export function WeeklyPlanning({
                       </span>
                     </li>
                   ))}
+                </ul>
+              </>
+            )}
+
+            {/* Someday/Unscheduled Tasks Review */}
+            {somedayTasks.length > 0 && (
+              <>
+                <h4>Someday Tasks ({somedayTasks.length})</h4>
+                <p className="weekly-someday-hint">
+                  Review these unscheduled tasks. Should any become priorities this week?
+                </p>
+                <ul className="weekly-someday-list">
+                  {somedayTasks.slice(0, 10).map((task) => (
+                    <li key={task.id} className="weekly-someday-item">
+                      <span
+                        className="weekly-someday-loop"
+                        style={{ color: LOOP_COLORS[task.loop].text }}
+                      >
+                        {LOOP_DEFINITIONS[task.loop].icon}
+                      </span>
+                      <span className="weekly-someday-title">{task.title}</span>
+                    </li>
+                  ))}
+                  {somedayTasks.length > 10 && (
+                    <li className="weekly-someday-more">
+                      +{somedayTasks.length - 10} more someday tasks
+                    </li>
+                  )}
                 </ul>
               </>
             )}

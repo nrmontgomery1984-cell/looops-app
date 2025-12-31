@@ -39,12 +39,13 @@ export function LoopsVisualization({
 }: LoopsVisualizationProps) {
   const [hoveredLoop, setHoveredLoop] = useState<LoopId | null>(null);
 
-  // Get parent tasks for a specific loop (excluding done and subtasks)
+  // Get parent tasks for a specific loop (excluding done, subtasks, and Someday tasks)
   // Each parent task = one dot in the loop visualization
   const getTasksForLoop = (loopId: LoopId): Task[] => {
     return tasks.filter((t) =>
       t.loop === loopId &&
       t.status !== "done" &&
+      t.priority !== 0 && // Exclude Someday tasks
       !t.parentId // Only parent tasks, not subtasks
     );
   };
@@ -345,8 +346,8 @@ function LoopDetailPanel({
   const loop = LOOP_DEFINITIONS[loopId];
   const state = loopStates[loopId]?.currentState || "MAINTAIN";
   const stateColor = getStateColor(state); // Use state-based color
-  // Show all tasks (including subtasks) in detail panel for full visibility
-  const loopTasks = tasks.filter((t) => t.loop === loopId && t.status !== "done");
+  // Show all tasks (including subtasks) in detail panel for full visibility, exclude Someday tasks
+  const loopTasks = tasks.filter((t) => t.loop === loopId && t.status !== "done" && t.priority !== 0);
   // Count only parent tasks for the count display
   const parentTaskCount = loopTasks.filter(t => !t.parentId).length;
 

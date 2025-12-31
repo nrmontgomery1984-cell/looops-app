@@ -504,7 +504,7 @@ function AppContent() {
   const todaysTasks = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
     let filtered = tasks.items.filter(
-      (t) => t.status !== "done" && t.status !== "dropped" && (t.dueDate === today || (t.dueDate && t.dueDate < today))
+      (t) => t.status !== "done" && t.status !== "dropped" && t.priority !== 0 && (t.dueDate === today || (t.dueDate && t.dueDate < today))
     );
 
     // Apply archetype framing if prototype exists

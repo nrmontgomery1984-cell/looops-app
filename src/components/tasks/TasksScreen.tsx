@@ -69,41 +69,44 @@ export function TasksScreen({
   // Get today's date string
   const today = new Date().toISOString().split("T")[0];
 
-  // Filter tasks based on current view
+  // Filter tasks based on current view (exclude Someday/priority 0 tasks from main views)
   const filteredTasks = useMemo(() => {
+    // Helper to exclude Someday tasks
+    const excludeSomeday = (t: Task) => t.priority !== 0;
+
     switch (currentView) {
       case "inbox":
-        return tasks.filter((t) => t.status === "inbox" || (!t.projectId && t.status !== "done"));
+        return tasks.filter((t) => (t.status === "inbox" || (!t.projectId && t.status !== "done")) && excludeSomeday(t));
 
       case "today":
-        return tasks.filter((t) => t.dueDate === today && t.status !== "done");
+        return tasks.filter((t) => t.dueDate === today && t.status !== "done" && excludeSomeday(t));
 
       case "upcoming":
         return tasks.filter((t) => {
-          if (!t.dueDate || t.status === "done") return false;
+          if (!t.dueDate || t.status === "done" || !excludeSomeday(t)) return false;
           return t.dueDate >= today;
         });
 
       case "project":
         if (!selectedProjectId) return [];
-        return tasks.filter((t) => t.projectId === selectedProjectId);
+        return tasks.filter((t) => t.projectId === selectedProjectId && excludeSomeday(t));
 
       case "loop":
         if (!selectedLoopId) return [];
-        return tasks.filter((t) => t.loop === selectedLoopId);
+        return tasks.filter((t) => t.loop === selectedLoopId && excludeSomeday(t));
 
       case "label":
         if (!selectedLabelId) return [];
-        return tasks.filter((t) => t.labels?.includes(selectedLabelId));
+        return tasks.filter((t) => t.labels?.includes(selectedLabelId) && excludeSomeday(t));
 
       default:
-        return tasks;
+        return tasks.filter(excludeSomeday);
     }
   }, [tasks, currentView, selectedProjectId, selectedLoopId, selectedLabelId, today]);
 
-  // Count tasks for sidebar badges
-  const inboxCount = tasks.filter((t) => t.status === "inbox" || (!t.projectId && t.status !== "done")).length;
-  const todayCount = tasks.filter((t) => t.dueDate === today && t.status !== "done").length;
+  // Count tasks for sidebar badges (exclude Someday tasks)
+  const inboxCount = tasks.filter((t) => (t.status === "inbox" || (!t.projectId && t.status !== "done")) && t.priority !== 0).length;
+  const todayCount = tasks.filter((t) => t.dueDate === today && t.status !== "done" && t.priority !== 0).length;
 
   // Get subtasks for a task
   const getSubtasks = (taskId: string) => tasks.filter((t) => t.parentId === taskId);
