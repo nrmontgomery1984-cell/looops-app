@@ -443,6 +443,11 @@ function TransactionsView({
   onDateRangeChange: (range: "7d" | "30d" | "90d" | "all") => void;
   dispatch: React.Dispatch<any>;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const displayCount = isExpanded ? transactions.length : 5;
+  const displayTransactions = transactions.slice(0, displayCount);
+  const hasMore = transactions.length > 5;
+
   return (
     <div className="finance-transactions">
       {/* Filters */}
@@ -483,39 +488,51 @@ function TransactionsView({
         {transactions.length === 0 ? (
           <div className="finance-empty-text">No transactions found</div>
         ) : (
-          transactions.map((t) => {
-            const category = categories.find((c) => c.id === t.categoryId);
-            const account = accounts.find((a) => a.id === t.accountId);
-            return (
-              <div key={t.id} className="finance-transaction-item">
-                <div className="finance-transaction-icon-lg">
-                  {category?.icon || "💳"}
-                </div>
-                <div className="finance-transaction-info">
-                  <div className="finance-transaction-main">
-                    <span className="finance-transaction-desc">
-                      {t.cleanDescription || t.description}
-                    </span>
-                    {t.pending && <span className="finance-pending-badge">Pending</span>}
+          <>
+            {displayTransactions.map((t) => {
+              const category = categories.find((c) => c.id === t.categoryId);
+              const account = accounts.find((a) => a.id === t.accountId);
+              return (
+                <div key={t.id} className="finance-transaction-item">
+                  <div className="finance-transaction-icon-lg">
+                    {category?.icon || "💳"}
                   </div>
-                  <div className="finance-transaction-meta">
-                    <span>{t.date}</span>
-                    {account && <span>• {account.name}</span>}
-                    {category && (
-                      <span className="finance-category-badge" style={{ backgroundColor: category.color }}>
-                        {category.name}
+                  <div className="finance-transaction-info">
+                    <div className="finance-transaction-main">
+                      <span className="finance-transaction-desc">
+                        {t.cleanDescription || t.description}
                       </span>
-                    )}
+                      {t.pending && <span className="finance-pending-badge">Pending</span>}
+                    </div>
+                    <div className="finance-transaction-meta">
+                      <span>{t.date}</span>
+                      {account && <span>• {account.name}</span>}
+                      {category && (
+                        <span className="finance-category-badge" style={{ backgroundColor: category.color }}>
+                          {category.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div
+                    className={`finance-transaction-amount-lg ${t.amount < 0 ? "negative" : "positive"}`}
+                  >
+                    {formatFinanceCurrency(t.amount)}
                   </div>
                 </div>
-                <div
-                  className={`finance-transaction-amount-lg ${t.amount < 0 ? "negative" : "positive"}`}
+              );
+            })}
+            {hasMore && (
+              <div className="finance-transactions-expand">
+                <button
+                  className="finance-expand-btn"
+                  onClick={() => setIsExpanded(!isExpanded)}
                 >
-                  {formatFinanceCurrency(t.amount)}
-                </div>
+                  {isExpanded ? "Show Less" : `Show All (${transactions.length})`}
+                </button>
               </div>
-            );
-          })
+            )}
+          </>
         )}
       </div>
     </div>

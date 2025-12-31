@@ -41571,6 +41571,12 @@ body.modal-open {
   border-color: var(--color-text-muted);
 }
 
+.finance-transactions-expand {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 8px;
+}
+
 /* Empty State */
 .finance-empty-state {
   text-align: center;
