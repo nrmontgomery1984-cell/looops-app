@@ -158,6 +158,7 @@ export interface System {
 
   // The goal this system serves
   goalStatement: string; // "Lose 20 pounds"
+  linkedGoalId?: string; // Optional link to a Goal object
 
   // Identity layer
   identity: Identity;

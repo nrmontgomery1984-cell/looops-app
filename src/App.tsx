@@ -32,13 +32,13 @@ import {
   sortTasksByStatePriority,
 } from "./types";
 import { Sidebar } from "./components/layout";
-import { LoopsVisualization } from "./components/loops";
+import { LoopsVisualization, LoopsListView } from "./components/loops";
 import { TodaysStack, CalendarView, QuickAddModal } from "./components/today";
 import { OnboardingFlow, OnboardingData } from "./components/onboarding";
 import { StateSelector } from "./components/common";
 import { AnnualGoalsWizard, GoalsDashboard, GoalBreakdownWizard } from "./components/goals";
 import { getNextTimeframe } from "./types/goals";
-import { TasksScreen, TaskDetailModal } from "./components/tasks";
+import { TaskDetailModal } from "./components/tasks";
 import { RoutinesScreen, ActiveRoutineModal } from "./components/routines";
 import { SystemsScreen } from "./components/systems";
 import { LoopDashboard } from "./components/dashboard";
@@ -262,7 +262,7 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingKey, setOnboardingKey] = useState(0); // Key to force fresh component state
   const [demoDataLoaded, setDemoDataLoaded] = useState(false);
-  const [viewMode, setViewMode] = useState<"visual" | "kanban">("visual");
+  const [viewMode, setViewMode] = useState<"visual" | "kanban" | "list">("visual");
   const [showGoalsWizard, setShowGoalsWizard] = useState(false);
   const [showDirectionalWizard, setShowDirectionalWizard] = useState(false);
   const [planningView, setPlanningView] = useState<"states" | "goals" | "weekly" | "directions" | "scheduler">("goals");
@@ -906,24 +906,6 @@ function AppContent() {
           </div>
         );
 
-      case "tasks":
-        return (
-          <TasksScreen
-            tasks={tasks.items}
-            projects={projects}
-            labels={labels}
-            onAddTask={(task) => dispatch({ type: "ADD_TASK", payload: task })}
-            onUpdateTask={(task) => dispatch({ type: "UPDATE_TASK", payload: task })}
-            onDeleteTask={(taskId) => dispatch({ type: "DELETE_TASK", payload: taskId })}
-            onCompleteTask={(taskId) => dispatch({ type: "COMPLETE_TASK", payload: taskId })}
-            onUncompleteTask={(taskId) => dispatch({ type: "UNCOMPLETE_TASK", payload: taskId })}
-            onAddProject={(project) => dispatch({ type: "ADD_PROJECT", payload: project })}
-            onUpdateProject={(project) => dispatch({ type: "UPDATE_PROJECT", payload: project })}
-            onDeleteProject={(projectId) => dispatch({ type: "DELETE_PROJECT", payload: projectId })}
-            onAddLabel={(label) => dispatch({ type: "ADD_LABEL", payload: label })}
-          />
-        );
-
       case "routines":
         return (
           <RoutinesScreen
@@ -960,12 +942,21 @@ function AppContent() {
         );
 
       case "systems":
+        // Flatten all goals from hierarchy for the systems screen
+        const allGoals = [
+          ...state.goals.annual,
+          ...state.goals.quarterly,
+          ...state.goals.monthly,
+          ...state.goals.weekly,
+          ...state.goals.daily,
+        ];
         return (
           <SystemsScreen
             systems={systems.items}
             habits={habits.items}
             completions={habits.completions}
             smartSchedule={state.smartSchedule}
+            goals={allGoals}
             onAddSystem={(system) => dispatch({ type: "ADD_SYSTEM", payload: system })}
             onUpdateSystem={(system) => dispatch({ type: "UPDATE_SYSTEM", payload: system })}
             onDeleteSystem={(systemId) => dispatch({ type: "DELETE_SYSTEM", payload: systemId })}
@@ -978,6 +969,8 @@ function AppContent() {
             onUncompleteHabit={(habitId, date) =>
               dispatch({ type: "UNCOMPLETE_HABIT", payload: { habitId, date } })
             }
+            onOpenGoalsWizard={() => setShowGoalsWizard(true)}
+            onDeleteGoal={(goalId) => dispatch({ type: "DELETE_GOAL", payload: goalId })}
           />
         );
 
@@ -1046,10 +1039,32 @@ function AppContent() {
                 >
                   Kanban
                 </button>
+                <button
+                  className={`view-toggle-btn ${viewMode === "list" ? "active" : ""}`}
+                  onClick={() => setViewMode("list")}
+                >
+                  List
+                </button>
               </div>
             </div>
 
-            {viewMode === "visual" ? (
+            {viewMode === "list" ? (
+              <LoopsListView
+                tasks={tasks.items}
+                loops={loops}
+                habits={habits.items}
+                systems={systems.items}
+                projects={projects}
+                labels={labels}
+                onAddTask={(task) => dispatch({ type: "ADD_TASK", payload: task })}
+                onUpdateTask={(task) => dispatch({ type: "UPDATE_TASK", payload: task })}
+                onDeleteTask={(taskId) => dispatch({ type: "DELETE_TASK", payload: taskId })}
+                onCompleteTask={(taskId) => dispatch({ type: "COMPLETE_TASK", payload: taskId })}
+                onUncompleteTask={(taskId) => dispatch({ type: "UNCOMPLETE_TASK", payload: taskId })}
+                onOpenLoopDashboard={(loopId) => setSelectedLoopDashboard(loopId)}
+                onOpenTaskDetail={(taskId) => dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: taskId } })}
+              />
+            ) : viewMode === "visual" ? (
               <>
                 <LoopsVisualization
                   loopStates={loops.states}
@@ -1398,6 +1413,11 @@ function AppContent() {
                       dispatch({ type: "ADD_GOAL", payload: goal });
                     });
                     setShowGoalsWizard(false);
+
+                    // Navigate to Systems screen with Goals tab to show system suggestions
+                    if (goals.length > 0) {
+                      dispatch({ type: "SET_ACTIVE_TAB", payload: "systems" });
+                    }
                   }}
                   onCancel={() => setShowGoalsWizard(false)}
                 />

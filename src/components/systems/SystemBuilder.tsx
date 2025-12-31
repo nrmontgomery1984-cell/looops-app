@@ -2,7 +2,7 @@
 // Transforms goals into identity + habits + environment design
 // Enhanced with archetype-aware personalization
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   System,
   SystemTemplate,
@@ -16,10 +16,12 @@ import {
   LOOP_DEFINITIONS,
   LOOP_COLORS,
   ALL_LOOPS,
+  Goal,
 } from "../../types";
 import { useApp } from "../../context";
 import { ARCHETYPE_OBSTACLES } from "../../engines/habitEngine";
 import { ARCHETYPE_IDENTITY_TEMPLATES } from "../../engines/voiceEngine";
+import { suggestSystemTemplatesForGoal } from "../../engines/systemEngine";
 
 type WizardStep =
   | "select_template"
@@ -34,19 +36,23 @@ interface SystemBuilderProps {
   onComplete: (system: System, habits: Habit[]) => void;
   onCancel: () => void;
   initialLoop?: LoopId;
+  linkedGoal?: Goal;
 }
 
-export function SystemBuilder({ onComplete, onCancel, initialLoop }: SystemBuilderProps) {
+export function SystemBuilder({ onComplete, onCancel, initialLoop, linkedGoal }: SystemBuilderProps) {
   const { state } = useApp();
   const prototype = state.user.prototype;
   const archetype = prototype?.archetypeBlend?.primary;
 
   const [step, setStep] = useState<WizardStep>("select_template");
   const [selectedTemplate, setSelectedTemplate] = useState<SystemTemplate | null>(null);
-  const [selectedLoop, setSelectedLoop] = useState<LoopId>(initialLoop || "Health");
+  const [selectedLoop, setSelectedLoop] = useState<LoopId>(linkedGoal?.loop || initialLoop || "Health");
+
+  // Get suggested templates if we have a linked goal
+  const suggestedTemplates = linkedGoal ? suggestSystemTemplatesForGoal(linkedGoal) : [];
 
   // Form state
-  const [goalStatement, setGoalStatement] = useState("");
+  const [goalStatement, setGoalStatement] = useState(linkedGoal?.title || "");
   const [identityStatement, setIdentityStatement] = useState("");
   const [selectedHabits, setSelectedHabits] = useState<Array<{
     title: string;
@@ -182,6 +188,7 @@ export function SystemBuilder({ onComplete, onCancel, initialLoop }: SystemBuild
       description: selectedTemplate?.description,
       loop: selectedLoop,
       goalStatement,
+      linkedGoalId: linkedGoal?.id,
       identity,
       habitIds: habits.map(h => h.id),
       environmentTweaks: environmentTweaks.filter(t => t.description.trim()),

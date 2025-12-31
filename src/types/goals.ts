@@ -31,6 +31,9 @@ export type Goal = {
   parentGoalId?: string; // Links to parent in hierarchy
   childGoalIds: string[]; // Links to children
 
+  // System linkage
+  linkedSystemIds?: string[]; // Systems that support this goal
+
   // Status tracking
   status: GoalStatus;
   progress: number; // 0-100

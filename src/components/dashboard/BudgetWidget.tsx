@@ -928,7 +928,7 @@ function BudgetAllocationView({
   onUpdateIncome: (income: number) => void;
 }) {
   const [editingIncome, setEditingIncome] = useState(false);
-  const [incomeValue, setIncomeValue] = useState(monthlyIncome.toString());
+  const [incomeValue, setIncomeValue] = useState((monthlyIncome ?? 0).toString());
   const [editingLoop, setEditingLoop] = useState<LoopId | null>(null);
   const [budgetValue, setBudgetValue] = useState('');
 
@@ -995,10 +995,10 @@ function BudgetAllocationView({
             </div>
           ) : (
             <div className="budget-income-display" onClick={() => {
-              setIncomeValue(monthlyIncome.toString());
+              setIncomeValue((monthlyIncome ?? 0).toString());
               setEditingIncome(true);
             }}>
-              <span className="budget-income-value">{formatCurrency(monthlyIncome)}</span>
+              <span className="budget-income-value">{formatCurrency(monthlyIncome ?? 0)}</span>
               <span className="budget-income-edit-hint">Edit</span>
             </div>
           )}

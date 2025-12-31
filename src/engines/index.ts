@@ -9,6 +9,7 @@ export * from "./routineEngine";
 export * from "./voiceEngine";
 export * from "./habitEngine";
 export * from "./traitScoring";
+export * from "./systemEngine";
 // Note: schedulingEngine also exports suggestHabitFrequency, so we selectively re-export
 export {
   deriveSchedulingProfile,

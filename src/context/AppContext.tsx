@@ -890,11 +890,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
         routines: { ...state.routines, items: action.payload },
       };
 
-    case "ADD_ROUTINE":
+    case "ADD_ROUTINE": {
+      // Prevent duplicate routines - check if one with same ID already exists
+      const existingRoutine = state.routines.items.find(r => r.id === action.payload.id);
+      if (existingRoutine) {
+        console.log('[AppContext] Skipping duplicate routine:', action.payload.id);
+        return state;
+      }
       return {
         ...state,
         routines: { ...state.routines, items: [...state.routines.items, action.payload] },
       };
+    }
 
     case "UPDATE_ROUTINE":
       return {
@@ -1607,11 +1614,30 @@ function appReducer(state: AppState, action: AppAction): AppState {
           monthlyIncome: payload.finance.monthlyIncome ?? state.finance.monthlyIncome ?? 0,
         };
       }
+      // Special handling for routines - deduplicate by ID
+      let routinesMerged = payload.routines;
+      if (payload.routines?.items) {
+        const seenIds = new Set<string>();
+        const deduplicatedItems = payload.routines.items.filter((r: Routine) => {
+          if (seenIds.has(r.id)) {
+            console.log('[HYDRATE] Removing duplicate routine:', r.id, r.title);
+            return false;
+          }
+          seenIds.add(r.id);
+          return true;
+        });
+        routinesMerged = {
+          ...state.routines,
+          ...payload.routines,
+          items: deduplicatedItems,
+        };
+      }
       return {
         ...state,
         ...payload,
         mealPrep: mealPrepMerged ?? state.mealPrep,
         finance: financeMerged ?? state.finance,
+        routines: routinesMerged ?? state.routines,
       };
     }
 
@@ -2513,6 +2539,16 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
     routines: {
       ...defaultState.routines,
       ...savedState.routines,
+      // Deduplicate routines by ID
+      items: (() => {
+        const items = savedState.routines?.items ?? defaultState.routines.items;
+        const seenIds = new Set<string>();
+        return items.filter((r: Routine) => {
+          if (seenIds.has(r.id)) return false;
+          seenIds.add(r.id);
+          return true;
+        });
+      })(),
     },
     // Systems & Habits
     systems: {

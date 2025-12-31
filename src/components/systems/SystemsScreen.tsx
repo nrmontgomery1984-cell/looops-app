@@ -1,5 +1,5 @@
 // Systems Screen - View and manage all behavior change systems
-// Shows systems, habits, and system health across all loops
+// Shows systems, habits, goals, and system health across all loops
 
 import React, { useState, useMemo } from "react";
 import {
@@ -14,19 +14,23 @@ import {
   calculateSystemHealth,
   getHabitsDueToday,
   getHabitsDueTodayWithDayType,
+  Goal,
 } from "../../types";
 import { SmartScheduleState, DayType } from "../../types/dayTypes";
 import { getDayTypes } from "../../engines/smartSchedulerEngine";
 import { SystemBuilder } from "./SystemBuilder";
 import { HabitsTracker } from "./HabitsTracker";
+import { GoalsDashboard } from "../goals";
+import { suggestSystemTemplatesForGoal } from "../../engines/systemEngine";
 
-type SystemsView = "overview" | "habits" | "systems";
+type SystemsView = "overview" | "habits" | "systems" | "goals";
 
 interface SystemsScreenProps {
   systems: System[];
   habits: Habit[];
   completions: HabitCompletion[];
   smartSchedule?: SmartScheduleState;
+  goals?: Goal[];
   onAddSystem: (system: System) => void;
   onUpdateSystem: (system: System) => void;
   onDeleteSystem: (systemId: string) => void;
@@ -35,6 +39,10 @@ interface SystemsScreenProps {
   onDeleteHabit: (habitId: string) => void;
   onCompleteHabit: (habitId: string, date: string, notes?: string) => void;
   onUncompleteHabit: (habitId: string, date: string) => void;
+  onSelectGoal?: (goal: Goal) => void;
+  onCreateSystemFromGoal?: (goal: Goal) => void;
+  onOpenGoalsWizard?: () => void;
+  onDeleteGoal?: (goalId: string) => void;
 }
 
 export function SystemsScreen({
@@ -42,6 +50,7 @@ export function SystemsScreen({
   habits,
   completions,
   smartSchedule,
+  goals = [],
   onAddSystem,
   onUpdateSystem,
   onDeleteSystem,
@@ -50,11 +59,16 @@ export function SystemsScreen({
   onDeleteHabit,
   onCompleteHabit,
   onUncompleteHabit,
+  onSelectGoal,
+  onCreateSystemFromGoal,
+  onOpenGoalsWizard,
+  onDeleteGoal,
 }: SystemsScreenProps) {
   const [view, setView] = useState<SystemsView>("overview");
   const [showBuilder, setShowBuilder] = useState(false);
   const [selectedLoop, setSelectedLoop] = useState<LoopId | null>(null);
   const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
+  const [linkedGoalForBuilder, setLinkedGoalForBuilder] = useState<Goal | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -86,12 +100,29 @@ export function SystemsScreen({
     setShowBuilder(false);
   };
 
+  const handleOpenBuilder = (goal?: Goal) => {
+    if (goal) {
+      setLinkedGoalForBuilder(goal);
+      setSelectedLoop(goal.loop);
+    }
+    setShowBuilder(true);
+  };
+
+  const handleCloseBuilder = () => {
+    setShowBuilder(false);
+    setLinkedGoalForBuilder(null);
+  };
+
   if (showBuilder) {
     return (
       <SystemBuilder
-        onComplete={handleCreateSystem}
-        onCancel={() => setShowBuilder(false)}
+        onComplete={(system, newHabits) => {
+          handleCreateSystem(system, newHabits);
+          handleCloseBuilder();
+        }}
+        onCancel={handleCloseBuilder}
         initialLoop={selectedLoop || undefined}
+        linkedGoal={linkedGoalForBuilder || undefined}
       />
     );
   }
@@ -158,6 +189,12 @@ export function SystemsScreen({
           onClick={() => setView("systems")}
         >
           All Systems
+        </button>
+        <button
+          className={`systems-tab ${view === "goals" ? "active" : ""}`}
+          onClick={() => setView("goals")}
+        >
+          Goals
         </button>
       </div>
 
@@ -371,6 +408,120 @@ export function SystemsScreen({
                     + Create System
                   </button>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {view === "goals" && (
+          <div className="systems-goals-view">
+            <div className="goals-systems-intro">
+              <p>Goals drive your direction. Systems make achievement inevitable.</p>
+            </div>
+
+            {/* Goals list with system suggestions */}
+            <div className="goals-with-systems">
+              {goals.filter(g => g.status === "active" && g.timeframe === "annual").length === 0 ? (
+                <div className="systems-empty">
+                  <span className="systems-empty-icon">🎯</span>
+                  <h3>No goals yet</h3>
+                  <p>Set your annual goals to start building systems that support them</p>
+                  {onOpenGoalsWizard && (
+                    <button
+                      className="systems-empty-btn"
+                      onClick={onOpenGoalsWizard}
+                    >
+                      + Set Annual Goals
+                    </button>
+                  )}
+                </div>
+              ) : (
+                goals
+                  .filter(g => g.status === "active" && g.timeframe === "annual")
+                  .map(goal => {
+                    const suggestedTemplates = suggestSystemTemplatesForGoal(goal);
+                    const linkedSystems = systems.filter(s => s.linkedGoalId === goal.id);
+
+                    return (
+                      <div
+                        key={goal.id}
+                        className="goal-system-card"
+                        style={{
+                          "--loop-color": LOOP_COLORS[goal.loop].border,
+                          "--loop-bg": LOOP_COLORS[goal.loop].bg,
+                        } as React.CSSProperties}
+                      >
+                        <div className="goal-system-header">
+                          <span className="goal-system-loop">
+                            {LOOP_DEFINITIONS[goal.loop].icon} {goal.loop}
+                          </span>
+                          <div className="goal-system-actions">
+                            <span className="goal-system-progress">{goal.progress}%</span>
+                            {onDeleteGoal && (
+                              <button
+                                className="goal-delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Delete goal "${goal.title}"? This cannot be undone.`)) {
+                                    onDeleteGoal(goal.id);
+                                  }
+                                }}
+                                title="Delete goal"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <h3 className="goal-system-title">{goal.title}</h3>
+                        {goal.description && (
+                          <p className="goal-system-desc">{goal.description}</p>
+                        )}
+
+                        {/* Linked Systems */}
+                        {linkedSystems.length > 0 && (
+                          <div className="goal-linked-systems">
+                            <h4>Supporting Systems</h4>
+                            {linkedSystems.map(sys => (
+                              <div key={sys.id} className="goal-linked-system">
+                                <span>{sys.title}</span>
+                                <span className="goal-linked-health">
+                                  {calculateSystemHealth(sys, habits.filter(h => h.systemId === sys.id), completions)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* System Suggestions */}
+                        {linkedSystems.length === 0 && suggestedTemplates.length > 0 && (
+                          <div className="goal-system-suggestions">
+                            <h4>Suggested Systems</h4>
+                            <div className="suggested-templates">
+                              {suggestedTemplates.map(template => (
+                                <button
+                                  key={template.id}
+                                  className="suggested-template-btn"
+                                  onClick={() => handleOpenBuilder(goal)}
+                                >
+                                  <span className="template-title">{template.title}</span>
+                                  <span className="template-arrow">→</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Create System Button */}
+                        <button
+                          className="goal-create-system-btn"
+                          onClick={() => handleOpenBuilder(goal)}
+                        >
+                          + Create System for This Goal
+                        </button>
+                      </div>
+                    );
+                  })
               )}
             </div>
           </div>

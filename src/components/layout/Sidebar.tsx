@@ -153,10 +153,9 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "today", icon: <TodayIcon />, label: "Today" },
-  { id: "tasks", icon: <TasksIcon />, label: "Tasks" },
+  { id: "loops", icon: <LoopsIcon />, label: "Loops" },
   { id: "routines", icon: <RoutinesIcon />, label: "Routines" },
   { id: "systems", icon: <SystemsIcon />, label: "Systems" },
-  { id: "loops", icon: <LoopsIcon />, label: "Loops" },
   { id: "planning", icon: <PlanningIcon />, label: "Planning" },
   { id: "mealprep", icon: <MealPrepIcon />, label: "Meal Prep" },
   { id: "finance", icon: <FinanceIcon />, label: "Finance" },

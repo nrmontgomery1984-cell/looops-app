@@ -926,6 +926,153 @@ body.modal-open {
   color: var(--looops-coral);
 }
 
+/* ========== Loops List View ========== */
+.loops-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.loops-list-section {
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.loops-list-section.expanded {
+  border-color: var(--loop-color);
+}
+
+.loops-list-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.loops-list-header:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.loops-list-header__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.loops-list-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.loops-list-chevron {
+  font-size: 18px;
+  color: var(--color-text-tertiary);
+  transition: transform 0.2s ease;
+  width: 16px;
+}
+
+.loops-list-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.loops-list-icon {
+  font-size: 20px;
+}
+
+.loops-list-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.loops-list-state {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.loops-list-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.loops-list-badge.overdue {
+  background: rgba(242, 112, 89, 0.2);
+  color: var(--looops-coral);
+}
+
+.loops-list-badge.today {
+  background: rgba(244, 185, 66, 0.2);
+  color: var(--looops-amber);
+}
+
+.loops-list-count {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.loops-list-content {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.loops-list-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+.loops-list-dashboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.loops-list-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.loops-list-stat {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.loops-list-dashboard-link {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: var(--loop-color, var(--looops-coral));
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.loops-list-dashboard-link:hover {
+  background: var(--loop-bg, rgba(242, 112, 89, 0.1));
+}
+
 /* Back button for dashboards */
 .back-btn {
   display: flex;
@@ -17498,6 +17645,188 @@ body.modal-open {
 .template-quick-duration {
   font-size: 11px;
   color: var(--color-text-tertiary);
+}
+
+/* Goals View in Systems Screen */
+.systems-goals-view {
+  padding: 16px;
+}
+
+.goals-systems-intro {
+  text-align: center;
+  padding: 16px;
+  margin-bottom: 16px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.goals-with-systems {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.goal-system-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  border-left: 4px solid var(--loop-color, var(--looops-coral));
+}
+
+.goal-system-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.goal-system-loop {
+  font-size: 13px;
+  color: var(--loop-color, var(--color-text-secondary));
+  font-weight: 500;
+}
+
+.goal-system-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.goal-system-progress {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--looops-sage);
+}
+
+.goal-delete-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.goal-system-card:hover .goal-delete-btn {
+  opacity: 1;
+}
+
+.goal-delete-btn:hover {
+  background: var(--color-error-bg, rgba(220, 38, 38, 0.1));
+  color: var(--color-error, #dc2626);
+}
+
+.goal-system-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.goal-system-desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+}
+
+.goal-linked-systems {
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.goal-linked-systems h4 {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.goal-linked-system {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.goal-linked-health {
+  font-weight: 600;
+  color: var(--looops-sage);
+}
+
+.goal-system-suggestions {
+  margin-bottom: 12px;
+}
+
+.goal-system-suggestions h4 {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.suggested-templates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggested-template-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--loop-bg, rgba(242, 112, 89, 0.1));
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.suggested-template-btn:hover {
+  border-color: var(--loop-color, var(--looops-coral));
+  background: var(--color-surface);
+}
+
+.suggested-template-btn .template-title {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.suggested-template-btn .template-arrow {
+  color: var(--loop-color, var(--looops-coral));
+}
+
+.goal-create-system-btn {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.goal-create-system-btn:hover {
+  border-color: var(--loop-color, var(--looops-coral));
+  color: var(--loop-color, var(--looops-coral));
+  background: var(--loop-bg, rgba(242, 112, 89, 0.05));
 }
 
 /* ===========================================
