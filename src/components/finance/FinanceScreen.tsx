@@ -356,34 +356,65 @@ function OverviewView({
       </div>
 
       {/* Recent Transactions */}
-      <div className="finance-card finance-recent">
+      <RecentTransactionsCard
+        transactions={recentTransactions}
+        categories={categories}
+      />
+    </div>
+  );
+}
+
+// Recent Transactions Card with collapsible view
+function RecentTransactionsCard({
+  transactions,
+  categories,
+}: {
+  transactions: FinanceTransaction[];
+  categories: FinanceCategory[];
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const displayCount = isExpanded ? 10 : 5;
+  const displayTransactions = transactions.slice(0, displayCount);
+  const hasMore = transactions.length > 5;
+
+  return (
+    <div className="finance-card finance-recent">
+      <div className="finance-recent-header">
         <h3>Recent Transactions</h3>
-        {recentTransactions.length === 0 ? (
-          <p className="finance-empty-text">No transactions yet</p>
-        ) : (
-          <div className="finance-transaction-list">
-            {recentTransactions.map((t) => {
-              const category = categories.find((c) => c.id === t.categoryId);
-              return (
-                <div key={t.id} className="finance-transaction-row">
-                  <div className="finance-transaction-icon">
-                    {category?.icon || "💳"}
-                  </div>
-                  <div className="finance-transaction-details">
-                    <span className="finance-transaction-desc">{t.cleanDescription || t.description}</span>
-                    <span className="finance-transaction-date">{t.date}</span>
-                  </div>
-                  <div
-                    className={`finance-transaction-amount ${t.amount < 0 ? "negative" : "positive"}`}
-                  >
-                    {formatFinanceCurrency(t.amount)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        {hasMore && (
+          <button
+            className="finance-expand-btn"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? "Show Less" : `Show More (${transactions.length})`}
+          </button>
         )}
       </div>
+      {transactions.length === 0 ? (
+        <p className="finance-empty-text">No transactions yet</p>
+      ) : (
+        <div className="finance-transaction-list">
+          {displayTransactions.map((t) => {
+            const category = categories.find((c) => c.id === t.categoryId);
+            return (
+              <div key={t.id} className="finance-transaction-row">
+                <div className="finance-transaction-icon">
+                  {category?.icon || "💳"}
+                </div>
+                <div className="finance-transaction-details">
+                  <span className="finance-transaction-desc">{t.cleanDescription || t.description}</span>
+                  <span className="finance-transaction-date">{t.date}</span>
+                </div>
+                <div
+                  className={`finance-transaction-amount ${t.amount < 0 ? "negative" : "positive"}`}
+                >
+                  {formatFinanceCurrency(t.amount)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

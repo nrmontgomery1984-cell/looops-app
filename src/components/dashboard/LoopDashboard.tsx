@@ -43,6 +43,7 @@ import { WastedMoneyWidget } from "./WastedMoneyWidget";
 import { WorkoutWidget } from "./WorkoutWidget";
 import { FinanceScreen } from "../finance/FinanceScreen";
 import { MealPrepScreen } from "../mealprep/MealPrepScreen";
+import { ZeroWasteWidget } from "./ZeroWasteWidget";
 
 interface LoopDashboardProps {
   loop: LoopId;
@@ -354,6 +355,17 @@ export function LoopDashboard({
             <h3>Meal Prep</h3>
           </div>
           <MealPrepScreen embedded />
+        </div>
+      )}
+
+      {/* Zero Waste Widget for Health loop */}
+      {loop === "Health" && (
+        <div className="loop-dashboard-full-widget">
+          <div className="full-widget-header">
+            <span className="full-widget-icon">♻️</span>
+            <h3>Zero Waste</h3>
+          </div>
+          <ZeroWasteWidget />
         </div>
       )}
 

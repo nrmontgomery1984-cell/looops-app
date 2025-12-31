@@ -31381,6 +31381,116 @@ body.modal-open {
   font-size: 14px;
 }
 
+.meal-prep__collapsed-hint {
+  text-align: center;
+  padding: 16px;
+  color: var(--color-gray-500);
+  font-size: 14px;
+}
+
+.meal-prep__collapsed-hint p {
+  margin: 0;
+}
+
+/* Zero Waste Widget */
+.zero-waste-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zero-waste-widget__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.zero-waste-widget__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.zero-waste-widget__stat--highlight {
+  background: rgba(var(--color-warning-rgb, 245, 158, 11), 0.1);
+}
+
+.zero-waste-widget__stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.zero-waste-widget__stat-label {
+  font-size: 11px;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.zero-waste-widget__section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  margin: 0 0 8px 0;
+}
+
+.zero-waste-widget__entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zero-waste-widget__entry {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--color-bg-tertiary);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.zero-waste-widget__entry-name {
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zero-waste-widget__entry-reason {
+  color: var(--color-gray-500);
+  font-size: 12px;
+}
+
+.zero-waste-widget__entry-date {
+  color: var(--color-gray-400);
+  font-size: 12px;
+}
+
+.zero-waste-widget__empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--color-gray-500);
+  font-size: 14px;
+}
+
+.zero-waste-widget__empty p {
+  margin: 0;
+}
+
 /* Empty State */
 .meal-prep__empty {
   text-align: center;
@@ -41430,6 +41540,35 @@ body.modal-open {
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+/* Recent Transactions Header */
+.finance-recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.finance-recent-header h3 {
+  margin: 0;
+}
+
+.finance-expand-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.finance-expand-btn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
 }
 
 /* Empty State */

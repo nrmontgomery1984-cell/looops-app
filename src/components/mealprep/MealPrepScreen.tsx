@@ -20,12 +20,11 @@ import { TechniqueLibrary } from "./TechniqueLibrary";
 import { MealPlanCalendar } from "./MealPlanCalendar";
 import { ShoppingList } from "./ShoppingList";
 import { MealSuggester } from "./MealSuggester";
-import { FoodWasteTracker } from "./FoodWasteTracker";
 import { WasteEntry } from "../../types/mealPrep";
 
 type ViewMode = "grid" | "list";
 type SortBy = "recent" | "rating" | "timesMade" | "totalTime" | "title";
-type MainView = "recipes" | "techniques" | "calendar" | "shopping" | "waste";
+type MainView = "recipes" | "techniques" | "calendar" | "shopping";
 
 interface FilterState {
   search: string;
@@ -299,21 +298,6 @@ export function MealPrepScreen({ embedded = false }: MealPrepScreenProps) {
     );
   }
 
-  // Food Waste Tracker View
-  if (mainView === "waste") {
-    return (
-      <div className="screen meal-prep-screen">
-        <FoodWasteTracker
-          wasteLog={mealPrep.wasteLog}
-          onAddEntry={(entry: WasteEntry) => dispatch({ type: "ADD_WASTE_ENTRY", payload: entry })}
-          onUpdateEntry={(entry: WasteEntry) => dispatch({ type: "UPDATE_WASTE_ENTRY", payload: entry })}
-          onDeleteEntry={(id: string) => dispatch({ type: "DELETE_WASTE_ENTRY", payload: id })}
-          onBack={() => setMainView("recipes")}
-        />
-      </div>
-    );
-  }
-
   // Helper to check active tab
   const isActiveTab = (tab: MainView) => mainView === tab;
 
@@ -397,15 +381,6 @@ export function MealPrepScreen({ embedded = false }: MealPrepScreenProps) {
           Shopping
         </button>
         <button
-          className={`meal-prep__tab ${isActiveTab("waste") ? "meal-prep__tab--active" : ""}`}
-          onClick={() => setMainView("waste")}
-        >
-          No Waste
-          {mealPrep.wasteLog.length > 0 && (
-            <span className="meal-prep__tab-count">{mealPrep.wasteLog.length}</span>
-          )}
-        </button>
-        <button
           className="meal-prep__tab meal-prep__tab--suggest"
           onClick={() => setShowSuggester(true)}
         >
@@ -413,7 +388,7 @@ export function MealPrepScreen({ embedded = false }: MealPrepScreenProps) {
         </button>
       </div>
 
-      {/* Search & Filters */}
+      {/* Search - shown in embedded mode */}
       <div className="meal-prep__filters">
         <div className="meal-prep__search">
           <span className="meal-prep__search-icon">🔍</span>
@@ -433,175 +408,191 @@ export function MealPrepScreen({ embedded = false }: MealPrepScreenProps) {
           )}
         </div>
 
-        <div className="meal-prep__filter-row">
-          {/* Source Filter */}
-          <select
-            className="meal-prep__filter-select"
-            value={filters.source || ""}
-            onChange={(e) => setFilters({ ...filters, source: e.target.value || null })}
-          >
-            <option value="">All Sources</option>
-            {usedSources.map((source) => (
-              <option key={source} value={source}>
-                {source}
-              </option>
-            ))}
-          </select>
+        {/* Only show advanced filters when searching or not embedded */}
+        {(!embedded || filters.search) && (
+          <>
+            <div className="meal-prep__filter-row">
+              {/* Source Filter */}
+              <select
+                className="meal-prep__filter-select"
+                value={filters.source || ""}
+                onChange={(e) => setFilters({ ...filters, source: e.target.value || null })}
+              >
+                <option value="">All Sources</option>
+                {usedSources.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
 
-          {/* Difficulty Filter */}
-          <select
-            className="meal-prep__filter-select"
-            value={filters.difficulty || ""}
-            onChange={(e) =>
-              setFilters({ ...filters, difficulty: (e.target.value || null) as RecipeDifficulty | null })
-            }
-          >
-            <option value="">All Difficulties</option>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="advanced">Advanced</option>
-            <option value="project">Project</option>
-          </select>
+              {/* Difficulty Filter */}
+              <select
+                className="meal-prep__filter-select"
+                value={filters.difficulty || ""}
+                onChange={(e) =>
+                  setFilters({ ...filters, difficulty: (e.target.value || null) as RecipeDifficulty | null })
+                }
+              >
+                <option value="">All Difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="advanced">Advanced</option>
+                <option value="project">Project</option>
+              </select>
 
-          {/* Course Filter */}
-          <select
-            className="meal-prep__filter-select"
-            value={filters.course || ""}
-            onChange={(e) => setFilters({ ...filters, course: (e.target.value || null) as Course | null })}
-          >
-            <option value="">All Courses</option>
-            <option value="breakfast">Breakfast</option>
-            <option value="lunch">Lunch</option>
-            <option value="dinner">Dinner</option>
-            <option value="snack">Snack</option>
-            <option value="dessert">Dessert</option>
-            <option value="component">Component</option>
-          </select>
+              {/* Course Filter */}
+              <select
+                className="meal-prep__filter-select"
+                value={filters.course || ""}
+                onChange={(e) => setFilters({ ...filters, course: (e.target.value || null) as Course | null })}
+              >
+                <option value="">All Courses</option>
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+                <option value="dessert">Dessert</option>
+                <option value="component">Component</option>
+              </select>
 
-          {/* Time Filter */}
-          <select
-            className="meal-prep__filter-select"
-            value={filters.maxTime || ""}
-            onChange={(e) =>
-              setFilters({ ...filters, maxTime: e.target.value ? parseInt(e.target.value) : null })
-            }
-          >
-            <option value="">Any Time</option>
-            <option value="30">Under 30 min</option>
-            <option value="60">Under 1 hour</option>
-            <option value="120">Under 2 hours</option>
-          </select>
+              {/* Time Filter */}
+              <select
+                className="meal-prep__filter-select"
+                value={filters.maxTime || ""}
+                onChange={(e) =>
+                  setFilters({ ...filters, maxTime: e.target.value ? parseInt(e.target.value) : null })
+                }
+              >
+                <option value="">Any Time</option>
+                <option value="30">Under 30 min</option>
+                <option value="60">Under 1 hour</option>
+                <option value="120">Under 2 hours</option>
+              </select>
 
-          {/* Favorites Toggle */}
-          <button
-            className={`meal-prep__filter-toggle ${filters.favorites ? "meal-prep__filter-toggle--active" : ""}`}
-            onClick={() => setFilters({ ...filters, favorites: !filters.favorites })}
-          >
-            {filters.favorites ? "★" : "☆"} Favorites
-          </button>
+              {/* Favorites Toggle */}
+              <button
+                className={`meal-prep__filter-toggle ${filters.favorites ? "meal-prep__filter-toggle--active" : ""}`}
+                onClick={() => setFilters({ ...filters, favorites: !filters.favorites })}
+              >
+                {filters.favorites ? "★" : "☆"} Favorites
+              </button>
 
-          {/* Clear Filters */}
-          {hasActiveFilters && (
-            <button className="meal-prep__filter-clear" onClick={clearFilters}>
-              Clear All
-            </button>
-          )}
-        </div>
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <button className="meal-prep__filter-clear" onClick={clearFilters}>
+                  Clear All
+                </button>
+              )}
+            </div>
 
-        {/* Sort & View Controls */}
-        <div className="meal-prep__controls">
-          <div className="meal-prep__sort">
-            <span className="meal-prep__sort-label">Sort by:</span>
-            <select
-              className="meal-prep__sort-select"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortBy)}
-            >
-              <option value="recent">Recently Added</option>
-              <option value="rating">Rating</option>
-              <option value="timesMade">Most Made</option>
-              <option value="totalTime">Quickest First</option>
-              <option value="title">Title A-Z</option>
-            </select>
-          </div>
+            {/* Sort & View Controls */}
+            <div className="meal-prep__controls">
+              <div className="meal-prep__sort">
+                <span className="meal-prep__sort-label">Sort by:</span>
+                <select
+                  className="meal-prep__sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortBy)}
+                >
+                  <option value="recent">Recently Added</option>
+                  <option value="rating">Rating</option>
+                  <option value="timesMade">Most Made</option>
+                  <option value="totalTime">Quickest First</option>
+                  <option value="title">Title A-Z</option>
+                </select>
+              </div>
 
-          <div className="meal-prep__view-toggle">
-            <button
-              className={`meal-prep__view-btn ${viewMode === "grid" ? "meal-prep__view-btn--active" : ""}`}
-              onClick={() => setViewMode("grid")}
-              title="Grid View"
-            >
-              ⊞
-            </button>
-            <button
-              className={`meal-prep__view-btn ${viewMode === "list" ? "meal-prep__view-btn--active" : ""}`}
-              onClick={() => setViewMode("list")}
-              title="List View"
-            >
-              ☰
-            </button>
-          </div>
-        </div>
+              <div className="meal-prep__view-toggle">
+                <button
+                  className={`meal-prep__view-btn ${viewMode === "grid" ? "meal-prep__view-btn--active" : ""}`}
+                  onClick={() => setViewMode("grid")}
+                  title="Grid View"
+                >
+                  ⊞
+                </button>
+                <button
+                  className={`meal-prep__view-btn ${viewMode === "list" ? "meal-prep__view-btn--active" : ""}`}
+                  onClick={() => setViewMode("list")}
+                  title="List View"
+                >
+                  ☰
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Recipe Grid/List */}
-      {filteredRecipes.length === 0 ? (
-        <div className="meal-prep__empty">
-          {mealPrep.recipes.length === 0 ? (
-            <>
-              <div className="meal-prep__empty-icon">📖</div>
-              <h3>No recipes yet</h3>
-              <p>Start building your collection by importing a recipe from one of your trusted sources.</p>
-              <div className="meal-prep__empty-sources">
-                <p className="meal-prep__empty-sources-label">Approved sources:</p>
-                <div className="meal-prep__empty-sources-list">
-                  {APPROVED_SOURCES.filter((s) => s.type === "website").map((source) => (
-                    <span key={source.name} className="meal-prep__empty-source">
-                      {source.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <button
-                className="meal-prep__empty-btn"
-                onClick={() => setShowImportModal(true)}
-              >
-                Import Your First Recipe
-              </button>
-            </>
+      {/* Recipe Grid/List - only show when searching in embedded mode, or always in non-embedded */}
+      {(!embedded || filters.search) && (
+        <>
+          {filteredRecipes.length === 0 ? (
+            <div className="meal-prep__empty">
+              {mealPrep.recipes.length === 0 ? (
+                <>
+                  <div className="meal-prep__empty-icon">📖</div>
+                  <h3>No recipes yet</h3>
+                  <p>Start building your collection by importing a recipe from one of your trusted sources.</p>
+                  <div className="meal-prep__empty-sources">
+                    <p className="meal-prep__empty-sources-label">Approved sources:</p>
+                    <div className="meal-prep__empty-sources-list">
+                      {APPROVED_SOURCES.filter((s) => s.type === "website").map((source) => (
+                        <span key={source.name} className="meal-prep__empty-source">
+                          {source.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    className="meal-prep__empty-btn"
+                    onClick={() => setShowImportModal(true)}
+                  >
+                    Import Your First Recipe
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="meal-prep__empty-icon">🔍</div>
+                  <h3>No recipes match your filters</h3>
+                  <p>Try adjusting your search or filters to find what you're looking for.</p>
+                  <button className="meal-prep__empty-btn" onClick={clearFilters}>
+                    Clear Filters
+                  </button>
+                </>
+              )}
+            </div>
           ) : (
-            <>
-              <div className="meal-prep__empty-icon">🔍</div>
-              <h3>No recipes match your filters</h3>
-              <p>Try adjusting your search or filters to find what you're looking for.</p>
-              <button className="meal-prep__empty-btn" onClick={clearFilters}>
-                Clear Filters
-              </button>
-            </>
+            <div className={`meal-prep__recipes meal-prep__recipes--${viewMode}`}>
+              {filteredRecipes.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onView={() => setSelectedRecipe(recipe)}
+                  onToggleFavorite={() => handleToggleFavorite(recipe.id)}
+                  onAddToPlan={() => {
+                    // TODO: Implement add to meal plan
+                    console.log("Add to plan:", recipe.id);
+                  }}
+                  compact={viewMode === "list"}
+                />
+              ))}
+            </div>
           )}
-        </div>
-      ) : (
-        <div className={`meal-prep__recipes meal-prep__recipes--${viewMode}`}>
-          {filteredRecipes.map((recipe) => (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              onView={() => setSelectedRecipe(recipe)}
-              onToggleFavorite={() => handleToggleFavorite(recipe.id)}
-              onAddToPlan={() => {
-                // TODO: Implement add to meal plan
-                console.log("Add to plan:", recipe.id);
-              }}
-              compact={viewMode === "list"}
-            />
-          ))}
-        </div>
+
+          {/* Results count */}
+          {filteredRecipes.length > 0 && (
+            <div className="meal-prep__count">
+              Showing {filteredRecipes.length} of {mealPrep.recipes.length} recipes
+            </div>
+          )}
+        </>
       )}
 
-      {/* Results count */}
-      {filteredRecipes.length > 0 && (
-        <div className="meal-prep__count">
-          Showing {filteredRecipes.length} of {mealPrep.recipes.length} recipes
+      {/* Collapsed state hint for embedded mode */}
+      {embedded && !filters.search && (
+        <div className="meal-prep__collapsed-hint">
+          <p>{mealPrep.recipes.length} recipes available. Start typing to search.</p>
         </div>
       )}
 
