@@ -123,6 +123,7 @@ export type UserProfile = {
   name: string;
   email?: string;
   timezone?: string;
+  birthday?: string; // ISO date string (e.g., "1984-08-26")
   lifeSeason?: string;
   majorTransition?: string;
   transitionDescription?: string;
@@ -1585,10 +1586,32 @@ function appReducer(state: AppState, action: AppAction): AppState {
           techniqueLibrary: hasRemoteTechniques ? payload.mealPrep.techniqueLibrary! : state.mealPrep.techniqueLibrary,
         };
       }
+      // Special handling for finance - ensure all required arrays exist
+      let financeMerged = payload.finance;
+      if (payload.finance) {
+        financeMerged = {
+          ...state.finance,
+          ...payload.finance,
+          // Ensure arrays are never undefined
+          connections: payload.finance.connections ?? state.finance.connections ?? [],
+          accounts: payload.finance.accounts ?? state.finance.accounts ?? [],
+          transactions: payload.finance.transactions ?? state.finance.transactions ?? [],
+          categories: (payload.finance.categories?.length ?? 0) > 0
+            ? payload.finance.categories!
+            : state.finance.categories ?? [],
+          rules: (payload.finance.rules?.length ?? 0) > 0
+            ? payload.finance.rules!
+            : state.finance.rules ?? [],
+          expenses: payload.finance.expenses ?? state.finance.expenses ?? [],
+          loopBudgets: payload.finance.loopBudgets ?? state.finance.loopBudgets ?? [],
+          monthlyIncome: payload.finance.monthlyIncome ?? state.finance.monthlyIncome ?? 0,
+        };
+      }
       return {
         ...state,
         ...payload,
         mealPrep: mealPrepMerged ?? state.mealPrep,
+        finance: financeMerged ?? state.finance,
       };
     }
 
@@ -2833,40 +2856,40 @@ export function useFinance() {
 
 export function useFinanceConnections() {
   const { state } = useApp();
-  return state.finance.connections;
+  return state.finance.connections ?? [];
 }
 
 export function useFinanceAccounts() {
   const { state } = useApp();
-  return state.finance.accounts;
+  return state.finance.accounts ?? [];
 }
 
 export function useFinanceTransactions() {
   const { state } = useApp();
-  return state.finance.transactions;
+  return state.finance.transactions ?? [];
 }
 
 export function useFinanceCategories() {
   const { state } = useApp();
-  return state.finance.categories;
+  return state.finance.categories ?? [];
 }
 
 export function useFinanceRules() {
   const { state } = useApp();
-  return state.finance.rules;
+  return state.finance.rules ?? [];
 }
 
 export function useFinanceExpenses() {
   const { state } = useApp();
-  return state.finance.expenses;
+  return state.finance.expenses ?? [];
 }
 
 export function useLoopBudgets() {
   const { state } = useApp();
-  return state.finance.loopBudgets;
+  return state.finance.loopBudgets ?? [];
 }
 
 export function useMonthlyIncome() {
   const { state } = useApp();
-  return state.finance.monthlyIncome;
+  return state.finance.monthlyIncome ?? 0;
 }
