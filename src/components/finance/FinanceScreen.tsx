@@ -32,7 +32,11 @@ import { connectSimplefin, performFullSync } from "../../lib/finance/service";
 
 type FinanceView = "overview" | "transactions" | "expenses" | "accounts" | "categories" | "settings";
 
-export function FinanceScreen() {
+interface FinanceScreenProps {
+  embedded?: boolean;
+}
+
+export function FinanceScreen({ embedded = false }: FinanceScreenProps) {
   const { dispatch } = useApp();
   const finance = useFinance();
   const accounts = useFinanceAccounts();
@@ -152,24 +156,37 @@ export function FinanceScreen() {
   const hasConnection = finance.connections.length > 0;
 
   return (
-    <div className="finance-screen">
-      <div className="finance-header">
-        <div className="finance-header-title">
-          <h2>Finance</h2>
-          <span className="finance-header-subtitle">Bank accounts & transactions</span>
+    <div className={`finance-screen${embedded ? " finance-screen--embedded" : ""}`}>
+      {!embedded && (
+        <div className="finance-header">
+          <div className="finance-header-title">
+            <h2>Finance</h2>
+            <span className="finance-header-subtitle">Bank accounts & transactions</span>
+          </div>
+          <div className="finance-header-actions">
+            {hasConnection && (
+              <button
+                className="finance-sync-btn"
+                disabled={finance.syncStatus.isSyncing}
+                onClick={handleSync}
+              >
+                {finance.syncStatus.isSyncing ? "Syncing..." : "Sync"}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="finance-header-actions">
-          {hasConnection && (
-            <button
-              className="finance-sync-btn"
-              disabled={finance.syncStatus.isSyncing}
-              onClick={handleSync}
-            >
-              {finance.syncStatus.isSyncing ? "Syncing..." : "Sync"}
-            </button>
-          )}
+      )}
+      {embedded && hasConnection && (
+        <div className="finance-embedded-header">
+          <button
+            className="finance-sync-btn"
+            disabled={finance.syncStatus.isSyncing}
+            onClick={handleSync}
+          >
+            {finance.syncStatus.isSyncing ? "Syncing..." : "Sync"}
+          </button>
         </div>
-      </div>
+      )}
 
       {/* Navigation tabs */}
       <div className="finance-tabs">

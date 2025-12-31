@@ -1015,14 +1015,6 @@ function AppContent() {
               onUpdateCaregiver={(caregiver) => dispatch({ type: "UPDATE_CAREGIVER", payload: caregiver })}
               onDeactivateCaregiver={(caregiverId) => dispatch({ type: "DEACTIVATE_CAREGIVER", payload: caregiverId })}
               onBack={() => setSelectedLoopDashboard(null)}
-              onOpenFinance={() => {
-                setSelectedLoopDashboard(null);
-                dispatch({ type: "SET_ACTIVE_TAB", payload: "finance" });
-              }}
-              onOpenMealPrep={() => {
-                setSelectedLoopDashboard(null);
-                dispatch({ type: "SET_ACTIVE_TAB", payload: "mealprep" });
-              }}
             />
           );
         }
@@ -1802,12 +1794,6 @@ function AppContent() {
             )}
           </div>
         );
-
-      case "mealprep":
-        return <MealPrepScreen />;
-
-      case "finance":
-        return <FinanceScreen />;
 
       case "me":
         return (

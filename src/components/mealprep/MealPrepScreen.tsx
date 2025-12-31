@@ -36,7 +36,11 @@ interface FilterState {
   maxTime: number | null;
 }
 
-export function MealPrepScreen() {
+interface MealPrepScreenProps {
+  embedded?: boolean;
+}
+
+export function MealPrepScreen({ embedded = false }: MealPrepScreenProps) {
   const { state, dispatch } = useApp();
   const mealPrep = useMealPrep();
 
@@ -314,16 +318,37 @@ export function MealPrepScreen() {
   const isActiveTab = (tab: MainView) => mainView === tab;
 
   return (
-    <div className="screen meal-prep-screen">
+    <div className={`${embedded ? "" : "screen "}meal-prep-screen${embedded ? " meal-prep-screen--embedded" : ""}`}>
       {/* Header */}
-      <div className="meal-prep__header">
-        <div className="meal-prep__header-content">
-          <h2>Meal Prep</h2>
-          <p className="meal-prep__subtitle">
-            Your curated recipe collection from trusted sources
-          </p>
+      {!embedded && (
+        <div className="meal-prep__header">
+          <div className="meal-prep__header-content">
+            <h2>Meal Prep</h2>
+            <p className="meal-prep__subtitle">
+              Your curated recipe collection from trusted sources
+            </p>
+          </div>
+          <div className="meal-prep__header-actions">
+            <button
+              className="meal-prep__add-btn meal-prep__add-btn--secondary"
+              onClick={() => {
+                setEditingRecipe(null);
+                setShowRecipeForm(true);
+              }}
+            >
+              + Add Manually
+            </button>
+            <button
+              className="meal-prep__add-btn"
+              onClick={() => setShowImportModal(true)}
+            >
+              + Import from URL
+            </button>
+          </div>
         </div>
-        <div className="meal-prep__header-actions">
+      )}
+      {embedded && (
+        <div className="meal-prep__embedded-header">
           <button
             className="meal-prep__add-btn meal-prep__add-btn--secondary"
             onClick={() => {
@@ -331,16 +356,16 @@ export function MealPrepScreen() {
               setShowRecipeForm(true);
             }}
           >
-            + Add Manually
+            + Add
           </button>
           <button
             className="meal-prep__add-btn"
             onClick={() => setShowImportModal(true)}
           >
-            + Import from URL
+            + Import
           </button>
         </div>
-      </div>
+      )}
 
       {/* Main View Tabs */}
       <div className="meal-prep__tabs">

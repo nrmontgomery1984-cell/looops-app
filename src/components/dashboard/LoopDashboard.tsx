@@ -41,6 +41,8 @@ import { StepsWidget } from "./StepsWidget";
 import { LoopAIWidget } from "./LoopAIWidget";
 import { WastedMoneyWidget } from "./WastedMoneyWidget";
 import { WorkoutWidget } from "./WorkoutWidget";
+import { FinanceScreen } from "../finance/FinanceScreen";
+import { MealPrepScreen } from "../mealprep/MealPrepScreen";
 
 interface LoopDashboardProps {
   loop: LoopId;
@@ -72,8 +74,6 @@ interface LoopDashboardProps {
   onUpdateCaregiver: (caregiver: Caregiver) => void;
   onDeactivateCaregiver: (caregiverId: string) => void;
   onBack?: () => void;
-  onOpenFinance?: () => void;
-  onOpenMealPrep?: () => void;
 }
 
 export function LoopDashboard({
@@ -102,10 +102,10 @@ export function LoopDashboard({
   onUpdateCaregiver,
   onDeactivateCaregiver,
   onBack,
-  onOpenFinance,
-  onOpenMealPrep,
 }: LoopDashboardProps) {
   const [showWidgetPicker, setShowWidgetPicker] = useState(false);
+  const [showFinance, setShowFinance] = useState(false);
+  const [showMealPrep, setShowMealPrep] = useState(false);
 
   const loopColor = LOOP_COLORS[loop];
   const loopDef = LOOP_DEFINITIONS[loop];
@@ -307,20 +307,20 @@ export function LoopDashboard({
           <h1>{loop}</h1>
         </div>
         <div className="loop-dashboard-actions">
-          {loop === "Wealth" && onOpenFinance && (
+          {loop === "Wealth" && (
             <button
-              className="dashboard-action-btn dashboard-action-btn--primary"
-              onClick={onOpenFinance}
+              className={`dashboard-action-btn ${showFinance ? "dashboard-action-btn--active" : "dashboard-action-btn--primary"}`}
+              onClick={() => setShowFinance(!showFinance)}
             >
-              💰 Finance Manager
+              💰 {showFinance ? "Hide Finance" : "Finance Manager"}
             </button>
           )}
-          {loop === "Health" && onOpenMealPrep && (
+          {loop === "Health" && (
             <button
-              className="dashboard-action-btn dashboard-action-btn--primary"
-              onClick={onOpenMealPrep}
+              className={`dashboard-action-btn ${showMealPrep ? "dashboard-action-btn--active" : "dashboard-action-btn--primary"}`}
+              onClick={() => setShowMealPrep(!showMealPrep)}
             >
-              🍽️ Meal Prep
+              🍽️ {showMealPrep ? "Hide Meal Prep" : "Meal Prep"}
             </button>
           )}
           <button
@@ -352,6 +352,20 @@ export function LoopDashboard({
           </div>
         )}
       </div>
+
+      {/* Embedded Finance Screen for Wealth loop */}
+      {loop === "Wealth" && showFinance && (
+        <div className="loop-dashboard-embedded-section">
+          <FinanceScreen embedded />
+        </div>
+      )}
+
+      {/* Embedded Meal Prep Screen for Health loop */}
+      {loop === "Health" && showMealPrep && (
+        <div className="loop-dashboard-embedded-section">
+          <MealPrepScreen embedded />
+        </div>
+      )}
 
       <div className="loop-dashboard-widgets">
         {dashboard.widgets.map(widget => {
