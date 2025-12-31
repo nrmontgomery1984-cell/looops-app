@@ -557,6 +557,7 @@ export type AppAction =
   | { type: "UPDATE_CATEGORY_RULE"; payload: Partial<CategoryRule> & { id: string } }
   | { type: "DELETE_CATEGORY_RULE"; payload: string }
   | { type: "SET_FINANCE_SYNC_STATUS"; payload: Partial<FinanceState["syncStatus"]> }
+  | { type: "RESET_ALL_FINANCE" }
   | { type: "UPDATE_FINANCE_SETTINGS"; payload: Partial<FinanceSettings> }
 
   // Budget Expenses (shared with Budget widget)
@@ -2365,6 +2366,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
           ...state.finance,
           settings: { ...state.finance.settings, ...action.payload },
         },
+      };
+
+    case "RESET_ALL_FINANCE":
+      // Nuclear reset - clears ALL finance data in one atomic operation
+      // This is harder for Firebase sync to partially override
+      return {
+        ...state,
+        finance: getDefaultFinanceState(),
       };
 
     // Finance - Budget Expenses (shared with Budget widget)

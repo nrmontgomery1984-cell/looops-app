@@ -1098,20 +1098,13 @@ function SettingsView({
         </p>
         <button
           className="finance-reset-btn"
-          onClick={async () => {
+          onClick={() => {
             if (confirm("This will delete ALL finance connections, accounts, and transactions. Are you sure?")) {
-              // Clear everything multiple times to ensure it persists through Firebase sync
-              for (let i = 0; i < 3; i++) {
-                dispatch({ type: "SET_FINANCE_ACCOUNTS", payload: [] });
-                dispatch({ type: "SET_FINANCE_TRANSACTIONS", payload: [] });
-                // Clear connections by setting an empty array via a new action
-                connections.forEach(c => {
-                  dispatch({ type: "DELETE_FINANCE_CONNECTION", payload: c.id });
-                });
-                // Small delay between iterations
-                await new Promise(r => setTimeout(r, 500));
-              }
-              alert("Finance data reset. Please refresh the page.");
+              // Use atomic reset action - harder for Firebase to partially override
+              dispatch({ type: "RESET_ALL_FINANCE" });
+              alert("Finance data reset! Refreshing page...");
+              // Force page refresh to ensure clean state
+              setTimeout(() => window.location.reload(), 500);
             }
           }}
         >
