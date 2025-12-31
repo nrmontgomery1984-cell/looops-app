@@ -265,7 +265,7 @@ function AppContent() {
   const [viewMode, setViewMode] = useState<"visual" | "kanban" | "list">("visual");
   const [showGoalsWizard, setShowGoalsWizard] = useState(false);
   const [showDirectionalWizard, setShowDirectionalWizard] = useState(false);
-  const [planningView, setPlanningView] = useState<"states" | "goals" | "weekly" | "directions" | "scheduler">("goals");
+  const [planningView, setPlanningView] = useState<"states" | "goals" | "weekly" | "directions" | "scheduler" | "history">("goals");
   const [todayViewMode, setTodayViewMode] = useState<"stack" | "calendar">("stack");
   const [todayFilter, setTodayFilter] = useState<LoopId | "all">("all");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -1015,6 +1015,14 @@ function AppContent() {
               onUpdateCaregiver={(caregiver) => dispatch({ type: "UPDATE_CAREGIVER", payload: caregiver })}
               onDeactivateCaregiver={(caregiverId) => dispatch({ type: "DEACTIVATE_CAREGIVER", payload: caregiverId })}
               onBack={() => setSelectedLoopDashboard(null)}
+              onOpenFinance={() => {
+                setSelectedLoopDashboard(null);
+                dispatch({ type: "SET_ACTIVE_TAB", payload: "finance" });
+              }}
+              onOpenMealPrep={() => {
+                setSelectedLoopDashboard(null);
+                dispatch({ type: "SET_ACTIVE_TAB", payload: "mealprep" });
+              }}
             />
           );
         }
@@ -1263,6 +1271,12 @@ function AppContent() {
                 >
                   Smart Schedule
                 </button>
+                <button
+                  className={`planning-view-btn ${planningView === "history" ? "active" : ""}`}
+                  onClick={() => setPlanningView("history")}
+                >
+                  History
+                </button>
               </div>
             </div>
 
@@ -1323,6 +1337,8 @@ function AppContent() {
               </>
             ) : planningView === "scheduler" ? (
               <SmartScheduler />
+            ) : planningView === "history" ? (
+              <HistoryScreen tasks={tasks.items} />
             ) : (
               /* Directions View */
               <div className="directions-view">
@@ -1793,12 +1809,6 @@ function AppContent() {
       case "finance":
         return <FinanceScreen />;
 
-      case "history":
-        return <HistoryScreen tasks={tasks.items} />;
-
-      case "integrations":
-        return <IntegrationsScreen />;
-
       case "me":
         return (
           <div className="screen profile-screen">
@@ -1915,6 +1925,12 @@ function AppContent() {
                 </div>
               </>
             )}
+
+            <div className="profile-section">
+              <h3>Integrations</h3>
+              <p className="section-description">Connect external services to enhance your Looops experience</p>
+              <IntegrationsScreen embedded />
+            </div>
 
             <div className="profile-section">
               <h3>Appearance</h3>

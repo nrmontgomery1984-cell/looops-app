@@ -3148,6 +3148,17 @@ body.modal-open {
   margin: 0 auto;
 }
 
+.integrations-screen--embedded {
+  padding: 0;
+  margin-top: 16px;
+}
+
+.integrations-screen--embedded .integrations-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 0;
+}
+
 .integrations-screen .screen-header {
   margin-bottom: 24px;
 }
@@ -18947,6 +18958,17 @@ body.modal-open {
 .dashboard-action-btn:hover {
   border-color: var(--loop-color, var(--looops-coral));
   color: var(--loop-color, var(--looops-coral));
+}
+
+.dashboard-action-btn--primary {
+  background: var(--loop-color, var(--looops-sage));
+  border-color: var(--loop-color, var(--looops-sage));
+  color: white;
+}
+
+.dashboard-action-btn--primary:hover {
+  filter: brightness(1.1);
+  color: white;
 }
 
 /* Dashboard Stats */

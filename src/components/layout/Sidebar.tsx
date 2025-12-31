@@ -157,10 +157,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "routines", icon: <RoutinesIcon />, label: "Routines" },
   { id: "systems", icon: <SystemsIcon />, label: "Systems" },
   { id: "planning", icon: <PlanningIcon />, label: "Planning" },
-  { id: "mealprep", icon: <MealPrepIcon />, label: "Meal Prep" },
-  { id: "finance", icon: <FinanceIcon />, label: "Finance" },
-  { id: "history", icon: <HistoryIcon />, label: "History" },
-  { id: "integrations", icon: <IntegrationsIcon />, label: "Integrations" },
   { id: "me", icon: <ProfileIcon />, label: "Me" },
 ];
 

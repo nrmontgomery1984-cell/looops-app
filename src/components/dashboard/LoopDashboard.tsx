@@ -72,6 +72,8 @@ interface LoopDashboardProps {
   onUpdateCaregiver: (caregiver: Caregiver) => void;
   onDeactivateCaregiver: (caregiverId: string) => void;
   onBack?: () => void;
+  onOpenFinance?: () => void;
+  onOpenMealPrep?: () => void;
 }
 
 export function LoopDashboard({
@@ -100,6 +102,8 @@ export function LoopDashboard({
   onUpdateCaregiver,
   onDeactivateCaregiver,
   onBack,
+  onOpenFinance,
+  onOpenMealPrep,
 }: LoopDashboardProps) {
   const [showWidgetPicker, setShowWidgetPicker] = useState(false);
 
@@ -303,6 +307,22 @@ export function LoopDashboard({
           <h1>{loop}</h1>
         </div>
         <div className="loop-dashboard-actions">
+          {loop === "Wealth" && onOpenFinance && (
+            <button
+              className="dashboard-action-btn dashboard-action-btn--primary"
+              onClick={onOpenFinance}
+            >
+              💰 Finance Manager
+            </button>
+          )}
+          {loop === "Health" && onOpenMealPrep && (
+            <button
+              className="dashboard-action-btn dashboard-action-btn--primary"
+              onClick={onOpenMealPrep}
+            >
+              🍽️ Meal Prep
+            </button>
+          )}
           <button
             className="dashboard-action-btn"
             onClick={() => setShowWidgetPicker(true)}

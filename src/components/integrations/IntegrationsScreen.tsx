@@ -214,7 +214,11 @@ function convertTodoistTask(todoistTask: TodoistSyncTask): Task {
   };
 }
 
-export function IntegrationsScreen() {
+interface IntegrationsScreenProps {
+  embedded?: boolean;
+}
+
+export function IntegrationsScreen({ embedded = false }: IntegrationsScreenProps) {
   const { state, dispatch } = useApp();
   const [statuses, setStatuses] = useState<{
     fitbit: IntegrationStatus | null;
@@ -323,13 +327,15 @@ export function IntegrationsScreen() {
   };
 
   return (
-    <div className="screen integrations-screen">
-      <div className="screen-header">
-        <h2>Integrations</h2>
-        <p className="screen-description">
-          Connect external services to sync your data automatically
-        </p>
-      </div>
+    <div className={`${embedded ? "" : "screen "}integrations-screen${embedded ? " integrations-screen--embedded" : ""}`}>
+      {!embedded && (
+        <div className="screen-header">
+          <h2>Integrations</h2>
+          <p className="screen-description">
+            Connect external services to sync your data automatically
+          </p>
+        </div>
+      )}
 
       <div className="integrations-grid">
         {/* Fitbit - Health Loop */}
