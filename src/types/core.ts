@@ -109,7 +109,7 @@ export type Duration = "micro" | "small" | "medium" | "large";
 export type Season = "Rebuilding" | "Growth" | "Peak" | "Maintenance";
 
 // Tab navigation
-export type TabId = "today" | "tasks" | "routines" | "systems" | "loops" | "planning" | "history" | "integrations" | "mealprep" | "me";
+export type TabId = "today" | "tasks" | "routines" | "systems" | "loops" | "planning" | "history" | "integrations" | "mealprep" | "finance" | "me";
 
 // All loops as array for iteration
 export const ALL_LOOPS: LoopId[] = [

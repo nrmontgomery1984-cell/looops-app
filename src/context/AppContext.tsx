@@ -95,6 +95,18 @@ import {
   getDefaultWorkoutState,
   getDefaultExercises,
 } from "../types/workout";
+import {
+  FinanceState,
+  FinanceConnection,
+  FinanceAccount,
+  FinanceTransaction,
+  FinanceCategory,
+  CategoryRule,
+  FinanceSettings,
+  getDefaultFinanceState,
+  DEFAULT_FINANCE_CATEGORIES,
+  DEFAULT_CATEGORY_RULES,
+} from "../types/finance";
 import { SEED_RECIPES, SEED_TECHNIQUES } from "../data/mealPrepSeedData";
 
 // User profile type
@@ -202,6 +214,9 @@ export type AppState = {
   // Workout (Health loop)
   workout: WorkoutState;
 
+  // Finance (Wealth loop)
+  finance: FinanceState;
+
   // Active task timer (only one can run at a time)
   activeTimer: ActiveTimer | null;
 
@@ -304,6 +319,8 @@ const defaultState: AppState = {
   },
   // Workout
   workout: getDefaultWorkoutState(),
+  // Finance
+  finance: getDefaultFinanceState(),
   // Active Timer
   activeTimer: null,
   ui: {
@@ -513,6 +530,26 @@ export type AppAction =
   | { type: "ADD_WORKOUT_LOG"; payload: WorkoutLog }
   | { type: "UPDATE_WORKOUT_LOG"; payload: WorkoutLog }
   | { type: "DELETE_WORKOUT_LOG"; payload: string }
+
+  // Finance actions
+  | { type: "SET_FINANCE_CONNECTION"; payload: FinanceConnection }
+  | { type: "UPDATE_FINANCE_CONNECTION"; payload: Partial<FinanceConnection> & { id: string } }
+  | { type: "DELETE_FINANCE_CONNECTION"; payload: string }
+  | { type: "SET_FINANCE_ACCOUNTS"; payload: FinanceAccount[] }
+  | { type: "UPDATE_FINANCE_ACCOUNT"; payload: Partial<FinanceAccount> & { id: string } }
+  | { type: "SET_FINANCE_TRANSACTIONS"; payload: FinanceTransaction[] }
+  | { type: "UPSERT_FINANCE_TRANSACTIONS"; payload: FinanceTransaction[] }
+  | { type: "UPDATE_FINANCE_TRANSACTION"; payload: Partial<FinanceTransaction> & { id: string } }
+  | { type: "DELETE_FINANCE_TRANSACTION"; payload: string }
+  | { type: "BULK_CATEGORIZE_TRANSACTIONS"; payload: { ids: string[]; categoryId: string; loop: LoopId } }
+  | { type: "ADD_FINANCE_CATEGORY"; payload: FinanceCategory }
+  | { type: "UPDATE_FINANCE_CATEGORY"; payload: Partial<FinanceCategory> & { id: string } }
+  | { type: "DELETE_FINANCE_CATEGORY"; payload: string }
+  | { type: "ADD_CATEGORY_RULE"; payload: CategoryRule }
+  | { type: "UPDATE_CATEGORY_RULE"; payload: Partial<CategoryRule> & { id: string } }
+  | { type: "DELETE_CATEGORY_RULE"; payload: string }
+  | { type: "SET_FINANCE_SYNC_STATUS"; payload: Partial<FinanceState["syncStatus"]> }
+  | { type: "UPDATE_FINANCE_SETTINGS"; payload: Partial<FinanceSettings> }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -2113,6 +2150,197 @@ function appReducer(state: AppState, action: AppAction): AppState {
         },
       };
 
+    // Finance - Connections
+    case "SET_FINANCE_CONNECTION": {
+      const existingIdx = state.finance.connections.findIndex(c => c.id === action.payload.id);
+      const newConnections = existingIdx >= 0
+        ? state.finance.connections.map((c, i) => i === existingIdx ? action.payload : c)
+        : [...state.finance.connections, action.payload];
+      return {
+        ...state,
+        finance: { ...state.finance, connections: newConnections },
+      };
+    }
+
+    case "UPDATE_FINANCE_CONNECTION":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          connections: state.finance.connections.map(c =>
+            c.id === action.payload.id ? { ...c, ...action.payload, updatedAt: new Date().toISOString() } : c
+          ),
+        },
+      };
+
+    case "DELETE_FINANCE_CONNECTION":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          connections: state.finance.connections.filter(c => c.id !== action.payload),
+          // Also remove related accounts
+          accounts: state.finance.accounts.filter(a => a.connectionId !== action.payload),
+        },
+      };
+
+    // Finance - Accounts
+    case "SET_FINANCE_ACCOUNTS":
+      return {
+        ...state,
+        finance: { ...state.finance, accounts: action.payload },
+      };
+
+    case "UPDATE_FINANCE_ACCOUNT":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          accounts: state.finance.accounts.map(a =>
+            a.id === action.payload.id ? { ...a, ...action.payload, updatedAt: new Date().toISOString() } : a
+          ),
+        },
+      };
+
+    // Finance - Transactions
+    case "SET_FINANCE_TRANSACTIONS":
+      return {
+        ...state,
+        finance: { ...state.finance, transactions: action.payload },
+      };
+
+    case "UPSERT_FINANCE_TRANSACTIONS": {
+      // Merge new transactions, replacing existing ones with same externalId
+      const existingByExternalId = new Map(
+        state.finance.transactions.map(t => [t.externalId, t])
+      );
+      action.payload.forEach(t => existingByExternalId.set(t.externalId, t));
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          transactions: Array.from(existingByExternalId.values()),
+        },
+      };
+    }
+
+    case "UPDATE_FINANCE_TRANSACTION":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          transactions: state.finance.transactions.map(t =>
+            t.id === action.payload.id ? { ...t, ...action.payload, updatedAt: new Date().toISOString() } : t
+          ),
+        },
+      };
+
+    case "DELETE_FINANCE_TRANSACTION":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          transactions: state.finance.transactions.filter(t => t.id !== action.payload),
+        },
+      };
+
+    case "BULK_CATEGORIZE_TRANSACTIONS": {
+      const { ids, categoryId, loop } = action.payload;
+      const idSet = new Set(ids);
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          transactions: state.finance.transactions.map(t =>
+            idSet.has(t.id)
+              ? { ...t, categoryId, loop, isReviewed: true, updatedAt: new Date().toISOString() }
+              : t
+          ),
+        },
+      };
+    }
+
+    // Finance - Categories
+    case "ADD_FINANCE_CATEGORY":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          categories: [...state.finance.categories, action.payload],
+        },
+      };
+
+    case "UPDATE_FINANCE_CATEGORY":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          categories: state.finance.categories.map(c =>
+            c.id === action.payload.id ? { ...c, ...action.payload } : c
+          ),
+        },
+      };
+
+    case "DELETE_FINANCE_CATEGORY":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          categories: state.finance.categories.filter(c => c.id !== action.payload),
+          // Also remove rules that reference this category
+          rules: state.finance.rules.filter(r => r.categoryId !== action.payload),
+        },
+      };
+
+    // Finance - Rules
+    case "ADD_CATEGORY_RULE":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          rules: [...state.finance.rules, action.payload],
+        },
+      };
+
+    case "UPDATE_CATEGORY_RULE":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          rules: state.finance.rules.map(r =>
+            r.id === action.payload.id ? { ...r, ...action.payload } : r
+          ),
+        },
+      };
+
+    case "DELETE_CATEGORY_RULE":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          rules: state.finance.rules.filter(r => r.id !== action.payload),
+        },
+      };
+
+    // Finance - Sync Status & Settings
+    case "SET_FINANCE_SYNC_STATUS":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          syncStatus: { ...state.finance.syncStatus, ...action.payload },
+        },
+      };
+
+    case "UPDATE_FINANCE_SETTINGS":
+      return {
+        ...state,
+        finance: {
+          ...state.finance,
+          settings: { ...state.finance.settings, ...action.payload },
+        },
+      };
+
     default:
       return state;
   }
@@ -2230,6 +2458,23 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
           ...savedState.workout,
         }
       : defaultState.workout,
+    // Finance - persists, preserve seed categories/rules if saved is empty
+    finance: savedState.finance
+      ? {
+          ...defaultState.finance,
+          ...savedState.finance,
+          // Use seed categories if user hasn't customized
+          categories: (savedState.finance.categories?.length ?? 0) > 0
+            ? savedState.finance.categories!
+            : defaultState.finance.categories,
+          // Use seed rules if user hasn't customized
+          rules: (savedState.finance.rules?.length ?? 0) > 0
+            ? savedState.finance.rules!
+            : defaultState.finance.rules,
+          // Always reset sync status on load
+          syncStatus: defaultState.finance.syncStatus,
+        }
+      : defaultState.finance,
     // Active Timer - persists (allows resuming timer across sessions)
     activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
@@ -2454,4 +2699,35 @@ export function useGymProfile() {
 export function useExercises() {
   const { state } = useApp();
   return state.workout.exercises;
+}
+
+// Finance hooks
+export function useFinance() {
+  const { state } = useApp();
+  return state.finance;
+}
+
+export function useFinanceConnections() {
+  const { state } = useApp();
+  return state.finance.connections;
+}
+
+export function useFinanceAccounts() {
+  const { state } = useApp();
+  return state.finance.accounts;
+}
+
+export function useFinanceTransactions() {
+  const { state } = useApp();
+  return state.finance.transactions;
+}
+
+export function useFinanceCategories() {
+  const { state } = useApp();
+  return state.finance.categories;
+}
+
+export function useFinanceRules() {
+  const { state } = useApp();
+  return state.finance.rules;
 }

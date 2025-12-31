@@ -29,6 +29,13 @@ export {
   useWorkout,
   useGymProfile,
   useExercises,
+  // Finance
+  useFinance,
+  useFinanceConnections,
+  useFinanceAccounts,
+  useFinanceTransactions,
+  useFinanceCategories,
+  useFinanceRules,
 } from "./AppContext";
 
 export type { UserProfile, AppState, AppAction } from "./AppContext";

@@ -17,3 +17,4 @@ export * from "./media";
 export * from "./personalization";
 export * from "./directional";
 export * from "./mealPrep";
+export * from "./finance";
