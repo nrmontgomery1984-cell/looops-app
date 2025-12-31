@@ -2172,14 +2172,19 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     // Finance - Connections
+    // When adding a new connection, replace ALL existing connections
+    // This ensures old expired connections don't persist via Firebase sync
     case "SET_FINANCE_CONNECTION": {
-      const existingIdx = state.finance.connections.findIndex(c => c.id === action.payload.id);
-      const newConnections = existingIdx >= 0
-        ? state.finance.connections.map((c, i) => i === existingIdx ? action.payload : c)
-        : [...state.finance.connections, action.payload];
       return {
         ...state,
-        finance: { ...state.finance, connections: newConnections },
+        finance: {
+          ...state.finance,
+          connections: [action.payload],
+          // Clear accounts from old connections
+          accounts: [],
+          // Clear transactions from old connections
+          transactions: [],
+        },
       };
     }
 
