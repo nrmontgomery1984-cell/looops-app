@@ -878,7 +878,9 @@ function SettingsView({
 
     try {
       // Step 1: Claim the token and get access URL
+      console.log("[Finance] Claiming setup token...");
       const result = await connectSimplefin(setupToken.trim());
+      console.log("[Finance] Connect result:", result);
 
       if (!result.success) {
         setConnectError(result.message || "Failed to connect");
@@ -898,10 +900,12 @@ function SettingsView({
         updatedAt: new Date().toISOString(),
       };
 
+      console.log("[Finance] Saving connection...");
       dispatch({ type: "SET_FINANCE_CONNECTION", payload: newConnection });
 
       // Step 3: Perform initial sync
-      await performFullSync(
+      console.log("[Finance] Starting initial sync...");
+      const syncResult = await performFullSync(
         newConnection,
         accounts,
         transactions,
@@ -909,10 +913,16 @@ function SettingsView({
         categories,
         dispatch
       );
+      console.log("[Finance] Sync result:", syncResult);
 
-      setConnectSuccess(true);
+      if (!syncResult.success) {
+        setConnectError(syncResult.error || "Sync failed after connection");
+      } else {
+        setConnectSuccess(true);
+      }
       setSetupToken("");
     } catch (error) {
+      console.error("[Finance] Connection error:", error);
       setConnectError(error instanceof Error ? error.message : "Connection failed");
     } finally {
       setIsConnecting(false);

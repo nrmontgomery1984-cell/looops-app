@@ -278,7 +278,15 @@ export async function performFullSync(
       : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     // Fetch from SimpleFIN
+    console.log("[Finance Service] Fetching from SimpleFIN, startDate:", startDate);
     const syncResult = await syncSimplefin(connection.accessUrl, { startDate });
+    console.log("[Finance Service] Sync response:", {
+      success: syncResult.success,
+      accountCount: syncResult.accounts?.length,
+      transactionCount: syncResult.transactions?.length,
+      error: syncResult.error,
+      errors: syncResult.errors,
+    });
 
     if (!syncResult.success) {
       // Handle reauth needed
@@ -298,11 +306,13 @@ export async function performFullSync(
     }
 
     // Merge accounts
+    console.log("[Finance Service] Merging accounts...");
     const mergedAccounts = mergeAccounts(
       existingAccounts,
       syncResult.accounts!,
       connection.id
     );
+    console.log("[Finance Service] Merged accounts:", mergedAccounts);
     dispatch({ type: "SET_FINANCE_ACCOUNTS", payload: mergedAccounts });
 
     // Deduplicate and categorize transactions
