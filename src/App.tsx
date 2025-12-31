@@ -39,7 +39,7 @@ import { StateSelector } from "./components/common";
 import { AnnualGoalsWizard, GoalsDashboard, GoalBreakdownWizard } from "./components/goals";
 import { getNextTimeframe } from "./types/goals";
 import { TasksScreen, TaskDetailModal } from "./components/tasks";
-import { RoutinesScreen } from "./components/routines";
+import { RoutinesScreen, ActiveRoutineModal } from "./components/routines";
 import { SystemsScreen } from "./components/systems";
 import { LoopDashboard } from "./components/dashboard";
 import { WeatherWidget } from "./components/dashboard/WeatherWidget";
@@ -216,6 +216,7 @@ import {
   DEMO_BABYSITTER_SESSIONS,
   DEMO_GOALS,
   DEMO_NOTES,
+  DEMO_ROUTINES,
   DEMO_USER_PROFILE,
   DEMO_PROTOTYPE,
 } from "./data/demoData";
@@ -269,6 +270,7 @@ function AppContent() {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showBreakdownWizard, setShowBreakdownWizard] = useState(false);
   const [selectedLoopDashboard, setSelectedLoopDashboard] = useState<LoopId | null>(null);
+  const [activeRoutineForModal, setActiveRoutineForModal] = useState<typeof routines.items[0] | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     // Check localStorage for saved preference
     const saved = localStorage.getItem("looops-theme");
@@ -350,6 +352,11 @@ function AppContent() {
       // Load demo notes
       DEMO_NOTES.forEach((note) => {
         dispatch({ type: "ADD_NOTE", payload: note });
+      });
+
+      // Load demo routines
+      DEMO_ROUTINES.forEach((routine) => {
+        dispatch({ type: "ADD_ROUTINE", payload: routine });
       });
 
       setDemoDataLoaded(true);
@@ -723,9 +730,10 @@ function AppContent() {
                     onCompleteHabit={(habitId, date) => dispatch({ type: "COMPLETE_HABIT", payload: { habitId, date } })}
                     onUncompleteHabit={(habitId, date) => dispatch({ type: "UNCOMPLETE_HABIT", payload: { habitId, date } })}
                     onStartRoutine={(routineId) => {
-                      dispatch({ type: "SET_ACTIVE_TAB", payload: "routines" });
-                      // Navigate to routines and potentially trigger the routine runner
-                      // For now, just navigate - later we can add a start modal
+                      const routine = routines.items.find(r => r.id === routineId);
+                      if (routine) {
+                        setActiveRoutineForModal(routine);
+                      }
                     }}
                   />
                 </div>
@@ -1981,7 +1989,14 @@ function AppContent() {
       <main className="app-main">{renderScreen()}</main>
 
       {/* Floating action button for quick actions */}
-      <QuickActionsFAB />
+      <QuickActionsFAB
+        onStartRoutine={(routineId) => {
+          const routine = routines.items.find(r => r.id === routineId);
+          if (routine) {
+            setActiveRoutineForModal(routine);
+          }
+        }}
+      />
 
       {showOnboarding && !skipOnboarding && (
         <OnboardingFlow
@@ -2097,6 +2112,40 @@ function AppContent() {
           <span>Demo Mode - Data is not saved</span>
           <button onClick={logout} className="demo-banner-logout">Exit Demo</button>
         </div>
+      )}
+
+      {/* Global Active Routine Modal - accessible from anywhere */}
+      {activeRoutineForModal && (
+        <ActiveRoutineModal
+          routine={activeRoutineForModal}
+          onClose={() => setActiveRoutineForModal(null)}
+          onComplete={() => {
+            // Record completion
+            const completion = {
+              id: `comp_${Date.now()}`,
+              routineId: activeRoutineForModal.id,
+              completedAt: new Date().toISOString(),
+              completedSteps: activeRoutineForModal.steps.map(s => s.id),
+              skippedSteps: [],
+              fullyCompleted: true,
+            };
+            dispatch({ type: "ADD_ROUTINE_COMPLETION", payload: completion });
+            setActiveRoutineForModal(null);
+          }}
+          onSkip={() => {
+            // Record skip
+            const completion = {
+              id: `comp_${Date.now()}`,
+              routineId: activeRoutineForModal.id,
+              completedAt: new Date().toISOString(),
+              completedSteps: [],
+              skippedSteps: activeRoutineForModal.steps.map(s => s.id),
+              fullyCompleted: false,
+            };
+            dispatch({ type: "ADD_ROUTINE_COMPLETION", payload: completion });
+            setActiveRoutineForModal(null);
+          }}
+        />
       )}
 
       {/* Global Task Detail Modal - accessible from anywhere */}

@@ -1,5 +1,5 @@
 // Demo data for guest/demo mode
-import { Task, Habit, BabysitterSession, Caregiver, Goal, Note } from "../types";
+import { Task, Habit, BabysitterSession, Caregiver, Goal, Note, Routine } from "../types";
 
 const today = new Date().toISOString().split("T")[0];
 const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
@@ -117,6 +117,84 @@ export const DEMO_NOTES: Note[] = [
     loop: "Wealth",
     pinned: true,
     tags: ["budget", "finance"],
+    createdAt: twoDaysAgo,
+    updatedAt: twoDaysAgo,
+  },
+];
+
+export const DEMO_ROUTINES: Routine[] = [
+  {
+    id: "demo_routine1",
+    title: "Morning Routine",
+    description: "Start the day right with mindfulness and movement",
+    icon: "🌅",
+    steps: [
+      { id: "mr1", title: "Morning meditation", loop: "Meaning", estimateMinutes: 10, order: 0 },
+      { id: "mr2", title: "Stretch and warm up", loop: "Health", estimateMinutes: 5, order: 1 },
+      { id: "mr3", title: "Exercise", loop: "Health", estimateMinutes: 30, order: 2 },
+      { id: "mr4", title: "Shower and get ready", loop: "Maintenance", estimateMinutes: 15, order: 3 },
+      { id: "mr5", title: "Healthy breakfast", loop: "Health", estimateMinutes: 15, order: 4 },
+      { id: "mr6", title: "Review today's priorities", loop: "Work", estimateMinutes: 5, order: 5 },
+    ],
+    schedule: { frequency: "daily", timeOfDay: "morning", specificTime: "06:30" },
+    status: "active",
+    streak: { currentStreak: 8, longestStreak: 14, totalCompletions: 42, completionRate: 85, lastCompletedDate: yesterday },
+    createdAt: twoDaysAgo,
+    updatedAt: twoDaysAgo,
+  },
+  {
+    id: "demo_routine2",
+    title: "Evening Wind Down",
+    description: "Prepare for restful sleep",
+    icon: "🌙",
+    steps: [
+      { id: "ew1", title: "Tidy up living space", loop: "Maintenance", estimateMinutes: 10, order: 0 },
+      { id: "ew2", title: "Prepare tomorrow's clothes", loop: "Maintenance", estimateMinutes: 5, order: 1 },
+      { id: "ew3", title: "Gratitude journaling", loop: "Meaning", estimateMinutes: 5, order: 2 },
+      { id: "ew4", title: "Read before bed", loop: "Fun", estimateMinutes: 20, order: 3 },
+      { id: "ew5", title: "Skincare routine", loop: "Health", estimateMinutes: 5, order: 4 },
+    ],
+    schedule: { frequency: "daily", timeOfDay: "night", specificTime: "21:00" },
+    status: "active",
+    streak: { currentStreak: 5, longestStreak: 10, totalCompletions: 28, completionRate: 70, lastCompletedDate: yesterday },
+    createdAt: twoDaysAgo,
+    updatedAt: twoDaysAgo,
+  },
+  {
+    id: "demo_routine3",
+    title: "Weekly Review",
+    description: "Reflect on the week and plan ahead",
+    icon: "📊",
+    steps: [
+      { id: "wr1", title: "Review completed tasks", loop: "Work", estimateMinutes: 10, order: 0 },
+      { id: "wr2", title: "Check budget and spending", loop: "Wealth", estimateMinutes: 15, order: 1 },
+      { id: "wr3", title: "Review fitness progress", loop: "Health", estimateMinutes: 5, order: 2 },
+      { id: "wr4", title: "Plan family time", loop: "Family", estimateMinutes: 10, order: 3 },
+      { id: "wr5", title: "Set next week's priorities", loop: "Work", estimateMinutes: 15, order: 4 },
+      { id: "wr6", title: "Journal reflections", loop: "Meaning", estimateMinutes: 10, order: 5 },
+    ],
+    schedule: { frequency: "weekly", daysOfWeek: [0], timeOfDay: "morning", specificTime: "09:00" },
+    status: "active",
+    streak: { currentStreak: 3, longestStreak: 6, totalCompletions: 12, completionRate: 80, lastCompletedDate: new Date(Date.now() - 86400000 * 7).toISOString().split("T")[0] },
+    createdAt: twoDaysAgo,
+    updatedAt: twoDaysAgo,
+  },
+  {
+    id: "demo_routine4",
+    title: "Work Focus Block",
+    description: "Deep work session for important tasks",
+    icon: "💼",
+    steps: [
+      { id: "wf1", title: "Close distracting apps", loop: "Work", estimateMinutes: 2, order: 0 },
+      { id: "wf2", title: "Set timer for 50 minutes", loop: "Work", estimateMinutes: 1, order: 1 },
+      { id: "wf3", title: "Deep work on priority task", loop: "Work", estimateMinutes: 50, order: 2 },
+      { id: "wf4", title: "5-minute break", loop: "Health", estimateMinutes: 5, order: 3, optional: true },
+      { id: "wf5", title: "Quick stretch", loop: "Health", estimateMinutes: 2, order: 4, optional: true },
+    ],
+    schedule: { frequency: "weekdays", timeOfDay: "morning", specificTime: "09:00" },
+    dayTypes: ["regular"],
+    status: "active",
+    streak: { currentStreak: 4, longestStreak: 8, totalCompletions: 20, completionRate: 75 },
     createdAt: twoDaysAgo,
     updatedAt: twoDaysAgo,
   },
