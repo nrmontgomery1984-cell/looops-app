@@ -42,16 +42,29 @@ interface SimplefinResponse {
 function parseAccessUrl(accessUrl: string): { baseUrl: string; username: string; password: string } | null {
   try {
     const url = new URL(accessUrl);
-    const username = url.username;
-    const password = url.password;
+    const username = decodeURIComponent(url.username);
+    const password = decodeURIComponent(url.password);
 
-    // Remove credentials from URL to get base URL
-    url.username = "";
-    url.password = "";
-    const baseUrl = url.toString();
+    // Build base URL manually to ensure correct format
+    // SimpleFIN expects: https://beta-bridge.simplefin.org/simplefin/
+    let baseUrl = `${url.protocol}//${url.host}${url.pathname}`;
+
+    // Ensure trailing slash for SimpleFIN API
+    if (!baseUrl.endsWith('/')) {
+      baseUrl += '/';
+    }
+
+    console.log('[Sync API] parseAccessUrl result:', {
+      originalLength: accessUrl.length,
+      baseUrl,
+      hasUsername: !!username,
+      hasPassword: !!password,
+      usernameLength: username.length,
+    });
 
     return { baseUrl, username, password };
   } catch (error) {
+    console.error('[Sync API] parseAccessUrl error:', error);
     return null;
   }
 }
