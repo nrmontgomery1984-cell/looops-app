@@ -41671,6 +41671,102 @@ body.modal-open {
   font-weight: 500;
 }
 
+/* Category Accordion Styles */
+.finance-category-accordions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.finance-category-group {
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-gray-50);
+}
+
+.finance-category-group.collapsed {
+  background: transparent;
+}
+
+.finance-category-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--color-gray-100);
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.15s ease;
+}
+
+.finance-category-header:hover {
+  background: var(--color-gray-200);
+}
+
+.finance-category-group.collapsed .finance-category-header {
+  background: transparent;
+  border-bottom: 1px solid var(--color-gray-100);
+  border-radius: 0;
+}
+
+.finance-category-group.collapsed .finance-category-header:hover {
+  background: var(--color-gray-50);
+}
+
+.finance-category-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finance-category-chevron {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+  width: 12px;
+}
+
+.finance-category-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.finance-category-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.finance-category-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: var(--color-gray-200);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.finance-category-total {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.finance-category-group .finance-expense-list {
+  padding: 8px 12px 12px;
+}
+
+.finance-category-group .finance-expense-row {
+  background: var(--color-surface);
+  border: 1px solid var(--color-gray-100);
+}
+
+.finance-expense-monthly {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-left: 4px;
+}
+
 .finance-expense-list {
   display: flex;
   flex-direction: column;

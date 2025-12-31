@@ -576,6 +576,57 @@ function CategoriesView({
   );
 }
 
+// Helper to get Google Sheets tokens from localStorage
+function getSheetsToken(): string | null {
+  try {
+    const stored = localStorage.getItem('looops_google_sheets_tokens');
+    if (stored) {
+      const tokens = JSON.parse(stored);
+      return tokens.access_token || null;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
+
+// Map expense categories to Loops
+const CATEGORY_TO_LOOP: Record<string, LoopId> = {
+  // Health
+  'gym': 'Health', 'fitness': 'Health', 'medical': 'Health', 'doctor': 'Health',
+  'pharmacy': 'Health', 'health': 'Health', 'wellness': 'Health', 'groceries': 'Health',
+  // Wealth
+  'investment': 'Wealth', 'savings': 'Wealth', 'bank fees': 'Wealth', 'financial': 'Wealth',
+  'taxes': 'Wealth', 'insurance': 'Wealth',
+  // Family
+  'childcare': 'Family', 'babysitter': 'Family', 'kids': 'Family', 'family': 'Family',
+  'pets': 'Family', 'gifts': 'Family',
+  // Work
+  'office': 'Work', 'business': 'Work', 'professional': 'Work', 'education': 'Work',
+  'software': 'Work', 'tools': 'Work',
+  // Fun
+  'entertainment': 'Fun', 'dining': 'Fun', 'restaurants': 'Fun', 'movies': 'Fun',
+  'games': 'Fun', 'hobbies': 'Fun', 'travel': 'Fun', 'vacation': 'Fun',
+  'sports': 'Fun', 'music': 'Fun', 'streaming': 'Fun', 'subscriptions': 'Fun',
+  // Maintenance
+  'utilities': 'Maintenance', 'rent': 'Maintenance', 'mortgage': 'Maintenance',
+  'housing': 'Maintenance', 'home': 'Maintenance', 'car': 'Maintenance',
+  'auto': 'Maintenance', 'gas': 'Maintenance', 'fuel': 'Maintenance',
+  'transport': 'Maintenance', 'phone': 'Maintenance', 'internet': 'Maintenance',
+  'repairs': 'Maintenance', 'maintenance': 'Maintenance', 'cleaning': 'Maintenance',
+  'clothing': 'Maintenance', 'personal care': 'Maintenance', 'shopping': 'Maintenance',
+};
+
+function getCategoryLoop(category: string): LoopId {
+  const lower = category.toLowerCase();
+  for (const [key, loop] of Object.entries(CATEGORY_TO_LOOP)) {
+    if (lower.includes(key)) {
+      return loop;
+    }
+  }
+  return 'Maintenance'; // Default
+}
+
 // Expenses sub-component - Recurring bills and budgets (shared with Budget widget)
 function ExpensesView({
   expenses,
@@ -591,9 +642,133 @@ function ExpensesView({
   const [editingExpense, setEditingExpense] = useState<BudgetExpense | null>(null);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [editingIncome, setEditingIncome] = useState(false);
-  const [incomeInput, setIncomeInput] = useState(monthlyIncome.toString());
+  const [incomeInput, setIncomeInput] = useState((monthlyIncome ?? 0).toString());
+  const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
-  // Group expenses by loop
+  // Import expenses from Google Sheets
+  const handleImportFromSheets = async () => {
+    const token = getSheetsToken();
+    if (!token) {
+      setImportStatus({ type: 'error', message: 'Please connect Google Sheets first (in Wealth dashboard)' });
+      setTimeout(() => setImportStatus(null), 5000);
+      return;
+    }
+
+    setIsImporting(true);
+    setImportStatus(null);
+
+    try {
+      const res = await fetch('/api/sheets/budget?action=expenses', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const result = await res.json();
+
+      if (result.needsReauth) {
+        localStorage.removeItem('looops_google_sheets_tokens');
+        setImportStatus({ type: 'error', message: 'Session expired. Please reconnect Google Sheets.' });
+        return;
+      }
+
+      if (result.expenses && result.expenses.length > 0) {
+        // Valid loop names
+        const validLoops: LoopId[] = ['Health', 'Wealth', 'Family', 'Work', 'Fun', 'Maintenance', 'Meaning'];
+
+        // Convert imported expenses to our format
+        const importedExpenses: BudgetExpense[] = result.expenses.map((exp: any, idx: number) => {
+          // Check if category directly matches a Loop name
+          const categoryAsLoop = validLoops.find(l => l.toLowerCase() === (exp.category || '').toLowerCase());
+
+          return {
+            id: `import_${Date.now()}_${idx}`,
+            name: exp.name || 'Unknown',
+            amount: exp.amount || 0,
+            category: exp.category || exp.name || 'Uncategorized',
+            loop: categoryAsLoop || (exp.category ? getCategoryLoop(exp.category) : getCategoryLoop(exp.name || '')),
+            frequency: (exp.frequency as BudgetExpense['frequency']) || 'monthly',
+            dueDate: exp.dueDate,
+            notes: exp.notes,
+          };
+        });
+
+        // Merge with existing expenses (avoid duplicates by name)
+        const existingNames = new Set(expenses.map(e => e.name.toLowerCase()));
+        const newExpenses = importedExpenses.filter(
+          e => !existingNames.has(e.name.toLowerCase())
+        );
+
+        if (newExpenses.length === 0) {
+          setImportStatus({ type: 'error', message: `All ${importedExpenses.length} expenses already exist` });
+        } else {
+          // Dispatch each new expense
+          newExpenses.forEach(expense => {
+            dispatch({ type: 'ADD_FINANCE_EXPENSE', payload: expense });
+          });
+
+          setImportStatus({
+            type: 'success',
+            message: `Imported ${newExpenses.length} expenses from "${result.sheetName}"`
+          });
+        }
+      } else {
+        const sheetInfo = result.sheetName ? ` in "${result.sheetName}"` : '';
+        const headerInfo = result.headers ? ` (Headers: ${result.headers.slice(0, 3).join(', ')}...)` : '';
+        setImportStatus({
+          type: 'error',
+          message: result.message || `No expenses found${sheetInfo}${headerInfo}`
+        });
+      }
+    } catch (err) {
+      setImportStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to import expenses'
+      });
+    } finally {
+      setIsImporting(false);
+      setTimeout(() => setImportStatus(null), 5000);
+    }
+  };
+
+  // Track collapsed state for categories
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (key: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  // Helper to calculate monthly amount
+  const getMonthlyAmount = (expense: BudgetExpense) => {
+    if (expense.frequency === "weekly") return expense.amount * 4.33;
+    if (expense.frequency === "bi-weekly") return expense.amount * 2.17;
+    if (expense.frequency === "yearly") return expense.amount / 12;
+    return expense.amount;
+  };
+
+  // Group expenses by loop, then by category within each loop
+  const expensesByLoopAndCategory = useMemo(() => {
+    const result: Record<string, Record<string, BudgetExpense[]>> = {};
+    ALL_LOOPS.forEach(loop => {
+      const loopExpenses = expenses.filter(e => e.loop === loop);
+      const byCategory: Record<string, BudgetExpense[]> = {};
+      loopExpenses.forEach(exp => {
+        const cat = exp.category || "Uncategorized";
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(exp);
+      });
+      result[loop] = byCategory;
+    });
+    return result;
+  }, [expenses]);
+
+  // Keep the simple grouping for backward compat
   const expensesByLoop = useMemo(() => {
     const grouped: Record<string, BudgetExpense[]> = {};
     ALL_LOOPS.forEach(loop => {
@@ -652,8 +827,8 @@ function ExpensesView({
             <button onClick={() => setEditingIncome(false)} className="finance-cancel-btn">Cancel</button>
           </div>
         ) : (
-          <div className="finance-income-display" onClick={() => { setIncomeInput(monthlyIncome.toString()); setEditingIncome(true); }}>
-            <span className="finance-income-value">${monthlyIncome.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+          <div className="finance-income-display" onClick={() => { setIncomeInput((monthlyIncome ?? 0).toString()); setEditingIncome(true); }}>
+            <span className="finance-income-value">${(monthlyIncome ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
             <span className="finance-edit-hint">Click to edit</span>
           </div>
         )}
@@ -664,8 +839,8 @@ function ExpensesView({
           </div>
           <div className="finance-budget-item">
             <span>Remaining:</span>
-            <span className={monthlyIncome - totalExpenses >= 0 ? "positive" : "negative"}>
-              ${(monthlyIncome - totalExpenses).toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+            <span className={(monthlyIncome ?? 0) - totalExpenses >= 0 ? "positive" : "negative"}>
+              ${((monthlyIncome ?? 0) - totalExpenses).toLocaleString('en-CA', { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -675,26 +850,35 @@ function ExpensesView({
       <div className="finance-card">
         <div className="finance-expenses-header">
           <h3>Recurring Bills & Expenses</h3>
-          <button className="finance-add-btn" onClick={() => setShowAddExpense(true)}>
-            + Add Expense
-          </button>
+          <div className="finance-expenses-actions">
+            <button
+              className="finance-import-btn"
+              onClick={handleImportFromSheets}
+              disabled={isImporting}
+            >
+              {isImporting ? '📥 Importing...' : '📥 Import from Sheets'}
+            </button>
+            <button className="finance-add-btn" onClick={() => setShowAddExpense(true)}>
+              + Add Expense
+            </button>
+          </div>
         </div>
         <p className="finance-settings-desc">
           These expenses are shared with the Budget widget on your Wealth dashboard.
         </p>
+        {importStatus && (
+          <div className={`finance-import-status ${importStatus.type}`}>
+            {importStatus.type === 'success' ? '✓' : '⚠'} {importStatus.message}
+          </div>
+        )}
       </div>
 
-      {/* Expenses by Loop */}
+      {/* Expenses by Loop with Category Accordions */}
       {ALL_LOOPS.filter(loop => expensesByLoop[loop].length > 0).map(loop => {
         const colors = LOOP_COLORS[loop as keyof typeof LOOP_COLORS];
         const loopExpenses = expensesByLoop[loop];
-        const loopTotal = loopExpenses.reduce((sum, e) => {
-          let monthly = e.amount;
-          if (e.frequency === "weekly") monthly = e.amount * 4.33;
-          else if (e.frequency === "bi-weekly") monthly = e.amount * 2.17;
-          else if (e.frequency === "yearly") monthly = e.amount / 12;
-          return sum + monthly;
-        }, 0);
+        const categoriesInLoop = expensesByLoopAndCategory[loop];
+        const loopTotal = loopExpenses.reduce((sum, e) => sum + getMonthlyAmount(e), 0);
 
         return (
           <div key={loop} className="finance-card finance-loop-expenses" style={{ borderLeftColor: colors?.bg }}>
@@ -702,33 +886,78 @@ function ExpensesView({
               <h4 style={{ color: colors?.text }}>{loop}</h4>
               <span className="finance-loop-total">${loopTotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}/mo</span>
             </div>
-            <div className="finance-expense-list">
-              {loopExpenses.map(expense => (
-                <div key={expense.id} className="finance-expense-row">
-                  <div className="finance-expense-info">
-                    <span className="finance-expense-name">{expense.name}</span>
-                    <span className="finance-expense-meta">
-                      {expense.category} • {expense.frequency}
-                      {expense.dueDate && ` • Due: ${expense.dueDate}`}
-                    </span>
-                  </div>
-                  <div className="finance-expense-actions">
-                    <span className="finance-expense-amount">${expense.amount.toFixed(2)}</span>
-                    <button
-                      className="finance-expense-edit"
-                      onClick={() => setEditingExpense(expense)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="finance-expense-delete"
-                      onClick={() => handleDeleteExpense(expense.id)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              ))}
+
+            {/* Category Accordions */}
+            <div className="finance-category-accordions">
+              {Object.entries(categoriesInLoop)
+                .sort(([, a], [, b]) => {
+                  // Sort by total monthly amount descending
+                  const totalA = a.reduce((sum, e) => sum + getMonthlyAmount(e), 0);
+                  const totalB = b.reduce((sum, e) => sum + getMonthlyAmount(e), 0);
+                  return totalB - totalA;
+                })
+                .map(([category, categoryExpenses]) => {
+                  const categoryKey = `${loop}-${category}`;
+                  const isCollapsed = collapsedCategories.has(categoryKey);
+                  const categoryTotal = categoryExpenses.reduce((sum, e) => sum + getMonthlyAmount(e), 0);
+
+                  return (
+                    <div key={categoryKey} className={`finance-category-group ${isCollapsed ? 'collapsed' : ''}`}>
+                      <button
+                        className="finance-category-header"
+                        onClick={() => toggleCategory(categoryKey)}
+                      >
+                        <div className="finance-category-info">
+                          <span className={`finance-category-chevron ${isCollapsed ? '' : 'expanded'}`}>›</span>
+                          <span className="finance-category-name">{category}</span>
+                          <span className="finance-category-count">{categoryExpenses.length}</span>
+                        </div>
+                        <span className="finance-category-total">
+                          ${categoryTotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                        </span>
+                      </button>
+
+                      {!isCollapsed && (
+                        <div className="finance-expense-list">
+                          {categoryExpenses.map(expense => (
+                            <div key={expense.id} className="finance-expense-row">
+                              <div className="finance-expense-info">
+                                <span className="finance-expense-name">{expense.name}</span>
+                                <span className="finance-expense-meta">
+                                  {expense.frequency !== 'monthly' && `${expense.frequency} • `}
+                                  {expense.dueDate && `Due: ${expense.dueDate}`}
+                                  {expense.notes && ` • ${expense.notes}`}
+                                </span>
+                              </div>
+                              <div className="finance-expense-actions">
+                                <span className="finance-expense-amount">
+                                  ${expense.amount.toFixed(2)}
+                                  {expense.frequency !== 'monthly' && (
+                                    <span className="finance-expense-monthly">
+                                      (${getMonthlyAmount(expense).toFixed(0)}/mo)
+                                    </span>
+                                  )}
+                                </span>
+                                <button
+                                  className="finance-expense-edit"
+                                  onClick={(e) => { e.stopPropagation(); setEditingExpense(expense); }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="finance-expense-delete"
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteExpense(expense.id); }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         );
