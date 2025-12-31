@@ -1,4 +1,4 @@
-// Today's Stack - Priority tasks and habits for the day
+// Today's Stack - Priority tasks, habits, and routines for the day
 
 import { useMemo } from "react";
 import {
@@ -9,34 +9,43 @@ import {
   LoopStateType,
   Habit,
   HabitCompletion,
+  Routine,
   getHabitsDueToday,
   getHabitsDueTodayWithDayType,
+  getRoutinesDueTodayWithDayType,
+  getRoutineDuration,
+  sortRoutinesByTimeOfDay,
 } from "../../types";
 import { useSmartSchedule } from "../../context/AppContext";
 import { getDayTypes, getDayTypeConfig } from "../../engines/smartSchedulerEngine";
+import { DayType } from "../../types/dayTypes";
 
 type TodaysStackProps = {
   tasks: Task[];
   habits: Habit[];
   habitCompletions: HabitCompletion[];
+  routines: Routine[];
   loopStates: Record<LoopId, { currentState: LoopStateType }>;
   onCompleteTask: (taskId: string) => void;
   onSkipTask: (taskId: string) => void;
   onSelectTask: (taskId: string) => void;
   onCompleteHabit: (habitId: string, date: string) => void;
   onUncompleteHabit: (habitId: string, date: string) => void;
+  onStartRoutine?: (routineId: string) => void;
 };
 
 export function TodaysStack({
   tasks,
   habits,
   habitCompletions,
+  routines,
   loopStates,
   onCompleteTask,
   onSkipTask,
   onSelectTask,
   onCompleteHabit,
   onUncompleteHabit,
+  onStartRoutine,
 }: TodaysStackProps) {
   const today = new Date().toISOString().split("T")[0];
   const smartSchedule = useSmartSchedule();
@@ -57,6 +66,29 @@ export function TodaysStack({
     return getHabitsDueToday(habits);
   }, [habits, smartSchedule.enabled, todayDayTypes.dayTypes]);
 
+  // Get routines due today (with day type filtering)
+  const todaysRoutines = useMemo(() => {
+    const activeRoutines = routines.filter(r => r.status === "active");
+    if (smartSchedule.enabled) {
+      const filtered = getRoutinesDueTodayWithDayType(activeRoutines, todayDayTypes.dayTypes as DayType[]);
+      return sortRoutinesByTimeOfDay(filtered);
+    }
+    // Without smart schedule, just get routines due today based on frequency
+    const dayOfWeek = new Date().getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    return sortRoutinesByTimeOfDay(activeRoutines.filter(r => {
+      if (r.schedule.frequency === "daily") return true;
+      if (r.schedule.frequency === "weekdays") return !isWeekend;
+      if (r.schedule.frequency === "weekends") return isWeekend;
+      if (r.schedule.frequency === "weekly") {
+        // Show on the specified day, default to Monday
+        const scheduledDay = r.schedule.daysOfWeek?.[0] ?? 1;
+        return dayOfWeek === scheduledDay;
+      }
+      return true;
+    }));
+  }, [routines, smartSchedule.enabled, todayDayTypes.dayTypes]);
+
   // Check if habit is completed today
   const isHabitCompletedToday = (habitId: string) => {
     return habitCompletions.some(
@@ -69,7 +101,7 @@ export function TodaysStack({
     isHabitCompletedToday(h.id)
   ).length;
 
-  const totalItems = tasks.length + todaysHabits.length;
+  const totalItems = tasks.length + todaysHabits.length + todaysRoutines.length;
 
   if (totalItems === 0) {
     return (
@@ -77,7 +109,7 @@ export function TodaysStack({
         <div className="todays-stack__empty-state">
           <span className="todays-stack__empty-icon">✨</span>
           <h3>All clear!</h3>
-          <p>No tasks or habits for today. Enjoy your freedom or add some tasks.</p>
+          <p>No tasks, habits, or routines for today. Enjoy your freedom or add some tasks.</p>
         </div>
       </div>
     );
@@ -98,11 +130,71 @@ export function TodaysStack({
           )}
         </div>
         <span className="todays-stack__count">
+          {todaysRoutines.length > 0 && `${todaysRoutines.length} routines, `}
           {tasks.length} tasks, {completedHabitsCount}/{todaysHabits.length} habits
         </span>
       </div>
 
       <div className="todays-stack__list">
+        {/* Routines Section */}
+        {todaysRoutines.length > 0 && (
+          <div className="todays-stack__section">
+            <div className="todays-stack__section-header">
+              <span className="todays-stack__section-icon">📋</span>
+              <span className="todays-stack__section-title">Today's Routines</span>
+            </div>
+            {todaysRoutines.map((routine) => {
+              const duration = getRoutineDuration(routine);
+              const timeLabel = routine.schedule.timeOfDay === "morning" ? "🌅 Morning"
+                : routine.schedule.timeOfDay === "afternoon" ? "☀️ Afternoon"
+                : routine.schedule.timeOfDay === "evening" ? "🌆 Evening"
+                : routine.schedule.timeOfDay === "night" ? "🌙 Night"
+                : "⏰ Anytime";
+
+              return (
+                <div
+                  key={routine.id}
+                  className="routine-card routine-card--today"
+                  onClick={() => onStartRoutine?.(routine.id)}
+                >
+                  <div className="routine-card__icon-container">
+                    <span className="routine-card__icon">{routine.icon || "📋"}</span>
+                  </div>
+                  <div className="routine-card__content">
+                    <div className="routine-card__header">
+                      <h4 className="routine-card__title">{routine.title}</h4>
+                      {routine.streak && routine.streak.currentStreak > 0 && (
+                        <span className="routine-card__streak">
+                          🔥 {routine.streak.currentStreak}
+                        </span>
+                      )}
+                    </div>
+                    <div className="routine-card__meta">
+                      <span className="routine-card__time">{timeLabel}</span>
+                      <span className="routine-card__duration">{duration} min</span>
+                      <span className="routine-card__steps">{routine.steps?.length || 0} steps</span>
+                    </div>
+                  </div>
+                  <div className="routine-card__actions">
+                    <button
+                      className="routine-card__btn routine-card__btn--start"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStartRoutine?.(routine.id);
+                      }}
+                      title="Start Routine"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Habits Section */}
         {todaysHabits.length > 0 && (
           <div className="todays-stack__section">

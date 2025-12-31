@@ -715,12 +715,18 @@ function AppContent() {
                     tasks={filteredTodayTasks}
                     habits={habits.items}
                     habitCompletions={habits.completions}
+                    routines={routines.items}
                     loopStates={loops.states}
                     onCompleteTask={handleCompleteTask}
                     onSkipTask={handleSkipTask}
                     onSelectTask={(id) => dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: id } })}
                     onCompleteHabit={(habitId, date) => dispatch({ type: "COMPLETE_HABIT", payload: { habitId, date } })}
                     onUncompleteHabit={(habitId, date) => dispatch({ type: "UNCOMPLETE_HABIT", payload: { habitId, date } })}
+                    onStartRoutine={(routineId) => {
+                      dispatch({ type: "SET_ACTIVE_TAB", payload: "routines" });
+                      // Navigate to routines and potentially trigger the routine runner
+                      // For now, just navigate - later we can add a start modal
+                    }}
                   />
                 </div>
 
