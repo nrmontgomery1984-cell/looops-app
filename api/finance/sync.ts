@@ -207,19 +207,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!response.ok) {
-      if (response.status === 403) {
+      const errorText = await response.text();
+      console.error('[Sync API] SimpleFIN API error:', response.status, errorText);
+
+      if (response.status === 403 || response.status === 401) {
         return res.status(401).json({
           error: 'NEEDS_REAUTH',
           message: 'SimpleFIN access has expired. Please reconnect your accounts.'
         });
       }
 
-      const errorText = await response.text();
-      console.error('SimpleFIN API error:', response.status, errorText);
+      if (response.status === 404) {
+        return res.status(401).json({
+          error: 'NEEDS_REAUTH',
+          message: 'SimpleFIN access URL not found. The token may have expired. Please reconnect.'
+        });
+      }
 
       return res.status(500).json({
         error: 'Sync failed',
-        message: 'Could not fetch data from SimpleFIN.'
+        message: `SimpleFIN returned error ${response.status}: ${errorText.substring(0, 100) || 'Unknown error'}`
       });
     }
 
