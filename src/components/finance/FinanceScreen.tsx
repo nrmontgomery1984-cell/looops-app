@@ -1089,6 +1089,35 @@ function SettingsView({
           </label>
         </div>
       </div>
+
+      {/* Danger Zone - Reset */}
+      <div className="finance-card finance-danger-zone">
+        <h3>Danger Zone</h3>
+        <p className="finance-settings-desc">
+          If you're having trouble with stale connections that keep coming back, use this to completely reset your finance data.
+        </p>
+        <button
+          className="finance-reset-btn"
+          onClick={async () => {
+            if (confirm("This will delete ALL finance connections, accounts, and transactions. Are you sure?")) {
+              // Clear everything multiple times to ensure it persists through Firebase sync
+              for (let i = 0; i < 3; i++) {
+                dispatch({ type: "SET_FINANCE_ACCOUNTS", payload: [] });
+                dispatch({ type: "SET_FINANCE_TRANSACTIONS", payload: [] });
+                // Clear connections by setting an empty array via a new action
+                connections.forEach(c => {
+                  dispatch({ type: "DELETE_FINANCE_CONNECTION", payload: c.id });
+                });
+                // Small delay between iterations
+                await new Promise(r => setTimeout(r, 500));
+              }
+              alert("Finance data reset. Please refresh the page.");
+            }
+          }}
+        >
+          Reset All Finance Data
+        </button>
+      </div>
     </div>
   );
 }

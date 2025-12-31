@@ -41425,6 +41425,31 @@ body.modal-open {
   color: white;
 }
 
+.finance-danger-zone {
+  border: 1px solid var(--color-danger, #dc3545);
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.finance-danger-zone h3 {
+  color: var(--color-danger, #dc3545);
+}
+
+.finance-reset-btn {
+  padding: 12px 24px;
+  background: var(--color-danger, #dc3545);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.finance-reset-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
 .finance-import-btn {
   padding: 12px 24px;
   background: var(--color-gray-200);
