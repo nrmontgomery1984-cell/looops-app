@@ -500,6 +500,15 @@ function AppContent() {
     return `Good ${timeOfDay}. Day ${daysAlive}.`;
   }, [timeOfDay, daysAlive]);
 
+  // Calculate current loop states for use in modals
+  const currentLoopStates = useMemo(() => {
+    const states: Record<LoopId, LoopStateType> = {} as Record<LoopId, LoopStateType>;
+    ALL_LOOPS.forEach((loopId) => {
+      states[loopId] = loops.states[loopId]?.currentState || "MAINTAIN";
+    });
+    return states;
+  }, [loops.states]);
+
   // Get today's tasks with archetype framing and state-based prioritization
   const todaysTasks = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -1219,12 +1228,6 @@ function AppContent() {
         );
 
       case "planning":
-        // Extract loop states as Record<LoopId, LoopStateType>
-        const currentLoopStates: Record<LoopId, LoopStateType> = {} as Record<LoopId, LoopStateType>;
-        ALL_LOOPS.forEach((loopId) => {
-          currentLoopStates[loopId] = loops.states[loopId]?.currentState || "MAINTAIN";
-        });
-
         return (
           <div className="screen planning-screen">
             <div className="planning-header">
@@ -1404,31 +1407,6 @@ function AppContent() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Goals Wizard Modal */}
-            {showGoalsWizard && (
-              <div className="modal-overlay">
-                <AnnualGoalsWizard
-                  prototype={user.prototype}
-                  loopStates={currentLoopStates}
-                  existingGoals={state.goals}
-                  directionalDocument={state.directionalDocument}
-                  onComplete={(goals) => {
-                    // Add all goals to state
-                    goals.forEach((goal) => {
-                      dispatch({ type: "ADD_GOAL", payload: goal });
-                    });
-                    setShowGoalsWizard(false);
-
-                    // Navigate to Systems screen with Goals tab to show system suggestions
-                    if (goals.length > 0) {
-                      dispatch({ type: "SET_ACTIVE_TAB", payload: "systems" });
-                    }
-                  }}
-                  onCancel={() => setShowGoalsWizard(false)}
-                />
               </div>
             )}
 
@@ -2056,6 +2034,31 @@ function AppContent() {
           }
         }}
       />
+
+      {/* Goals Wizard Modal - renders globally so it works from any tab */}
+      {showGoalsWizard && (
+        <div className="modal-overlay">
+          <AnnualGoalsWizard
+            prototype={user.prototype}
+            loopStates={currentLoopStates}
+            existingGoals={state.goals}
+            directionalDocument={state.directionalDocument}
+            onComplete={(goals) => {
+              // Add all goals to state
+              goals.forEach((goal) => {
+                dispatch({ type: "ADD_GOAL", payload: goal });
+              });
+              setShowGoalsWizard(false);
+
+              // Navigate to Systems screen with Goals tab to show system suggestions
+              if (goals.length > 0) {
+                dispatch({ type: "SET_ACTIVE_TAB", payload: "systems" });
+              }
+            }}
+            onCancel={() => setShowGoalsWizard(false)}
+          />
+        </div>
+      )}
 
       {showOnboarding && !skipOnboarding && (
         <OnboardingFlow
