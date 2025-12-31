@@ -56,6 +56,7 @@ import { DirectionalDocument } from "./types/directional";
 import { exportDirectionalDocumentPDF, downloadPDF } from "./services/pdfExport";
 import { MealPrepScreen } from "./components/mealprep";
 import { FinanceScreen } from "./components/finance";
+import { SphereDemoPage } from "./pages/sphere-demo";
 
 // Mock data for previewing completed directional document
 const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
@@ -2209,6 +2210,12 @@ function SyncStatusIndicator() {
 
 // Root App Component (wraps with providers)
 function App() {
+  // Dev: Access sphere demo via ?sphere-demo=1
+  const showSphereDemo = new URLSearchParams(window.location.search).get('sphere-demo') === '1';
+  if (showSphereDemo) {
+    return <SphereDemoPage />;
+  }
+
   return (
     <AppProvider>
       <FirebaseSyncProvider>
