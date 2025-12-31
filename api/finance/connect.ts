@@ -72,9 +72,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // The response is the access URL
     const accessUrl = (await claimResponse.text()).trim();
+    console.log('[Connect API] Access URL received:', {
+      length: accessUrl.length,
+      startsWithHttps: accessUrl.startsWith('https://'),
+      hasCredentials: accessUrl.includes('@'),
+    });
 
     // Validate the access URL
     if (!accessUrl.includes('@') || !accessUrl.startsWith('https://')) {
+      console.log('[Connect API] Invalid access URL format');
       return res.status(500).json({
         error: 'Invalid response',
         message: 'SimpleFIN returned an unexpected response. Please try again.'
@@ -83,6 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Return the access URL
     // The client should store this securely (it contains credentials)
+    console.log('[Connect API] Success - returning access URL');
     return res.status(200).json({
       success: true,
       accessUrl,

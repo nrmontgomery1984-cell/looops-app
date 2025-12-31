@@ -1,6 +1,11 @@
 // SimpleFIN Sync endpoint - fetches accounts and transactions
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Allow up to 30 seconds for SimpleFIN to respond (hobby plan max is 60s)
+export const config = {
+  maxDuration: 30,
+};
+
 interface SimplefinOrganization {
   domain: string;
   name: string;
@@ -116,7 +121,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { accessUrl, startDate, endDate, balancesOnly } = req.body;
 
+    console.log('[Sync API] Request received:', {
+      hasAccessUrl: !!accessUrl,
+      accessUrlType: typeof accessUrl,
+      accessUrlLength: accessUrl?.length,
+      startDate,
+      endDate,
+      balancesOnly,
+    });
+
     if (!accessUrl || typeof accessUrl !== 'string') {
+      console.log('[Sync API] Missing or invalid accessUrl');
       return res.status(400).json({
         error: 'Missing access URL',
         message: 'Please provide the SimpleFIN access URL.'
@@ -124,8 +139,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Parse the access URL
+    console.log('[Sync API] Parsing access URL...');
     const parsed = parseAccessUrl(accessUrl);
     if (!parsed) {
+      console.log('[Sync API] Failed to parse access URL');
       return res.status(400).json({
         error: 'Invalid access URL',
         message: 'The access URL appears to be invalid.'
@@ -133,6 +150,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { baseUrl, username, password } = parsed;
+    console.log('[Sync API] Parsed URL:', {
+      baseUrl: baseUrl.substring(0, 50) + '...',
+      hasUsername: !!username,
+      hasPassword: !!password,
+    });
 
     // Build query parameters
     const params = new URLSearchParams();
@@ -148,15 +170,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const fetchUrl = `${baseUrl}accounts?${params.toString()}`;
+    console.log('[Sync API] Fetching from SimpleFIN:', fetchUrl.substring(0, 60) + '...');
 
-    // Fetch from SimpleFIN
-    const response = await fetch(fetchUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
-        "Accept": "application/json",
-      },
-    });
+    // Fetch from SimpleFIN with 25 second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    let response: Response;
+    try {
+      response = await fetch(fetchUrl, {
+        method: "GET",
+        headers: {
+          "Authorization": `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+          "Accept": "application/json",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      console.log('[Sync API] SimpleFIN response status:', response.status);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      const error = fetchError as Error;
+      console.error('[Sync API] Fetch error:', error.name, error.message);
+
+      if (error.name === 'AbortError') {
+        return res.status(504).json({
+          error: 'Timeout',
+          message: 'SimpleFIN is taking too long to respond. Please try again.'
+        });
+      }
+
+      return res.status(500).json({
+        error: 'Fetch failed',
+        message: `Failed to connect to SimpleFIN: ${error?.message || 'Network error'}`
+      });
+    }
 
     if (!response.ok) {
       if (response.status === 403) {
@@ -175,9 +223,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const data: SimplefinResponse = await response.json();
+    // Read response as text first for debugging
+    const responseText = await response.text();
+    console.log('[Sync API] Raw response length:', responseText.length);
+    console.log('[Sync API] Raw response preview:', responseText.substring(0, 300));
+
+    let data: SimplefinResponse;
+    try {
+      data = JSON.parse(responseText);
+      console.log('[Sync API] SimpleFIN data received:', {
+        accountCount: data.accounts?.length,
+        errorCount: data.errors?.length,
+        errors: data.errors,
+      });
+    } catch (jsonError) {
+      console.error('[Sync API] JSON parse error:', jsonError);
+      return res.status(500).json({
+        error: 'Parse failed',
+        message: 'SimpleFIN returned invalid JSON response'
+      });
+    }
+
+    // Validate data structure
+    if (!data.accounts || !Array.isArray(data.accounts)) {
+      console.error('[Sync API] Invalid data structure - missing accounts array');
+      return res.status(500).json({
+        error: 'Invalid data',
+        message: 'SimpleFIN returned an unexpected data structure'
+      });
+    }
 
     // Transform accounts
+    console.log('[Sync API] Transforming', data.accounts.length, 'accounts...');
     const accounts = data.accounts.map(sfAccount => {
       const balanceFloat = parseFloat(sfAccount.balance);
       const balance = Math.round(balanceFloat * 100);
@@ -241,10 +318,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('SimpleFIN sync error:', error);
+    console.error('[Sync API] Exception caught:', error);
+    console.error('[Sync API] Error details:', {
+      name: (error as Error)?.name,
+      message: (error as Error)?.message,
+      stack: (error as Error)?.stack,
+    });
     return res.status(500).json({
       error: 'Sync failed',
-      message: 'Failed to sync with SimpleFIN. Please try again later.'
+      message: `Failed to sync with SimpleFIN: ${(error as Error)?.message || 'Unknown error'}`
     });
   }
 }

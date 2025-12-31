@@ -55,17 +55,44 @@ export async function syncSimplefin(
   message?: string;
   needsReauth?: boolean;
 }> {
-  const response = await fetch(`${API_BASE}/api/finance/sync`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      accessUrl,
-      ...options,
-    }),
-  });
+  // Client-side timeout of 35 seconds (slightly longer than server's 25s + network latency)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
 
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/api/finance/sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accessUrl,
+        ...options,
+      }),
+      signal: controller.signal,
+    });
+  } catch (fetchError) {
+    clearTimeout(timeoutId);
+    const error = fetchError as Error;
+    console.error("[Finance Service] Fetch error:", error.name, error.message);
+
+    if (error.name === "AbortError") {
+      return {
+        success: false,
+        error: "Timeout",
+        message: "Sync request timed out. Please try again.",
+      };
+    }
+
+    return {
+      success: false,
+      error: "Network error",
+      message: error.message || "Failed to connect to server",
+    };
+  }
+
+  clearTimeout(timeoutId);
   const data = await response.json();
 
   if (!response.ok) {
@@ -316,21 +343,38 @@ export async function performFullSync(
     dispatch({ type: "SET_FINANCE_ACCOUNTS", payload: mergedAccounts });
 
     // Deduplicate and categorize transactions
+    console.log("[Finance Service] Deduplicating transactions...", {
+      existingCount: existingTransactions.length,
+      incomingCount: syncResult.transactions!.length,
+    });
     const { new: newTxns, updated: updatedTxns } = deduplicateTransactions(
       existingTransactions,
       syncResult.transactions!
     );
+    console.log("[Finance Service] Dedup result:", {
+      newCount: newTxns.length,
+      updatedCount: updatedTxns.length,
+    });
 
     // Categorize new transactions
     const categorizedNew = categorizeTransactions(newTxns, rules, categories);
     const categorizedUpdated = categorizeTransactions(updatedTxns, rules, categories);
+    console.log("[Finance Service] Categorized:", {
+      newCategorized: categorizedNew.length,
+      updatedCategorized: categorizedUpdated.length,
+    });
 
     // Upsert transactions
-    if (categorizedNew.length > 0 || categorizedUpdated.length > 0) {
+    const totalToUpsert = [...categorizedNew, ...categorizedUpdated];
+    console.log("[Finance Service] Upserting", totalToUpsert.length, "transactions");
+    if (totalToUpsert.length > 0) {
       dispatch({
         type: "UPSERT_FINANCE_TRANSACTIONS",
-        payload: [...categorizedNew, ...categorizedUpdated],
+        payload: totalToUpsert,
       });
+      console.log("[Finance Service] Dispatched UPSERT_FINANCE_TRANSACTIONS");
+    } else {
+      console.log("[Finance Service] No transactions to upsert");
     }
 
     // Update connection status
