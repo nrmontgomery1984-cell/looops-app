@@ -41452,6 +41452,318 @@ body.modal-open {
   cursor: pointer;
 }
 
+/* Expenses View */
+.finance-expenses {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.finance-income-card {
+  background: linear-gradient(135deg, var(--color-wealth-bg) 0%, var(--color-surface) 100%);
+}
+
+.finance-income-display {
+  cursor: pointer;
+  padding: 12px;
+  background: var(--color-surface);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: background 0.2s;
+}
+
+.finance-income-display:hover {
+  background: var(--color-gray-100);
+}
+
+.finance-income-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-wealth-text);
+  display: block;
+}
+
+.finance-edit-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.finance-income-edit {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.finance-income-edit input {
+  flex: 1;
+  padding: 12px;
+  font-size: 1.5rem;
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.finance-budget-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.finance-budget-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.finance-budget-item:last-child {
+  border-bottom: none;
+  font-weight: 600;
+}
+
+.finance-expenses-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.finance-expenses-header h3 {
+  margin: 0;
+}
+
+.finance-add-btn {
+  padding: 8px 16px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.finance-add-btn:hover {
+  background: var(--color-primary-dark);
+}
+
+.finance-loop-expenses {
+  border-left: 4px solid;
+}
+
+.finance-loop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.finance-loop-header h4 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.finance-loop-total {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.finance-expense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.finance-expense-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--color-gray-50);
+  border-radius: 8px;
+}
+
+.finance-expense-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.finance-expense-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.finance-expense-meta {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.finance-expense-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.finance-expense-amount {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.finance-expense-edit {
+  padding: 4px 10px;
+  background: var(--color-gray-200);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+}
+
+.finance-expense-edit:hover {
+  background: var(--color-gray-300);
+}
+
+.finance-expense-delete {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.finance-expense-delete:hover {
+  color: var(--color-danger);
+}
+
+.finance-empty-expenses {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.finance-empty-expenses h4 {
+  margin: 16px 0 8px;
+  color: var(--color-text-primary);
+}
+
+.finance-empty-expenses p {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Expense Modal */
+.finance-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.finance-modal {
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.finance-modal h3 {
+  margin: 0 0 20px 0;
+  color: var(--color-text-primary);
+}
+
+.finance-form-group {
+  margin-bottom: 16px;
+}
+
+.finance-form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.finance-form-group input,
+.finance-form-group select,
+.finance-form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.finance-form-group input:focus,
+.finance-form-group select:focus,
+.finance-form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.finance-form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.finance-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.finance-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.finance-save-btn {
+  padding: 10px 20px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.finance-save-btn:hover {
+  background: var(--color-primary-dark);
+}
+
+.finance-cancel-btn {
+  padding: 10px 20px;
+  background: var(--color-gray-200);
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.finance-cancel-btn:hover {
+  background: var(--color-gray-300);
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .finance-screen {

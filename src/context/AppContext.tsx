@@ -103,9 +103,17 @@ import {
   FinanceCategory,
   CategoryRule,
   FinanceSettings,
+  BudgetExpense,
+  LoopBudget,
   getDefaultFinanceState,
   DEFAULT_FINANCE_CATEGORIES,
   DEFAULT_CATEGORY_RULES,
+  loadExpensesFromLocalStorage,
+  saveExpensesToLocalStorage,
+  loadLoopBudgetsFromLocalStorage,
+  saveLoopBudgetsToLocalStorage,
+  loadMonthlyIncomeFromLocalStorage,
+  saveMonthlyIncomeToLocalStorage,
 } from "../types/finance";
 import { SEED_RECIPES, SEED_TECHNIQUES } from "../data/mealPrepSeedData";
 
@@ -550,6 +558,19 @@ export type AppAction =
   | { type: "DELETE_CATEGORY_RULE"; payload: string }
   | { type: "SET_FINANCE_SYNC_STATUS"; payload: Partial<FinanceState["syncStatus"]> }
   | { type: "UPDATE_FINANCE_SETTINGS"; payload: Partial<FinanceSettings> }
+
+  // Budget Expenses (shared with Budget widget)
+  | { type: "SET_FINANCE_EXPENSES"; payload: BudgetExpense[] }
+  | { type: "ADD_FINANCE_EXPENSE"; payload: BudgetExpense }
+  | { type: "UPDATE_FINANCE_EXPENSE"; payload: BudgetExpense }
+  | { type: "DELETE_FINANCE_EXPENSE"; payload: string }
+
+  // Loop Budgets
+  | { type: "SET_LOOP_BUDGETS"; payload: LoopBudget[] }
+  | { type: "UPDATE_LOOP_BUDGET"; payload: LoopBudget }
+
+  // Monthly Income
+  | { type: "SET_MONTHLY_INCOME"; payload: number }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -2341,6 +2362,82 @@ function appReducer(state: AppState, action: AppAction): AppState {
         },
       };
 
+    // Finance - Budget Expenses (shared with Budget widget)
+    case "SET_FINANCE_EXPENSES": {
+      // Sync to localStorage for Budget widget
+      saveExpensesToLocalStorage(action.payload);
+      return {
+        ...state,
+        finance: { ...state.finance, expenses: action.payload },
+      };
+    }
+
+    case "ADD_FINANCE_EXPENSE": {
+      const newExpenses = [...state.finance.expenses, action.payload];
+      saveExpensesToLocalStorage(newExpenses);
+      return {
+        ...state,
+        finance: { ...state.finance, expenses: newExpenses },
+      };
+    }
+
+    case "UPDATE_FINANCE_EXPENSE": {
+      const updatedExpenses = state.finance.expenses.map((e) =>
+        e.id === action.payload.id ? action.payload : e
+      );
+      saveExpensesToLocalStorage(updatedExpenses);
+      return {
+        ...state,
+        finance: { ...state.finance, expenses: updatedExpenses },
+      };
+    }
+
+    case "DELETE_FINANCE_EXPENSE": {
+      const filteredExpenses = state.finance.expenses.filter(
+        (e) => e.id !== action.payload
+      );
+      saveExpensesToLocalStorage(filteredExpenses);
+      return {
+        ...state,
+        finance: { ...state.finance, expenses: filteredExpenses },
+      };
+    }
+
+    // Finance - Loop Budgets
+    case "SET_LOOP_BUDGETS": {
+      saveLoopBudgetsToLocalStorage(action.payload);
+      return {
+        ...state,
+        finance: { ...state.finance, loopBudgets: action.payload },
+      };
+    }
+
+    case "UPDATE_LOOP_BUDGET": {
+      const existingIdx = state.finance.loopBudgets.findIndex(
+        (b) => b.loop === action.payload.loop
+      );
+      const newBudgets =
+        existingIdx >= 0
+          ? state.finance.loopBudgets.map((b, i) =>
+              i === existingIdx ? action.payload : b
+            )
+          : [...state.finance.loopBudgets, action.payload];
+      saveLoopBudgetsToLocalStorage(newBudgets);
+      return {
+        ...state,
+        finance: { ...state.finance, loopBudgets: newBudgets },
+      };
+    }
+
+    // Finance - Monthly Income
+    case "SET_MONTHLY_INCOME": {
+      saveMonthlyIncomeToLocalStorage(action.payload);
+      return {
+        ...state,
+        finance: { ...state.finance, monthlyIncome: action.payload },
+      };
+    }
+
     default:
       return state;
   }
@@ -2459,6 +2556,7 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
         }
       : defaultState.workout,
     // Finance - persists, preserve seed categories/rules if saved is empty
+    // Also load expenses/budgets from localStorage to sync with Budget widget
     finance: savedState.finance
       ? {
           ...defaultState.finance,
@@ -2471,10 +2569,22 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
           rules: (savedState.finance.rules?.length ?? 0) > 0
             ? savedState.finance.rules!
             : defaultState.finance.rules,
+          // Load expenses from localStorage (Budget widget's source)
+          expenses: loadExpensesFromLocalStorage(),
+          // Load loop budgets from localStorage
+          loopBudgets: loadLoopBudgetsFromLocalStorage(),
+          // Load monthly income from localStorage
+          monthlyIncome: loadMonthlyIncomeFromLocalStorage(),
           // Always reset sync status on load
           syncStatus: defaultState.finance.syncStatus,
         }
-      : defaultState.finance,
+      : {
+          ...defaultState.finance,
+          // Even without saved finance state, load from localStorage
+          expenses: loadExpensesFromLocalStorage(),
+          loopBudgets: loadLoopBudgetsFromLocalStorage(),
+          monthlyIncome: loadMonthlyIncomeFromLocalStorage(),
+        },
     // Active Timer - persists (allows resuming timer across sessions)
     activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
@@ -2730,4 +2840,19 @@ export function useFinanceCategories() {
 export function useFinanceRules() {
   const { state } = useApp();
   return state.finance.rules;
+}
+
+export function useFinanceExpenses() {
+  const { state } = useApp();
+  return state.finance.expenses;
+}
+
+export function useLoopBudgets() {
+  const { state } = useApp();
+  return state.finance.loopBudgets;
+}
+
+export function useMonthlyIncome() {
+  const { state } = useApp();
+  return state.finance.monthlyIncome;
 }

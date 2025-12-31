@@ -36,6 +36,9 @@ export {
   useFinanceTransactions,
   useFinanceCategories,
   useFinanceRules,
+  useFinanceExpenses,
+  useLoopBudgets,
+  useMonthlyIncome,
 } from "./AppContext";
 
 export type { UserProfile, AppState, AppAction } from "./AppContext";

@@ -8,6 +8,9 @@ import {
   useFinanceTransactions,
   useFinanceCategories,
   useFinanceRules,
+  useFinanceExpenses,
+  useLoopBudgets,
+  useMonthlyIncome,
   useApp,
 } from "../../context";
 import {
@@ -15,6 +18,10 @@ import {
   FinanceAccount,
   FinanceCategory,
   FinanceConnection,
+  BudgetExpense,
+  LoopBudget,
+  LoopId,
+  ALL_LOOPS,
   formatFinanceCurrency,
   calculateNetWorth,
   getSpendingByCategory,
@@ -23,7 +30,7 @@ import {
 } from "../../types";
 import { connectSimplefin, performFullSync } from "../../lib/finance/service";
 
-type FinanceView = "overview" | "transactions" | "accounts" | "categories" | "rules" | "settings";
+type FinanceView = "overview" | "transactions" | "expenses" | "accounts" | "categories" | "settings";
 
 export function FinanceScreen() {
   const { dispatch } = useApp();
@@ -32,6 +39,9 @@ export function FinanceScreen() {
   const transactions = useFinanceTransactions();
   const categories = useFinanceCategories();
   const rules = useFinanceRules();
+  const expenses = useFinanceExpenses();
+  const loopBudgets = useLoopBudgets();
+  const monthlyIncome = useMonthlyIncome();
 
   const [activeView, setActiveView] = useState<FinanceView>("overview");
   const [searchQuery, setSearchQuery] = useState("");
@@ -125,7 +135,7 @@ export function FinanceScreen() {
 
       {/* Navigation tabs */}
       <div className="finance-tabs">
-        {(["overview", "transactions", "accounts", "categories", "settings"] as FinanceView[]).map(
+        {(["overview", "transactions", "expenses", "accounts", "categories", "settings"] as FinanceView[]).map(
           (view) => (
             <button
               key={view}
@@ -163,6 +173,15 @@ export function FinanceScreen() {
             onAccountChange={setSelectedAccountId}
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
+            dispatch={dispatch}
+          />
+        )}
+
+        {activeView === "expenses" && (
+          <ExpensesView
+            expenses={expenses}
+            loopBudgets={loopBudgets}
+            monthlyIncome={monthlyIncome}
             dispatch={dispatch}
           />
         )}
@@ -514,6 +533,312 @@ function CategoriesView({
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Expenses sub-component - Recurring bills and budgets (shared with Budget widget)
+function ExpensesView({
+  expenses,
+  loopBudgets,
+  monthlyIncome,
+  dispatch,
+}: {
+  expenses: BudgetExpense[];
+  loopBudgets: LoopBudget[];
+  monthlyIncome: number;
+  dispatch: React.Dispatch<any>;
+}) {
+  const [editingExpense, setEditingExpense] = useState<BudgetExpense | null>(null);
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [editingIncome, setEditingIncome] = useState(false);
+  const [incomeInput, setIncomeInput] = useState(monthlyIncome.toString());
+
+  // Group expenses by loop
+  const expensesByLoop = useMemo(() => {
+    const grouped: Record<string, BudgetExpense[]> = {};
+    ALL_LOOPS.forEach(loop => {
+      grouped[loop] = expenses.filter(e => e.loop === loop);
+    });
+    return grouped;
+  }, [expenses]);
+
+  // Calculate totals
+  const totalExpenses = useMemo(() => {
+    return expenses.reduce((sum, e) => {
+      // Convert to monthly for consistent comparison
+      let monthly = e.amount;
+      if (e.frequency === "weekly") monthly = e.amount * 4.33;
+      else if (e.frequency === "bi-weekly") monthly = e.amount * 2.17;
+      else if (e.frequency === "yearly") monthly = e.amount / 12;
+      return sum + monthly;
+    }, 0);
+  }, [expenses]);
+
+  const handleSaveIncome = () => {
+    const value = parseFloat(incomeInput) || 0;
+    dispatch({ type: "SET_MONTHLY_INCOME", payload: value });
+    setEditingIncome(false);
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    dispatch({ type: "DELETE_FINANCE_EXPENSE", payload: id });
+  };
+
+  const handleSaveExpense = (expense: BudgetExpense) => {
+    if (editingExpense) {
+      dispatch({ type: "UPDATE_FINANCE_EXPENSE", payload: expense });
+    } else {
+      dispatch({ type: "ADD_FINANCE_EXPENSE", payload: expense });
+    }
+    setEditingExpense(null);
+    setShowAddExpense(false);
+  };
+
+  return (
+    <div className="finance-expenses">
+      {/* Monthly Income Card */}
+      <div className="finance-card finance-income-card">
+        <h3>Monthly Income</h3>
+        {editingIncome ? (
+          <div className="finance-income-edit">
+            <input
+              type="number"
+              value={incomeInput}
+              onChange={(e) => setIncomeInput(e.target.value)}
+              placeholder="0.00"
+              autoFocus
+            />
+            <button onClick={handleSaveIncome} className="finance-save-btn">Save</button>
+            <button onClick={() => setEditingIncome(false)} className="finance-cancel-btn">Cancel</button>
+          </div>
+        ) : (
+          <div className="finance-income-display" onClick={() => { setIncomeInput(monthlyIncome.toString()); setEditingIncome(true); }}>
+            <span className="finance-income-value">${monthlyIncome.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+            <span className="finance-edit-hint">Click to edit</span>
+          </div>
+        )}
+        <div className="finance-budget-summary">
+          <div className="finance-budget-item">
+            <span>Total Monthly Expenses:</span>
+            <span className="negative">${totalExpenses.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="finance-budget-item">
+            <span>Remaining:</span>
+            <span className={monthlyIncome - totalExpenses >= 0 ? "positive" : "negative"}>
+              ${(monthlyIncome - totalExpenses).toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Expense Button */}
+      <div className="finance-card">
+        <div className="finance-expenses-header">
+          <h3>Recurring Bills & Expenses</h3>
+          <button className="finance-add-btn" onClick={() => setShowAddExpense(true)}>
+            + Add Expense
+          </button>
+        </div>
+        <p className="finance-settings-desc">
+          These expenses are shared with the Budget widget on your Wealth dashboard.
+        </p>
+      </div>
+
+      {/* Expenses by Loop */}
+      {ALL_LOOPS.filter(loop => expensesByLoop[loop].length > 0).map(loop => {
+        const colors = LOOP_COLORS[loop as keyof typeof LOOP_COLORS];
+        const loopExpenses = expensesByLoop[loop];
+        const loopTotal = loopExpenses.reduce((sum, e) => {
+          let monthly = e.amount;
+          if (e.frequency === "weekly") monthly = e.amount * 4.33;
+          else if (e.frequency === "bi-weekly") monthly = e.amount * 2.17;
+          else if (e.frequency === "yearly") monthly = e.amount / 12;
+          return sum + monthly;
+        }, 0);
+
+        return (
+          <div key={loop} className="finance-card finance-loop-expenses" style={{ borderLeftColor: colors?.bg }}>
+            <div className="finance-loop-header">
+              <h4 style={{ color: colors?.text }}>{loop}</h4>
+              <span className="finance-loop-total">${loopTotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}/mo</span>
+            </div>
+            <div className="finance-expense-list">
+              {loopExpenses.map(expense => (
+                <div key={expense.id} className="finance-expense-row">
+                  <div className="finance-expense-info">
+                    <span className="finance-expense-name">{expense.name}</span>
+                    <span className="finance-expense-meta">
+                      {expense.category} • {expense.frequency}
+                      {expense.dueDate && ` • Due: ${expense.dueDate}`}
+                    </span>
+                  </div>
+                  <div className="finance-expense-actions">
+                    <span className="finance-expense-amount">${expense.amount.toFixed(2)}</span>
+                    <button
+                      className="finance-expense-edit"
+                      onClick={() => setEditingExpense(expense)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="finance-expense-delete"
+                      onClick={() => handleDeleteExpense(expense.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Empty state */}
+      {expenses.length === 0 && (
+        <div className="finance-card finance-empty-expenses">
+          <div className="finance-empty-icon">💸</div>
+          <h4>No expenses tracked yet</h4>
+          <p>Add your recurring bills and expenses to track your budget.</p>
+        </div>
+      )}
+
+      {/* Add/Edit Expense Modal */}
+      {(showAddExpense || editingExpense) && (
+        <ExpenseModal
+          expense={editingExpense}
+          onSave={handleSaveExpense}
+          onCancel={() => { setEditingExpense(null); setShowAddExpense(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Expense Edit Modal
+function ExpenseModal({
+  expense,
+  onSave,
+  onCancel,
+}: {
+  expense: BudgetExpense | null;
+  onSave: (expense: BudgetExpense) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(expense?.name || "");
+  const [amount, setAmount] = useState(expense?.amount?.toString() || "");
+  const [category, setCategory] = useState(expense?.category || "Bills");
+  const [loop, setLoop] = useState<LoopId>(expense?.loop || "Maintenance");
+  const [frequency, setFrequency] = useState<BudgetExpense["frequency"]>(expense?.frequency || "monthly");
+  const [dueDate, setDueDate] = useState(expense?.dueDate || "");
+  const [notes, setNotes] = useState(expense?.notes || "");
+  const [url, setUrl] = useState(expense?.url || "");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      id: expense?.id || `exp_${Date.now()}`,
+      name,
+      amount: parseFloat(amount) || 0,
+      category,
+      loop,
+      frequency,
+      dueDate: dueDate || undefined,
+      notes: notes || undefined,
+      url: url || undefined,
+    });
+  };
+
+  return (
+    <div className="finance-modal-overlay" onClick={onCancel}>
+      <div className="finance-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{expense ? "Edit Expense" : "Add Expense"}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="finance-form-group">
+            <label>Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Netflix, Rent, Phone Bill..."
+              required
+            />
+          </div>
+          <div className="finance-form-row">
+            <div className="finance-form-group">
+              <label>Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                required
+              />
+            </div>
+            <div className="finance-form-group">
+              <label>Frequency</label>
+              <select value={frequency} onChange={(e) => setFrequency(e.target.value as BudgetExpense["frequency"])}>
+                <option value="monthly">Monthly</option>
+                <option value="weekly">Weekly</option>
+                <option value="bi-weekly">Bi-Weekly</option>
+                <option value="yearly">Yearly</option>
+                <option value="one-time">One-time</option>
+              </select>
+            </div>
+          </div>
+          <div className="finance-form-row">
+            <div className="finance-form-group">
+              <label>Loop</label>
+              <select value={loop} onChange={(e) => setLoop(e.target.value as LoopId)}>
+                {ALL_LOOPS.map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </div>
+            <div className="finance-form-group">
+              <label>Category</label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="Bills, Subscription, etc."
+              />
+            </div>
+          </div>
+          <div className="finance-form-group">
+            <label>Due Date (optional)</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+          <div className="finance-form-group">
+            <label>Notes (optional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Additional details..."
+              rows={2}
+            />
+          </div>
+          <div className="finance-form-group">
+            <label>Payment URL (optional)</label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://..."
+            />
+          </div>
+          <div className="finance-modal-actions">
+            <button type="button" onClick={onCancel} className="finance-cancel-btn">Cancel</button>
+            <button type="submit" className="finance-save-btn">Save</button>
+          </div>
+        </form>
       </div>
     </div>
   );
