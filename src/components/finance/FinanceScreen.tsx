@@ -729,11 +729,11 @@ function ExpensesView({
     }
   };
 
-  // Track collapsed state for categories
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  // Track expanded state for categories (collapsed by default)
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const toggleCategory = (key: string) => {
-    setCollapsedCategories(prev => {
+    setExpandedCategories(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
         next.delete(key);
@@ -898,17 +898,17 @@ function ExpensesView({
                 })
                 .map(([category, categoryExpenses]) => {
                   const categoryKey = `${loop}-${category}`;
-                  const isCollapsed = collapsedCategories.has(categoryKey);
+                  const isExpanded = expandedCategories.has(categoryKey);
                   const categoryTotal = categoryExpenses.reduce((sum, e) => sum + getMonthlyAmount(e), 0);
 
                   return (
-                    <div key={categoryKey} className={`finance-category-group ${isCollapsed ? 'collapsed' : ''}`}>
+                    <div key={categoryKey} className={`finance-category-group ${isExpanded ? '' : 'collapsed'}`}>
                       <button
                         className="finance-category-header"
                         onClick={() => toggleCategory(categoryKey)}
                       >
                         <div className="finance-category-info">
-                          <span className={`finance-category-chevron ${isCollapsed ? '' : 'expanded'}`}>›</span>
+                          <span className={`finance-category-chevron ${isExpanded ? 'expanded' : ''}`}>›</span>
                           <span className="finance-category-name">{category}</span>
                           <span className="finance-category-count">{categoryExpenses.length}</span>
                         </div>
@@ -917,7 +917,7 @@ function ExpensesView({
                         </span>
                       </button>
 
-                      {!isCollapsed && (
+                      {isExpanded && (
                         <div className="finance-expense-list">
                           {categoryExpenses.map(expense => (
                             <div key={expense.id} className="finance-expense-row">
