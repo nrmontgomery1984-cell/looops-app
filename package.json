@@ -14,12 +14,12 @@
     "@react-three/fiber": "^8.18.0",
     "@types/react-beautiful-dnd": "^13.1.8",
     "firebase": "^10.7.1",
-    "framer-motion": "^12.23.26",
+    "framer-motion": "^11.18.2",
     "jspdf": "^3.0.4",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.2.0",
-    "three": "^0.182.0"
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

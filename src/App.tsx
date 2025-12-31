@@ -56,6 +56,7 @@ import { DirectionalDocument } from "./types/directional";
 import { exportDirectionalDocumentPDF, downloadPDF } from "./services/pdfExport";
 import { MealPrepScreen } from "./components/mealprep";
 import { FinanceScreen } from "./components/finance";
+import { SphereDemoPage } from "./pages/sphere-demo";
 
 // Mock data for previewing completed directional document
 const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
@@ -205,6 +206,7 @@ const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
 import { LoginScreen } from "./components/auth";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { generatePrototype, getArchetypeGreeting, frameTasks } from "./engines";
+import { getInspirationsByIds } from "./data/inspirations";
 import { generateStarterContent, ChallengeId, LifeSeasonId, TransitionId } from "./engines/starterContentEngine";
 import { SystemTemplate } from "./types/systems";
 import { Goal, LoopStateType } from "./types";
@@ -461,14 +463,42 @@ function AppContent() {
     return "evening";
   }, []);
 
-  // Get greeting based on archetype
-  const greeting = useMemo(() => {
-    const name = user.profile?.name || "there";
-    if (user.prototype?.archetypeBlend?.primary) {
-      return getArchetypeGreeting(user.prototype.archetypeBlend.primary, name, timeOfDay);
+  // Calculate days alive from birthday
+  const daysAlive = useMemo(() => {
+    const birthday = user.profile?.birthday || "1984-08-26"; // Default to Aug 26, 1984
+    const birthDate = new Date(birthday);
+    const today = new Date();
+    const diffTime = today.getTime() - birthDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays.toLocaleString(); // Format with commas
+  }, [user.profile?.birthday]);
+
+  // Get random quote from user's selected inspirations
+  const inspirationQuote = useMemo(() => {
+    if (!user.prototype?.inspirations?.selectedIds?.length) {
+      return null;
     }
-    return `Good ${timeOfDay}, ${name}`;
-  }, [user.profile, user.prototype, timeOfDay]);
+    const inspirations = getInspirationsByIds(user.prototype.inspirations.selectedIds);
+    // Collect all quotes from selected inspirations
+    const allQuotes: { quote: string; author: string }[] = [];
+    for (const inspiration of inspirations) {
+      if (inspiration.quotes) {
+        for (const quote of inspiration.quotes) {
+          allQuotes.push({ quote, author: inspiration.name });
+        }
+      }
+    }
+    if (allQuotes.length === 0) return null;
+    // Pick a random quote (changes daily based on day of year)
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+    const index = dayOfYear % allQuotes.length;
+    return allQuotes[index];
+  }, [user.prototype?.inspirations?.selectedIds]);
+
+  // Get greeting based on time of day and days alive
+  const greeting = useMemo(() => {
+    return `Good ${timeOfDay}. Day ${daysAlive}.`;
+  }, [timeOfDay, daysAlive]);
 
   // Get today's tasks with archetype framing and state-based prioritization
   const todaysTasks = useMemo(() => {
@@ -657,6 +687,9 @@ function AppContent() {
             <div className="today-header">
               <div className="today-header-main">
                 <h2>{greeting}</h2>
+                {inspirationQuote && (
+                  <p className="today-quote">"{inspirationQuote.quote}" — {inspirationQuote.author}</p>
+                )}
                 <p className="today-subtitle">Your daily command center for tasks, habits, and focus</p>
                 <p className="today-date">
                   {new Date().toLocaleDateString("en-US", {
@@ -2209,6 +2242,12 @@ function SyncStatusIndicator() {
 
 // Root App Component (wraps with providers)
 function App() {
+  // Dev: Access sphere demo via ?sphere-demo=1
+  const showSphereDemo = new URLSearchParams(window.location.search).get('sphere-demo') === '1';
+  if (showSphereDemo) {
+    return <SphereDemoPage />;
+  }
+
   return (
     <AppProvider>
       <FirebaseSyncProvider>
