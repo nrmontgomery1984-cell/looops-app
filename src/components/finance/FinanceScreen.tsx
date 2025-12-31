@@ -1,7 +1,7 @@
 // FinanceScreen - Main finance dashboard for bank account management
 // Wealth loop integration for transaction tracking and budgeting
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   useFinance,
   useFinanceAccounts,
@@ -48,20 +48,58 @@ export function FinanceScreen() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d" | "all">("30d");
 
+  // Debug: Log finance state on mount and when it changes
+  useEffect(() => {
+    console.log("[Finance] State:", {
+      connectionsCount: finance.connections.length,
+      connections: finance.connections.map(c => ({ id: c.id, status: c.status, hasAccessUrl: !!c.accessUrl })),
+      accountsCount: accounts.length,
+      transactionsCount: transactions.length,
+      syncStatus: finance.syncStatus,
+    });
+  }, [finance, accounts, transactions]);
+
   // Handle sync for active connection
   const handleSync = useCallback(async () => {
     const activeConnection = finance.connections.find(c => c.status === "active");
+    console.log("[Finance] handleSync called, activeConnection:", {
+      found: !!activeConnection,
+      id: activeConnection?.id,
+      status: activeConnection?.status,
+      hasAccessUrl: !!activeConnection?.accessUrl,
+      accessUrlLength: activeConnection?.accessUrl?.length,
+    });
     if (!activeConnection) return;
 
-    await performFullSync(
-      activeConnection,
-      accounts,
-      transactions,
-      rules,
-      categories,
-      dispatch
-    );
+    try {
+      await performFullSync(
+        activeConnection,
+        accounts,
+        transactions,
+        rules,
+        categories,
+        dispatch
+      );
+    } catch (error) {
+      console.error("[Finance] Sync error:", error);
+      // Ensure syncing state is reset on any error
+      dispatch({
+        type: "SET_FINANCE_SYNC_STATUS",
+        payload: { isSyncing: false, error: error instanceof Error ? error.message : "Sync failed" },
+      });
+    }
   }, [finance.connections, accounts, transactions, rules, categories, dispatch]);
+
+  // Reset stuck syncing state on mount (safety valve)
+  useEffect(() => {
+    if (finance.syncStatus.isSyncing) {
+      console.log("[Finance] Detected stuck syncing state, resetting...");
+      dispatch({
+        type: "SET_FINANCE_SYNC_STATUS",
+        payload: { isSyncing: false },
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate net worth
   const netWorth = useMemo(() => calculateNetWorth(accounts), [accounts]);
@@ -990,6 +1028,16 @@ function SettingsView({
               <div className="finance-connection-meta">
                 Last sync: {conn.lastSyncAt ? new Date(conn.lastSyncAt).toLocaleDateString() : "Never"}
               </div>
+              <button
+                className="finance-delete-btn"
+                onClick={() => {
+                  if (confirm("Are you sure you want to disconnect this service? You will need to reconnect with a new setup token.")) {
+                    dispatch({ type: "DELETE_FINANCE_CONNECTION", payload: conn.id });
+                  }
+                }}
+              >
+                Disconnect
+              </button>
             </div>
           ))}
         </div>
