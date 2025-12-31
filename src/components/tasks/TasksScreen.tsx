@@ -315,20 +315,40 @@ export function TasksScreen({
                   (t) => t.projectId === project.id && t.status !== "done"
                 ).length;
                 return (
-                  <button
+                  <div
                     key={project.id}
-                    className={`sidebar-item ${currentView === "project" && selectedProjectId === project.id ? "active" : ""}`}
-                    onClick={() => handleViewChange("project", project.id)}
+                    className={`sidebar-item sidebar-item-with-actions ${currentView === "project" && selectedProjectId === project.id ? "active" : ""}`}
                   >
-                    <span
-                      className="sidebar-icon project-dot"
-                      style={{ backgroundColor: project.color }}
-                    />
-                    <span>{project.name}</span>
-                    {projectTaskCount > 0 && (
-                      <span className="sidebar-badge">{projectTaskCount}</span>
-                    )}
-                  </button>
+                    <button
+                      className="sidebar-item-main"
+                      onClick={() => handleViewChange("project", project.id)}
+                    >
+                      <span
+                        className="sidebar-icon project-dot"
+                        style={{ backgroundColor: project.color }}
+                      />
+                      <span>{project.name}</span>
+                      {projectTaskCount > 0 && (
+                        <span className="sidebar-badge">{projectTaskCount}</span>
+                      )}
+                    </button>
+                    <button
+                      className="sidebar-item-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Delete project "${project.name}"? Tasks will be moved to inbox.`)) {
+                          onDeleteProject(project.id);
+                          if (selectedProjectId === project.id) {
+                            setCurrentView("inbox");
+                            setSelectedProjectId(null);
+                          }
+                        }
+                      }}
+                      title="Delete project"
+                    >
+                      ×
+                    </button>
+                  </div>
                 );
               })}
             {projects.filter((p) => !p.archived).length === 0 && (

@@ -10861,6 +10861,48 @@ body.modal-open {
   color: white;
 }
 
+/* Sidebar item with delete action */
+.sidebar-item-with-actions {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  gap: 0;
+}
+
+.sidebar-item-with-actions .sidebar-item-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+}
+
+.sidebar-item-with-actions .sidebar-item-delete {
+  opacity: 0;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.sidebar-item-with-actions:hover .sidebar-item-delete {
+  opacity: 1;
+}
+
+.sidebar-item-with-actions .sidebar-item-delete:hover {
+  color: var(--color-red);
+}
+
 .sidebar-empty {
   padding: 8px 12px;
   font-size: 13px;
