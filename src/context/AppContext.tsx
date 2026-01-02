@@ -31,6 +31,9 @@ import {
   RoutineCompletion,
   // Systems & Habits
   System,
+  SystemComponent,
+  SystemMilestone,
+  ComponentCompletion,
   Habit,
   HabitCompletion,
   ImplementationIntention,
@@ -115,6 +118,12 @@ import {
   loadMonthlyIncomeFromLocalStorage,
   saveMonthlyIncomeToLocalStorage,
 } from "../types/finance";
+import {
+  SpecialDatesState,
+  SpecialDate,
+  Person,
+  INITIAL_SPECIAL_DATES_STATE,
+} from "../types/specialDates";
 import { SEED_RECIPES, SEED_TECHNIQUES } from "../data/mealPrepSeedData";
 
 // User profile type
@@ -167,11 +176,13 @@ export type AppState = {
     completions: RoutineCompletion[];
   };
 
-  // Systems & Habits
+  // Systems & Habits (habits deprecated, use components within systems)
   systems: {
     items: System[];
+    completions: ComponentCompletion[]; // Component completions across all systems
   };
 
+  // @deprecated - Use systems.completions and system.components instead
   habits: {
     items: Habit[];
     completions: HabitCompletion[];
@@ -225,6 +236,9 @@ export type AppState = {
 
   // Finance (Wealth loop)
   finance: FinanceState;
+
+  // Special Dates (Family loop)
+  specialDates: SpecialDatesState;
 
   // Active task timer (only one can run at a time)
   activeTimer: ActiveTimer | null;
@@ -283,10 +297,12 @@ const defaultState: AppState = {
     items: [],
     completions: [],
   },
-  // Systems & Habits
+  // Systems & Habits (habits deprecated)
   systems: {
     items: [],
+    completions: [],
   },
+  // @deprecated - being migrated to system.components
   habits: {
     items: [],
     completions: [],
@@ -330,6 +346,8 @@ const defaultState: AppState = {
   workout: getDefaultWorkoutState(),
   // Finance
   finance: getDefaultFinanceState(),
+  // Special Dates
+  specialDates: INITIAL_SPECIAL_DATES_STATE,
   // Active Timer
   activeTimer: null,
   ui: {
@@ -400,7 +418,23 @@ export type AppAction =
   | { type: "UPDATE_SYSTEM"; payload: System }
   | { type: "DELETE_SYSTEM"; payload: string }
 
-  // Habit actions
+  // System Component actions (components are embedded within systems)
+  | { type: "ADD_COMPONENT"; payload: { systemId: string; component: SystemComponent } }
+  | { type: "UPDATE_COMPONENT"; payload: { systemId: string; component: SystemComponent } }
+  | { type: "DELETE_COMPONENT"; payload: { systemId: string; componentId: string } }
+  | { type: "COMPLETE_COMPONENT"; payload: { systemId: string; componentId: string; date: string; notes?: string } }
+  | { type: "UNCOMPLETE_COMPONENT"; payload: { systemId: string; componentId: string; date: string } }
+
+  // System Milestone actions
+  | { type: "ADD_MILESTONE"; payload: { systemId: string; milestone: SystemMilestone } }
+  | { type: "UPDATE_MILESTONE"; payload: { systemId: string; milestone: SystemMilestone } }
+  | { type: "DELETE_MILESTONE"; payload: { systemId: string; milestoneId: string } }
+  | { type: "COMPLETE_MILESTONE"; payload: { systemId: string; milestoneId: string } }
+
+  // Migration action - convert standalone habits to system components
+  | { type: "MIGRATE_HABITS_TO_COMPONENTS" }
+
+  // Habit actions (@deprecated - use component actions instead)
   | { type: "ADD_HABIT"; payload: Habit }
   | { type: "UPDATE_HABIT"; payload: Habit }
   | { type: "DELETE_HABIT"; payload: string }
@@ -573,6 +607,14 @@ export type AppAction =
 
   // Monthly Income
   | { type: "SET_MONTHLY_INCOME"; payload: number }
+
+  // Special Dates actions
+  | { type: "ADD_PERSON"; payload: Person }
+  | { type: "UPDATE_PERSON"; payload: Person }
+  | { type: "DELETE_PERSON"; payload: string }
+  | { type: "ADD_SPECIAL_DATE"; payload: SpecialDate }
+  | { type: "UPDATE_SPECIAL_DATE"; payload: SpecialDate }
+  | { type: "DELETE_SPECIAL_DATE"; payload: string }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -936,13 +978,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case "ADD_SYSTEM":
       return {
         ...state,
-        systems: { items: [...state.systems.items, action.payload] },
+        systems: {
+          ...state.systems,
+          items: [...state.systems.items, action.payload],
+        },
       };
 
     case "UPDATE_SYSTEM":
       return {
         ...state,
         systems: {
+          ...state.systems,
           items: state.systems.items.map((s) =>
             s.id === action.payload.id ? action.payload : s
           ),
@@ -953,11 +999,346 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         systems: {
+          ...state.systems,
           items: state.systems.items.filter((s) => s.id !== action.payload),
+          // Also remove completions for this system
+          completions: state.systems.completions.filter((c) => c.systemId !== action.payload),
         },
       };
 
-    // Habits
+    // System Components (embedded within systems)
+    case "ADD_COMPONENT": {
+      const { systemId, component } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) =>
+            s.id === systemId
+              ? { ...s, components: [...(s.components || []), component], updatedAt: new Date().toISOString() }
+              : s
+          ),
+        },
+      };
+    }
+
+    case "UPDATE_COMPONENT": {
+      const { systemId, component } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) =>
+            s.id === systemId
+              ? {
+                  ...s,
+                  components: (s.components || []).map((c) =>
+                    c.id === component.id ? component : c
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : s
+          ),
+        },
+      };
+    }
+
+    case "DELETE_COMPONENT": {
+      const { systemId, componentId } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) =>
+            s.id === systemId
+              ? {
+                  ...s,
+                  components: (s.components || []).filter((c) => c.id !== componentId),
+                  updatedAt: new Date().toISOString(),
+                }
+              : s
+          ),
+          // Remove completions for deleted component
+          completions: state.systems.completions.filter((c) => c.componentId !== componentId),
+        },
+      };
+    }
+
+    case "COMPLETE_COMPONENT": {
+      const { systemId, componentId, date, notes } = action.payload;
+      const completion: ComponentCompletion = {
+        id: `cc_${Date.now()}`,
+        componentId,
+        systemId,
+        date,
+        completedAt: new Date().toISOString(),
+        notes,
+      };
+      // Update streak on component within its system
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) => {
+            if (s.id !== systemId) return s;
+            return {
+              ...s,
+              components: (s.components || []).map((c) => {
+                if (c.id !== componentId) return c;
+                const newStreak = c.streak + 1;
+                return {
+                  ...c,
+                  streak: newStreak,
+                  longestStreak: Math.max(c.longestStreak, newStreak),
+                  totalCompletions: c.totalCompletions + 1,
+                  updatedAt: new Date().toISOString(),
+                };
+              }),
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+          completions: [...state.systems.completions, completion],
+        },
+      };
+    }
+
+    case "UNCOMPLETE_COMPONENT": {
+      const { systemId, componentId, date } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          completions: state.systems.completions.filter(
+            (c) => !(c.componentId === componentId && c.date === date)
+          ),
+        },
+      };
+    }
+
+    // System Milestones (embedded within systems)
+    case "ADD_MILESTONE": {
+      const { systemId, milestone } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) =>
+            s.id === systemId
+              ? { ...s, milestones: [...(s.milestones || []), milestone], updatedAt: new Date().toISOString() }
+              : s
+          ),
+        },
+      };
+    }
+
+    case "UPDATE_MILESTONE": {
+      const { systemId, milestone } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) =>
+            s.id === systemId
+              ? {
+                  ...s,
+                  milestones: (s.milestones || []).map((m) =>
+                    m.id === milestone.id ? milestone : m
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : s
+          ),
+        },
+      };
+    }
+
+    case "DELETE_MILESTONE": {
+      const { systemId, milestoneId } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) =>
+            s.id === systemId
+              ? {
+                  ...s,
+                  milestones: (s.milestones || []).filter((m) => m.id !== milestoneId),
+                  updatedAt: new Date().toISOString(),
+                }
+              : s
+          ),
+        },
+      };
+    }
+
+    case "COMPLETE_MILESTONE": {
+      const { systemId, milestoneId } = action.payload;
+      return {
+        ...state,
+        systems: {
+          ...state.systems,
+          items: state.systems.items.map((s) =>
+            s.id === systemId
+              ? {
+                  ...s,
+                  milestones: (s.milestones || []).map((m) =>
+                    m.id === milestoneId
+                      ? { ...m, status: "achieved" as const, completedAt: new Date().toISOString() }
+                      : m
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : s
+          ),
+        },
+      };
+    }
+
+    // Migration: Convert standalone habits to system components
+    case "MIGRATE_HABITS_TO_COMPONENTS": {
+      if (state.habits.items.length === 0) {
+        return state; // Nothing to migrate
+      }
+
+      // Group habits by their systemId, or by loop for orphaned habits
+      const habitsBySystem = new Map<string, Habit[]>();
+      const orphanedHabitsByLoop = new Map<string, Habit[]>();
+
+      state.habits.items.forEach((habit) => {
+        if (habit.systemId) {
+          const existing = habitsBySystem.get(habit.systemId) || [];
+          habitsBySystem.set(habit.systemId, [...existing, habit]);
+        } else {
+          // Orphaned habit - group by loop
+          const loopKey = habit.loop || "Health";
+          const existing = orphanedHabitsByLoop.get(loopKey) || [];
+          orphanedHabitsByLoop.set(loopKey, [...existing, habit]);
+        }
+      });
+
+      // Convert habits to components and add to existing systems
+      let updatedSystems = state.systems.items.map((system) => {
+        const systemHabits = habitsBySystem.get(system.id) || [];
+        if (systemHabits.length === 0) return system;
+
+        const newComponents: SystemComponent[] = systemHabits.map((habit) => ({
+          id: habit.id, // Keep same ID for completion mapping
+          title: habit.title,
+          description: habit.description,
+          type: habit.frequency === "daily" ? "daily" : habit.frequency === "weekly" ? "weekly" : "custom",
+          cue: habit.cue,
+          craving: habit.craving,
+          response: habit.response,
+          reward: habit.reward,
+          frequency: habit.frequency,
+          customDays: habit.customDays,
+          timeOfDay: habit.timeOfDay,
+          dayTypes: habit.dayTypes,
+          dayTypeOverrides: habit.dayTypeOverrides,
+          stackedAfter: habit.stackedAfter,
+          stackedBefore: habit.stackedBefore,
+          streak: habit.streak,
+          longestStreak: habit.longestStreak,
+          totalCompletions: habit.totalCompletions,
+          status: habit.status,
+          createdAt: habit.createdAt,
+          updatedAt: new Date().toISOString(),
+        }));
+
+        return {
+          ...system,
+          components: [...(system.components || []), ...newComponents],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+      // Create new "Legacy" systems for orphaned habits
+      const newLegacySystems: System[] = [];
+      orphanedHabitsByLoop.forEach((habits, loop) => {
+        const now = new Date().toISOString();
+        const newSystem: System = {
+          id: `legacy_${loop.toLowerCase()}_${Date.now()}`,
+          title: `${loop} Habits (Migrated)`,
+          description: "Auto-created system from migrated standalone habits",
+          loop: loop as LoopId,
+          goalStatement: `Maintain my ${loop.toLowerCase()} habits`,
+          linkedGoalId: undefined,
+          identity: {
+            id: `identity_${loop.toLowerCase()}_${Date.now()}`,
+            statement: `I am someone who maintains ${loop.toLowerCase()} habits`,
+            loop: loop as LoopId,
+            createdAt: now,
+            updatedAt: now,
+          },
+          components: habits.map((habit) => ({
+            id: habit.id,
+            title: habit.title,
+            description: habit.description,
+            type: habit.frequency === "daily" ? "daily" : habit.frequency === "weekly" ? "weekly" : "custom",
+            cue: habit.cue,
+            craving: habit.craving,
+            response: habit.response,
+            reward: habit.reward,
+            frequency: habit.frequency,
+            customDays: habit.customDays,
+            timeOfDay: habit.timeOfDay,
+            dayTypes: habit.dayTypes,
+            dayTypeOverrides: habit.dayTypeOverrides,
+            stackedAfter: habit.stackedAfter,
+            stackedBefore: habit.stackedBefore,
+            streak: habit.streak,
+            longestStreak: habit.longestStreak,
+            totalCompletions: habit.totalCompletions,
+            status: habit.status,
+            createdAt: habit.createdAt,
+            updatedAt: now,
+          })),
+          milestones: [],
+          metrics: [],
+          environmentTweaks: [],
+          obstaclePlaybook: [],
+          status: "active",
+          startedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        };
+        newLegacySystems.push(newSystem);
+      });
+
+      // Convert habit completions to component completions
+      const newCompletions: ComponentCompletion[] = state.habits.completions.map((hc) => {
+        // Find which system this habit belongs to
+        const habit = state.habits.items.find((h) => h.id === hc.habitId);
+        const systemId = habit?.systemId || newLegacySystems.find((s) =>
+          s.components?.some((c) => c.id === hc.habitId)
+        )?.id || "";
+
+        return {
+          id: `cc_${hc.id}`,
+          componentId: hc.habitId,
+          systemId,
+          date: hc.date,
+          completedAt: hc.completedAt,
+          notes: hc.notes,
+        };
+      });
+
+      return {
+        ...state,
+        systems: {
+          items: [...updatedSystems, ...newLegacySystems],
+          completions: [...state.systems.completions, ...newCompletions],
+        },
+        // Clear habits after migration
+        habits: {
+          items: [],
+          completions: [],
+        },
+      };
+    }
+
+    // Habits (@deprecated - use component actions)
+    // Keeping for backward compatibility during migration
     case "ADD_HABIT":
       return {
         ...state,
@@ -1632,12 +2013,57 @@ function appReducer(state: AppState, action: AppAction): AppState {
           items: deduplicatedItems,
         };
       }
+      // Special handling for systems - ensure arrays are never undefined
+      let systemsMerged = payload.systems;
+      if (payload.systems) {
+        systemsMerged = {
+          ...state.systems,
+          ...payload.systems,
+          items: payload.systems.items ?? state.systems.items ?? [],
+          completions: payload.systems.completions ?? state.systems.completions ?? [],
+        };
+      }
+      // Special handling for habits - ensure arrays are never undefined
+      let habitsMerged = payload.habits;
+      if (payload.habits) {
+        habitsMerged = {
+          ...state.habits,
+          ...payload.habits,
+          items: payload.habits.items ?? state.habits.items ?? [],
+          completions: payload.habits.completions ?? state.habits.completions ?? [],
+        };
+      }
+      // Special handling for goals - ensure all timeframes have arrays
+      let goalsMerged = payload.goals;
+      if (payload.goals) {
+        goalsMerged = {
+          annual: payload.goals.annual ?? state.goals.annual ?? [],
+          quarterly: payload.goals.quarterly ?? state.goals.quarterly ?? [],
+          monthly: payload.goals.monthly ?? state.goals.monthly ?? [],
+          weekly: payload.goals.weekly ?? state.goals.weekly ?? [],
+          daily: payload.goals.daily ?? state.goals.daily ?? [],
+        };
+      }
+      // Special handling for specialDates - ensure arrays are never undefined
+      let specialDatesMerged = payload.specialDates;
+      if (payload.specialDates) {
+        specialDatesMerged = {
+          ...state.specialDates,
+          ...payload.specialDates,
+          people: payload.specialDates.people ?? state.specialDates.people ?? [],
+          dates: payload.specialDates.dates ?? state.specialDates.dates ?? [],
+        };
+      }
       return {
         ...state,
         ...payload,
         mealPrep: mealPrepMerged ?? state.mealPrep,
         finance: financeMerged ?? state.finance,
         routines: routinesMerged ?? state.routines,
+        systems: systemsMerged ?? state.systems,
+        habits: habitsMerged ?? state.habits,
+        goals: goalsMerged ?? state.goals,
+        specialDates: specialDatesMerged ?? state.specialDates,
       };
     }
 
@@ -2501,6 +2927,68 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    // Special Dates - People
+    case "ADD_PERSON":
+      return {
+        ...state,
+        specialDates: {
+          ...state.specialDates,
+          people: [...state.specialDates.people, action.payload],
+        },
+      };
+
+    case "UPDATE_PERSON":
+      return {
+        ...state,
+        specialDates: {
+          ...state.specialDates,
+          people: state.specialDates.people.map((p) =>
+            p.id === action.payload.id ? action.payload : p
+          ),
+        },
+      };
+
+    case "DELETE_PERSON":
+      return {
+        ...state,
+        specialDates: {
+          ...state.specialDates,
+          people: state.specialDates.people.filter((p) => p.id !== action.payload),
+          // Also remove any dates associated with this person
+          dates: state.specialDates.dates.filter((d) => d.personId !== action.payload),
+        },
+      };
+
+    // Special Dates - Dates
+    case "ADD_SPECIAL_DATE":
+      return {
+        ...state,
+        specialDates: {
+          ...state.specialDates,
+          dates: [...state.specialDates.dates, action.payload],
+        },
+      };
+
+    case "UPDATE_SPECIAL_DATE":
+      return {
+        ...state,
+        specialDates: {
+          ...state.specialDates,
+          dates: state.specialDates.dates.map((d) =>
+            d.id === action.payload.id ? action.payload : d
+          ),
+        },
+      };
+
+    case "DELETE_SPECIAL_DATE":
+      return {
+        ...state,
+        specialDates: {
+          ...state.specialDates,
+          dates: state.specialDates.dates.filter((d) => d.id !== action.payload),
+        },
+      };
+
     default:
       return state;
   }
@@ -2550,11 +3038,14 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
         });
       })(),
     },
-    // Systems & Habits
+    // Systems & Habits (habits deprecated, being migrated to system.components)
     systems: {
       ...defaultState.systems,
       ...savedState.systems,
+      // Ensure completions array exists
+      completions: savedState.systems?.completions ?? defaultState.systems.completions ?? [],
     },
+    // @deprecated - Will be migrated to system.components
     habits: {
       ...defaultState.habits,
       ...savedState.habits,
@@ -2658,6 +3149,15 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
           loopBudgets: loadLoopBudgetsFromLocalStorage(),
           monthlyIncome: loadMonthlyIncomeFromLocalStorage(),
         },
+    // Special Dates - persists
+    specialDates: savedState.specialDates
+      ? {
+          ...defaultState.specialDates,
+          ...savedState.specialDates,
+          people: savedState.specialDates.people ?? defaultState.specialDates.people,
+          dates: savedState.specialDates.dates ?? defaultState.specialDates.dates,
+        }
+      : defaultState.specialDates,
     // Active Timer - persists (allows resuming timer across sessions)
     activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
@@ -2797,6 +3297,12 @@ export function useSystems() {
 export function useHabits() {
   const { state } = useApp();
   return state.habits;
+}
+
+// Hook for component completions (new system)
+export function useComponentCompletions() {
+  const { state } = useApp();
+  return state.systems.completions;
 }
 
 export function useIntentions() {

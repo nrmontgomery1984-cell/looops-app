@@ -19,6 +19,7 @@ export type WidgetType =
   | "journal"
   | "system_health"
   | "babysitter"
+  | "special_dates"
   | "health_data"
   | "google_calendar"
   | "spotify"
@@ -36,7 +37,10 @@ export type WidgetType =
   | "steps"
   | "loop_ai"
   | "wasted_money"
-  | "workout";
+  | "workout"
+  | "finance_manager"
+  | "meal_prep"
+  | "zero_waste";
 
 export type WidgetSize = "small" | "medium" | "large" | "full";
 
@@ -53,6 +57,14 @@ export interface WidgetConfig {
     row: number;
     col: number;
   };
+  // Grid-based sizing (in grid units) - used when edit mode is enabled
+  // Grid is 4 columns wide, widgets can span 1-4 columns and 1-4 rows
+  gridSize?: {
+    colSpan: number; // 1-4 columns
+    rowSpan: number; // 1-4 rows
+  };
+  // Pinned widgets cannot be moved or resized in edit mode
+  pinned?: boolean;
   settings: Record<string, unknown>; // Widget-specific settings
 }
 
@@ -60,6 +72,8 @@ export interface LoopDashboard {
   loopId: LoopId;
   widgets: WidgetConfig[];
   updatedAt: string;
+  // Edit mode enables drag-to-reorder and resize handles
+  editMode?: boolean;
 }
 
 // =============================================================================
@@ -205,6 +219,15 @@ export const WIDGET_DEFINITIONS: Record<WidgetType, WidgetDefinition> = {
     icon: "👶",
     defaultSize: "large",
     availableSizes: ["medium", "large", "full"],
+    defaultSettings: {},
+  },
+  special_dates: {
+    type: "special_dates",
+    name: "Special Dates",
+    description: "Track birthdays, anniversaries, and remembrance days",
+    icon: "🎂",
+    defaultSize: "medium",
+    availableSizes: ["small", "medium", "large"],
     defaultSettings: {},
   },
   health_data: {
@@ -406,6 +429,37 @@ export const WIDGET_DEFINITIONS: Record<WidgetType, WidgetDefinition> = {
       compact: false,
     },
   },
+  finance_manager: {
+    type: "finance_manager",
+    name: "Finance Manager",
+    description: "Full finance management with accounts, transactions, and budgets",
+    icon: "💰",
+    defaultSize: "full",
+    availableSizes: ["large", "full"],
+    defaultSettings: {
+      embedded: true,
+    },
+  },
+  meal_prep: {
+    type: "meal_prep",
+    name: "Meal Prep",
+    description: "Plan meals, manage recipes, and generate shopping lists",
+    icon: "🍽️",
+    defaultSize: "full",
+    availableSizes: ["large", "full"],
+    defaultSettings: {
+      embedded: true,
+    },
+  },
+  zero_waste: {
+    type: "zero_waste",
+    name: "Zero Waste",
+    description: "Track waste reduction goals and sustainable habits",
+    icon: "♻️",
+    defaultSize: "large",
+    availableSizes: ["medium", "large", "full"],
+    defaultSettings: {},
+  },
 };
 
 // =============================================================================
@@ -514,47 +568,71 @@ export function getDefaultDashboard(loopId: LoopId): LoopDashboard {
   const loopSpecificWidgets: Partial<Record<LoopId, WidgetConfig[]>> = {
     Health: [
       {
+        id: `${loopId}_meal_prep`,
+        type: "meal_prep",
+        size: "full",
+        position: { row: 2, col: 0 },
+        gridSize: { colSpan: 4, rowSpan: 4 },
+        settings: { embedded: true },
+      },
+      {
+        id: `${loopId}_zero_waste`,
+        type: "zero_waste",
+        size: "large",
+        position: { row: 6, col: 0 },
+        gridSize: { colSpan: 4, rowSpan: 3 },
+        settings: {},
+      },
+      {
         id: `${loopId}_sleep_readiness`,
         type: "sleep_readiness",
         size: "medium",
-        position: { row: 2, col: 0 },
+        position: { row: 9, col: 0 },
         settings: { showTrends: true },
       },
       {
         id: `${loopId}_activity`,
         type: "activity",
         size: "medium",
-        position: { row: 2, col: 1 },
+        position: { row: 9, col: 1 },
         settings: { showGoals: true },
       },
       {
         id: `${loopId}_nutrition`,
         type: "nutrition",
         size: "medium",
-        position: { row: 3, col: 0 },
+        position: { row: 10, col: 0 },
         settings: { showCalorieBalance: true },
       },
       {
         id: `${loopId}_meditation`,
         type: "meditation",
         size: "medium",
-        position: { row: 3, col: 1 },
+        position: { row: 10, col: 1 },
         settings: { showStreak: true },
       },
       {
         id: `${loopId}_workout`,
         type: "workout",
         size: "large",
-        position: { row: 4, col: 0 },
+        position: { row: 11, col: 0 },
         settings: { showQuickGenerate: true, compact: false },
       },
     ],
     Wealth: [
       {
+        id: `${loopId}_finance_manager`,
+        type: "finance_manager",
+        size: "full",
+        position: { row: 2, col: 0 },
+        gridSize: { colSpan: 4, rowSpan: 5 },
+        settings: { embedded: true },
+      },
+      {
         id: `${loopId}_wealth`,
         type: "wealth",
         size: "large",
-        position: { row: 2, col: 0 },
+        position: { row: 7, col: 0 },
         settings: { period: 30 },
       },
     ],
@@ -564,6 +642,13 @@ export function getDefaultDashboard(loopId: LoopId): LoopDashboard {
         type: "babysitter",
         size: "large",
         position: { row: 2, col: 0 },
+        settings: {},
+      },
+      {
+        id: `${loopId}_special_dates`,
+        type: "special_dates",
+        size: "medium",
+        position: { row: 3, col: 0 },
         settings: {},
       },
     ],

@@ -1,3 +1,16 @@
+/**
+ * @deprecated Habit Engine - Partially deprecated in favor of System Components
+ *
+ * This engine provides personalization for habits/components based on archetype.
+ * While standalone Habits are deprecated, the personalization logic here is still
+ * useful for SystemComponents. Functions like getHabitActionPhrase and
+ * getHabitCompletionMessage work with both Habits and SystemComponents.
+ *
+ * For new code:
+ * - Use SystemComponent instead of Habit
+ * - Components are embedded within Systems, not standalone
+ * - See systemEngine.ts for system-level operations
+ */
 // Habit Engine - Personalize habits based on archetype and Atomic Habits framework
 // Generates personalized cues, cravings, responses, and rewards
 

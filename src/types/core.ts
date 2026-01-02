@@ -121,3 +121,34 @@ export const ALL_LOOPS: LoopId[] = [
   "Maintenance",
   "Meaning",
 ];
+
+/**
+ * Parse a YYYY-MM-DD date string as a local date (not UTC).
+ * This prevents timezone offset issues where dates appear as "yesterday".
+ *
+ * @param dateString - A date string in YYYY-MM-DD format
+ * @returns A Date object in local timezone, or null if invalid
+ */
+export function parseLocalDate(dateString: string): Date | null {
+  if (!dateString) return null;
+  // Parse the date parts manually to avoid timezone issues
+  const [year, month, day] = dateString.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Format a YYYY-MM-DD date string for display using local timezone.
+ *
+ * @param dateString - A date string in YYYY-MM-DD format
+ * @param options - Intl.DateTimeFormat options
+ * @returns Formatted date string
+ */
+export function formatLocalDate(
+  dateString: string,
+  options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" }
+): string {
+  const date = parseLocalDate(dateString);
+  if (!date) return dateString;
+  return date.toLocaleDateString(undefined, options);
+}

@@ -21,11 +21,12 @@ import {
 import { useApp } from "../../context";
 import { ARCHETYPE_OBSTACLES } from "../../engines/habitEngine";
 import { ARCHETYPE_IDENTITY_TEMPLATES } from "../../engines/voiceEngine";
-import { suggestSystemTemplatesForGoal } from "../../engines/systemEngine";
+import { suggestSystemsForGoal } from "../../engines/systemEngine";
 
+// Steps: Template -> Identity -> Components -> Environment -> Obstacles -> Review
+// Note: "define_goal" removed - goal is required and passed in
 type WizardStep =
   | "select_template"
-  | "define_goal"
   | "shape_identity"
   | "choose_habits"
   | "design_environment"
@@ -35,24 +36,27 @@ type WizardStep =
 interface SystemBuilderProps {
   onComplete: (system: System, habits: Habit[]) => void;
   onCancel: () => void;
-  initialLoop?: LoopId;
-  linkedGoal?: Goal;
+  /** The goal this system will support - REQUIRED */
+  linkedGoal: Goal;
 }
 
-export function SystemBuilder({ onComplete, onCancel, initialLoop, linkedGoal }: SystemBuilderProps) {
+export function SystemBuilder({ onComplete, onCancel, linkedGoal }: SystemBuilderProps) {
   const { state } = useApp();
   const prototype = state.user.prototype;
   const archetype = prototype?.archetypeBlend?.primary;
+  const directionalDoc = state.directionalDocument;
+  const existingSystems = state.systems.items;
 
+  // Skip template selection, go straight to identity (goal is already defined)
   const [step, setStep] = useState<WizardStep>("select_template");
   const [selectedTemplate, setSelectedTemplate] = useState<SystemTemplate | null>(null);
-  const [selectedLoop, setSelectedLoop] = useState<LoopId>(linkedGoal?.loop || initialLoop || "Health");
+  const [selectedLoop] = useState<LoopId>(linkedGoal.loop);
 
-  // Get suggested templates if we have a linked goal
-  const suggestedTemplates = linkedGoal ? suggestSystemTemplatesForGoal(linkedGoal) : [];
+  // Get suggested templates based on the goal (with scores and reasons)
+  const suggestedTemplates = suggestSystemsForGoal(linkedGoal, directionalDoc, existingSystems);
 
-  // Form state
-  const [goalStatement, setGoalStatement] = useState(linkedGoal?.title || "");
+  // Form state - goal statement comes from the linked goal
+  const [goalStatement, setGoalStatement] = useState(linkedGoal.title);
   const [identityStatement, setIdentityStatement] = useState("");
   const [selectedHabits, setSelectedHabits] = useState<Array<{
     title: string;
@@ -79,16 +83,16 @@ export function SystemBuilder({ onComplete, onCancel, initialLoop, linkedGoal }:
 
   const handleSelectTemplate = (template: SystemTemplate) => {
     setSelectedTemplate(template);
-    setSelectedLoop(template.loop);
     setIdentityStatement(template.identityTemplate);
-    setSelectedHabits(template.suggestedHabits.map(h => ({ ...h, enabled: true })));
+    setSelectedHabits((template.suggestedComponents || template.suggestedHabits || []).map(h => ({ ...h, enabled: true })));
     setEnvironmentTweaks(template.suggestedEnvironmentTweaks.map((t, i) => ({
       id: `env_${i}`,
       ...t,
       completed: false,
     })));
     setObstacles(template.commonObstacles);
-    setStep("define_goal");
+    // Skip define_goal - we already have the goal, go straight to identity
+    setStep("shape_identity");
   };
 
   const handleStartCustom = () => {
@@ -96,7 +100,8 @@ export function SystemBuilder({ onComplete, onCancel, initialLoop, linkedGoal }:
     setSelectedHabits([]);
     setEnvironmentTweaks([]);
     setObstacles([]);
-    setStep("define_goal");
+    // Skip define_goal - we already have the goal, go straight to identity
+    setStep("shape_identity");
   };
 
   const handleAddCustomHabit = () => {
@@ -208,151 +213,151 @@ export function SystemBuilder({ onComplete, onCancel, initialLoop, linkedGoal }:
     onComplete(system, habits);
   };
 
+  // 6 steps now (removed define_goal)
+  const WIZARD_STEPS: WizardStep[] = [
+    "select_template",
+    "shape_identity",
+    "choose_habits",
+    "design_environment",
+    "plan_obstacles",
+    "review",
+  ];
+
   const nextStep = () => {
-    const steps: WizardStep[] = [
-      "select_template",
-      "define_goal",
-      "shape_identity",
-      "choose_habits",
-      "design_environment",
-      "plan_obstacles",
-      "review",
-    ];
-    const currentIndex = steps.indexOf(step);
-    if (currentIndex < steps.length - 1) {
-      setStep(steps[currentIndex + 1]);
+    const currentIndex = WIZARD_STEPS.indexOf(step);
+    if (currentIndex < WIZARD_STEPS.length - 1) {
+      setStep(WIZARD_STEPS[currentIndex + 1]);
     }
   };
 
   const prevStep = () => {
-    const steps: WizardStep[] = [
-      "select_template",
-      "define_goal",
-      "shape_identity",
-      "choose_habits",
-      "design_environment",
-      "plan_obstacles",
-      "review",
-    ];
-    const currentIndex = steps.indexOf(step);
+    const currentIndex = WIZARD_STEPS.indexOf(step);
     if (currentIndex > 0) {
-      setStep(steps[currentIndex - 1]);
+      setStep(WIZARD_STEPS[currentIndex - 1]);
     }
   };
 
   const getStepNumber = () => {
-    const steps: WizardStep[] = [
-      "select_template",
-      "define_goal",
-      "shape_identity",
-      "choose_habits",
-      "design_environment",
-      "plan_obstacles",
-      "review",
-    ];
-    return steps.indexOf(step) + 1;
+    return WIZARD_STEPS.indexOf(step) + 1;
   };
+
+  const loopColor = LOOP_COLORS[linkedGoal.loop];
+  const loopDef = LOOP_DEFINITIONS[linkedGoal.loop];
 
   return (
     <div className="system-builder">
       <div className="system-builder-header">
         <div className="system-builder-progress">
-          <span className="step-indicator">Step {getStepNumber()} of 7</span>
+          <span className="step-indicator">Step {getStepNumber()} of 6</span>
           <div className="progress-bar">
             <div
               className="progress-fill"
-              style={{ width: `${(getStepNumber() / 7) * 100}%` }}
+              style={{ width: `${(getStepNumber() / 6) * 100}%` }}
             />
           </div>
         </div>
         <button className="system-builder-close" onClick={onCancel}>×</button>
       </div>
 
+      {/* Goal context banner - always visible */}
+      <div className="system-builder-goal-context" style={{ borderColor: loopColor.border }}>
+        <span className="goal-context-label">Building system for:</span>
+        <div className="goal-context-info">
+          <span className="goal-context-loop" style={{ backgroundColor: loopColor.border }}>
+            {loopDef.icon} {linkedGoal.loop}
+          </span>
+          <span className="goal-context-title">{linkedGoal.title}</span>
+        </div>
+      </div>
+
       <div className="system-builder-content">
-        {/* Step 1: Select Template or Start Custom */}
+        {/* Step 1: Select Template */}
         {step === "select_template" && (
           <div className="wizard-step">
-            <h2>Build a Behavior System</h2>
+            <h2>Choose a System Template</h2>
             <p className="wizard-subtitle">
-              Choose a template to get started, or create your own from scratch.
+              Based on your goal, these systems will help you build the habits needed for success.
+              Templates are ranked by how well they match your goal.
             </p>
 
-            <div className="loop-filter">
-              {ALL_LOOPS.map(loop => (
+            {/* Show recommended templates first */}
+            {suggestedTemplates.length > 0 && (
+              <div className="template-section">
+                <h3 className="template-section-title">Recommended for Your Goal</h3>
+                <div className="template-grid">
+                  {suggestedTemplates.map((suggestion) => (
+                    <button
+                      key={suggestion.template.id}
+                      className="template-card template-card--recommended"
+                      onClick={() => handleSelectTemplate(suggestion.template)}
+                      style={{ "--loop-color": loopColor.border } as React.CSSProperties}
+                    >
+                      <div className="template-card-header">
+                        <span className="template-match-score">{suggestion.score}% match</span>
+                        <span className="template-duration">{suggestion.template.estimatedDuration}</span>
+                      </div>
+                      <h3>{suggestion.template.title}</h3>
+                      <p>{suggestion.template.description}</p>
+                      <div className="template-reasons">
+                        {suggestion.reasons.slice(0, 2).map((reason: string, i: number) => (
+                          <span key={i} className="template-reason">{reason}</span>
+                        ))}
+                      </div>
+                      <div className="template-habits">
+                        {(suggestion.template.suggestedComponents || suggestion.template.suggestedHabits || []).length} components included
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Show other templates in the same loop */}
+            {loopTemplates.filter((t: SystemTemplate) => !suggestedTemplates.some(s => s.template.id === t.id)).length > 0 && (
+              <div className="template-section">
+                <h3 className="template-section-title">Other {linkedGoal.loop} Templates</h3>
+                <div className="template-grid">
+                  {loopTemplates
+                    .filter((t: SystemTemplate) => !suggestedTemplates.some(s => s.template.id === t.id))
+                    .map((template: SystemTemplate) => (
+                      <button
+                        key={template.id}
+                        className="template-card"
+                        onClick={() => handleSelectTemplate(template)}
+                      >
+                        <div className="template-card-header">
+                          <span className="template-difficulty">{template.difficulty}</span>
+                          <span className="template-duration">{template.estimatedDuration}</span>
+                        </div>
+                        <h3>{template.title}</h3>
+                        <p>{template.description}</p>
+                        <div className="template-habits">
+                          {(template.suggestedComponents || template.suggestedHabits || []).length} components included
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom option */}
+            <div className="template-section">
+              <h3 className="template-section-title">Or Build Your Own</h3>
+              <div className="template-grid">
                 <button
-                  key={loop}
-                  className={`loop-filter-btn ${selectedLoop === loop ? "active" : ""}`}
-                  onClick={() => setSelectedLoop(loop)}
-                  style={{
-                    "--loop-color": LOOP_COLORS[loop],
-                  } as React.CSSProperties}
+                  className="template-card template-card--custom"
+                  onClick={handleStartCustom}
                 >
-                  {LOOP_DEFINITIONS[loop].icon} {loop}
+                  <div className="custom-icon">+</div>
+                  <h3>Create Custom System</h3>
+                  <p>Design your own habits and environment from scratch</p>
                 </button>
-              ))}
-            </div>
-
-            <div className="template-grid">
-              {loopTemplates.map(template => (
-                <button
-                  key={template.id}
-                  className="template-card"
-                  onClick={() => handleSelectTemplate(template)}
-                >
-                  <div className="template-card-header">
-                    <span className="template-difficulty">{template.difficulty}</span>
-                    <span className="template-duration">{template.estimatedDuration}</span>
-                  </div>
-                  <h3>{template.title}</h3>
-                  <p>{template.description}</p>
-                  <div className="template-habits">
-                    {template.suggestedHabits.length} habits included
-                  </div>
-                </button>
-              ))}
-
-              <button
-                className="template-card template-card--custom"
-                onClick={handleStartCustom}
-              >
-                <div className="custom-icon">+</div>
-                <h3>Create Custom</h3>
-                <p>Build your own system from scratch</p>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Define Goal */}
-        {step === "define_goal" && (
-          <div className="wizard-step">
-            <h2>What's Your Goal?</h2>
-            <p className="wizard-subtitle">
-              {selectedTemplate?.goalPrompt || "What do you want to achieve?"}
-            </p>
-
-            <div className="goal-input-section">
-              <textarea
-                className="goal-input"
-                value={goalStatement}
-                onChange={(e) => setGoalStatement(e.target.value)}
-                placeholder="I want to..."
-                rows={3}
-              />
-
-              <div className="goal-tips">
-                <h4>Tips for effective goals:</h4>
-                <ul>
-                  <li>Be specific about what success looks like</li>
-                  <li>Focus on behavior, not just outcomes</li>
-                  <li>Make it measurable when possible</li>
-                </ul>
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 3: Shape Identity */}
+        {/* Step 2: Shape Identity */}
         {step === "shape_identity" && (
           <div className="wizard-step">
             <h2>Who Do You Want to Become?</h2>

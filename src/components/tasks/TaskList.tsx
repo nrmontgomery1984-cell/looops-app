@@ -11,6 +11,7 @@ import {
   TaskSortOption,
   LOOP_DEFINITIONS,
   LOOP_COLORS,
+  parseLocalDate,
 } from "../../types";
 import { TaskItem } from "./TaskItem";
 import { TaskInput } from "./TaskInput";
@@ -78,7 +79,10 @@ export function TaskList({
           if (!a.dueDate && !b.dueDate) return 0;
           if (!a.dueDate) return 1;
           if (!b.dueDate) return -1;
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          const dateA = parseLocalDate(a.dueDate);
+          const dateB = parseLocalDate(b.dueDate);
+          if (!dateA || !dateB) return 0;
+          return dateA.getTime() - dateB.getTime();
         });
         break;
 
@@ -169,26 +173,31 @@ export function TaskList({
             groupId = "no-date";
             groupTitle = "No Date";
           } else {
-            const date = new Date(task.dueDate);
+            const date = parseLocalDate(task.dueDate);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const dayDiff = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-            if (dayDiff < 0) {
-              groupId = "overdue";
-              groupTitle = "Overdue";
-            } else if (dayDiff === 0) {
-              groupId = "today";
-              groupTitle = "Today";
-            } else if (dayDiff === 1) {
-              groupId = "tomorrow";
-              groupTitle = "Tomorrow";
-            } else if (dayDiff < 7) {
-              groupId = "this-week";
-              groupTitle = "This Week";
+            if (!date) {
+              groupId = "no-date";
+              groupTitle = "No Date";
             } else {
-              groupId = "later";
-              groupTitle = "Later";
+              const dayDiff = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+              if (dayDiff < 0) {
+                groupId = "overdue";
+                groupTitle = "Overdue";
+              } else if (dayDiff === 0) {
+                groupId = "today";
+                groupTitle = "Today";
+              } else if (dayDiff === 1) {
+                groupId = "tomorrow";
+                groupTitle = "Tomorrow";
+              } else if (dayDiff < 7) {
+                groupId = "this-week";
+                groupTitle = "This Week";
+              } else {
+                groupId = "later";
+                groupTitle = "Later";
+              }
             }
           }
           break;

@@ -1,4 +1,4 @@
-// Today's Stack - Priority tasks, habits, and routines for the day
+// Today's Stack - Priority tasks, system components, and routines for the day
 
 import { useMemo, useState } from "react";
 import {
@@ -7,32 +7,47 @@ import {
   LOOP_DEFINITIONS,
   LOOP_COLORS,
   LoopStateType,
-  Habit,
-  HabitCompletion,
+  System,
+  SystemComponent,
+  ComponentCompletion,
   Routine,
-  getHabitsDueToday,
-  getHabitsDueTodayWithDayType,
+  getAllComponentsDueToday,
   getRoutinesDueTodayWithDayType,
   getRoutineDuration,
   sortRoutinesByTimeOfDay,
+  SpecialDate,
+  getSpecialDatesToday,
+  getUpcomingSpecialDates,
+  getDateTypeIcon,
+  getReminderActionLabel,
+  getYearsSince,
+  formatLocalDate,
 } from "../../types";
 import { useSmartSchedule } from "../../context/AppContext";
 import { getDayTypes, getDayTypeConfig } from "../../engines/smartSchedulerEngine";
-import { DayType } from "../../types/dayTypes";
+import { DayType, BUILT_IN_DAY_TYPES, DEFAULT_DAY_TYPE_CONFIGS } from "../../types/dayTypes";
 
 type TodaysStackProps = {
   tasks: Task[];
-  habits: Habit[];
-  habitCompletions: HabitCompletion[];
+  systems: System[];
+  componentCompletions: ComponentCompletion[];
   routines: Routine[];
+  specialDates: SpecialDate[];
   loopStates: Record<LoopId, { currentState: LoopStateType }>;
   onCompleteTask: (taskId: string) => void;
   onSkipTask: (taskId: string) => void;
   onSelectTask: (taskId: string) => void;
-  onCompleteHabit: (habitId: string, date: string) => void;
-  onUncompleteHabit: (habitId: string, date: string) => void;
+  onCompleteComponent: (systemId: string, componentId: string, date: string) => void;
+  onUncompleteComponent: (systemId: string, componentId: string, date: string) => void;
+  onUpdateComponent?: (systemId: string, component: SystemComponent) => void;
+  onDeleteComponent?: (systemId: string, componentId: string) => void;
   onStartRoutine?: (routineId: string) => void;
 };
+
+interface ComponentWithSystem {
+  component: SystemComponent;
+  system: System;
+}
 
 // Helper to get status color based on completion percentage
 function getStatusColor(completed: number, total: number): string {
@@ -46,15 +61,18 @@ function getStatusColor(completed: number, total: number): string {
 
 export function TodaysStack({
   tasks,
-  habits,
-  habitCompletions,
+  systems,
+  componentCompletions,
   routines,
-  loopStates,
+  specialDates,
+  loopStates: _loopStates,
   onCompleteTask,
   onSkipTask,
   onSelectTask,
-  onCompleteHabit,
-  onUncompleteHabit,
+  onCompleteComponent,
+  onUncompleteComponent,
+  onUpdateComponent,
+  onDeleteComponent,
   onStartRoutine,
 }: TodaysStackProps) {
   const today = new Date().toISOString().split("T")[0];
@@ -62,8 +80,11 @@ export function TodaysStack({
 
   // Collapsed state for each section
   const [routinesCollapsed, setRoutinesCollapsed] = useState(false);
-  const [habitsCollapsed, setHabitsCollapsed] = useState(false);
+  const [componentsCollapsed, setComponentsCollapsed] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
+
+  // Component editing state
+  const [editingComponent, setEditingComponent] = useState<ComponentWithSystem | null>(null);
 
   // Get today's day types for badge display (now supports multiple day types per day)
   const todayDayTypes = useMemo(() => {
@@ -73,17 +94,27 @@ export function TodaysStack({
     return { dayTypes, primaryDayType, config };
   }, [smartSchedule]);
 
-  // Get habits due today (with day type filtering if smart schedule is enabled)
-  const todaysHabits = useMemo(() => {
-    if (smartSchedule.enabled) {
-      return getHabitsDueTodayWithDayType(habits, todayDayTypes.dayTypes);
-    }
-    return getHabitsDueToday(habits);
-  }, [habits, smartSchedule.enabled, todayDayTypes.dayTypes]);
+  // Get components due today from active systems
+  const todaysComponents = useMemo(() => {
+    const activeSystems = (systems || []).filter(s => s.status === "active");
+    return getAllComponentsDueToday(activeSystems, todayDayTypes.dayTypes as DayType[]);
+  }, [systems, todayDayTypes.dayTypes]);
+
+  // Get special dates for today (birthdays, anniversaries, etc.)
+  const todaysSpecialDates = useMemo(() => {
+    return getSpecialDatesToday(specialDates || []);
+  }, [specialDates]);
+
+  // Get upcoming special dates (next 7 days, excluding today)
+  const upcomingSpecialDates = useMemo(() => {
+    const upcoming = getUpcomingSpecialDates(specialDates || [], 7);
+    // Filter out today's dates
+    return upcoming.filter(d => !getSpecialDatesToday([d]).length);
+  }, [specialDates]);
 
   // Get routines due today (with day type filtering)
   const todaysRoutines = useMemo(() => {
-    const activeRoutines = routines.filter(r => r.status === "active");
+    const activeRoutines = (routines || []).filter(r => r.status === "active");
     if (smartSchedule.enabled) {
       const filtered = getRoutinesDueTodayWithDayType(activeRoutines, todayDayTypes.dayTypes as DayType[]);
       return sortRoutinesByTimeOfDay(filtered);
@@ -104,16 +135,16 @@ export function TodaysStack({
     }));
   }, [routines, smartSchedule.enabled, todayDayTypes.dayTypes]);
 
-  // Check if habit is completed today
-  const isHabitCompletedToday = (habitId: string) => {
-    return habitCompletions.some(
-      (c) => c.habitId === habitId && c.date === today
+  // Check if component is completed today
+  const isComponentCompletedToday = (componentId: string) => {
+    return (componentCompletions || []).some(
+      (c) => c.componentId === componentId && c.date === today
     );
   };
 
   // Count completed items
-  const completedHabitsCount = todaysHabits.filter((h) =>
-    isHabitCompletedToday(h.id)
+  const completedComponentsCount = todaysComponents.filter(({ component }) =>
+    isComponentCompletedToday(component.id)
   ).length;
 
   const completedTasksCount = tasks.filter(t => t.status === "done").length;
@@ -121,15 +152,15 @@ export function TodaysStack({
   // For routines, we don't have completion tracking in this view yet, so default to 0
   const completedRoutinesCount = 0;
 
-  const totalItems = tasks.length + todaysHabits.length + todaysRoutines.length;
+  const totalItems = tasks.length + todaysComponents.length + todaysRoutines.length + todaysSpecialDates.length;
 
-  if (totalItems === 0) {
+  if (totalItems === 0 && upcomingSpecialDates.length === 0) {
     return (
       <div className="todays-stack todays-stack--empty">
         <div className="todays-stack__empty-state">
           <span className="todays-stack__empty-icon">✨</span>
           <h3>All clear!</h3>
-          <p>No tasks, habits, or routines for today. Enjoy your freedom or add some tasks.</p>
+          <p>No tasks, components, or routines for today. Enjoy your freedom or add some tasks.</p>
         </div>
       </div>
     );
@@ -229,44 +260,46 @@ export function TodaysStack({
           </div>
         )}
 
-        {/* Habits Section */}
-        {todaysHabits.length > 0 && (
-          <div className={`todays-stack__section ${habitsCollapsed ? "collapsed" : ""}`}>
+        {/* Components Section (formerly Habits) */}
+        {todaysComponents.length > 0 && (
+          <div className={`todays-stack__section ${componentsCollapsed ? "collapsed" : ""}`}>
             <button
               className="todays-stack__section-header todays-stack__section-header--clickable"
-              onClick={() => setHabitsCollapsed(!habitsCollapsed)}
+              onClick={() => setComponentsCollapsed(!componentsCollapsed)}
             >
               <span className="todays-stack__section-icon">🔄</span>
-              <span className="todays-stack__section-title">Habits</span>
+              <span className="todays-stack__section-title">Components</span>
               <span
                 className="todays-stack__section-badge"
-                style={{ backgroundColor: getStatusColor(completedHabitsCount, todaysHabits.length) }}
+                style={{ backgroundColor: getStatusColor(completedComponentsCount, todaysComponents.length) }}
               >
-                {completedHabitsCount}/{todaysHabits.length}
+                {completedComponentsCount}/{todaysComponents.length}
               </span>
-              <span className={`todays-stack__section-chevron ${habitsCollapsed ? "collapsed" : ""}`}>
+              <span className={`todays-stack__section-chevron ${componentsCollapsed ? "collapsed" : ""}`}>
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                   <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                 </svg>
               </span>
             </button>
-            {!habitsCollapsed && (
+            {!componentsCollapsed && (
               <div className="todays-stack__section-content">
-                {todaysHabits.map((habit) => {
-                  const loop = LOOP_DEFINITIONS[habit.loop];
-                  const loopColor = LOOP_COLORS[habit.loop];
-                  const isCompleted = isHabitCompletedToday(habit.id);
+                {todaysComponents.map(({ component, system }) => {
+                  const loop = LOOP_DEFINITIONS[system.loop];
+                  const loopColor = LOOP_COLORS[system.loop];
+                  const isCompleted = isComponentCompletedToday(component.id);
 
                   return (
                     <div
-                      key={habit.id}
+                      key={component.id}
                       className={`habit-card ${isCompleted ? "habit-card--completed" : ""}`}
+                      onClick={() => setEditingComponent({ component, system })}
+                      style={{ cursor: "pointer" }}
                     >
-                      {/* Habit type indicator */}
+                      {/* Component loop indicator */}
                       <div
                         className="habit-card__type-bar"
                         style={{
-                          backgroundColor: habit.type === "build" ? "#73A58C" : "#F27059",
+                          backgroundColor: loopColor.border,
                         }}
                       />
 
@@ -280,41 +313,42 @@ export function TodaysStack({
                               borderColor: loopColor.border,
                             }}
                           >
-                            {loop.icon} {loop.name}
+                            {loop.icon} {system.title}
                           </span>
-                          {habit.streak > 0 && (
+                          {component.streak > 0 && (
                             <span className="habit-card__streak">
-                              🔥 {habit.streak}
+                              🔥 {component.streak}
                             </span>
                           )}
                         </div>
 
                         <h4 className={`habit-card__title ${isCompleted ? "habit-card__title--completed" : ""}`}>
-                          {habit.title}
+                          {component.title}
                         </h4>
 
-                        {habit.response && (
+                        {component.response && (
                           <p className="habit-card__response">
-                            {habit.response}
+                            {component.response}
                           </p>
                         )}
 
-                        {habit.cue && (
+                        {component.cue && (
                           <p className="habit-card__cue">
-                            <span className="habit-card__cue-label">Cue:</span> {habit.cue.value}
+                            <span className="habit-card__cue-label">Cue:</span> {component.cue.value}
                           </p>
                         )}
                       </div>
 
-                      {/* Habit completion toggle */}
+                      {/* Component completion toggle */}
                       <div className="habit-card__actions">
                         <button
                           className={`habit-card__btn ${isCompleted ? "habit-card__btn--completed" : ""}`}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (isCompleted) {
-                              onUncompleteHabit(habit.id, today);
+                              onUncompleteComponent(system.id, component.id, today);
                             } else {
-                              onCompleteHabit(habit.id, today);
+                              onCompleteComponent(system.id, component.id, today);
                             }
                           }}
                           title={isCompleted ? "Mark incomplete" : "Mark complete"}
@@ -430,7 +464,7 @@ export function TodaysStack({
                           )}
                           {task.dueDate && (
                             <span className="task-card__due">
-                              Due: {new Date(task.dueDate).toLocaleDateString()}
+                              Due: {formatLocalDate(task.dueDate)}
                               {task.dueTime && ` at ${task.dueTime}`}
                             </span>
                           )}
@@ -471,6 +505,283 @@ export function TodaysStack({
             )}
           </div>
         )}
+
+        {/* Special Dates Section - Today's reminders */}
+        {todaysSpecialDates.length > 0 && (
+          <div className="todays-stack__section todays-stack__section--special-dates">
+            <div className="todays-stack__section-header">
+              <span className="todays-stack__section-icon">🎉</span>
+              <span className="todays-stack__section-title">Today's Special Dates</span>
+            </div>
+            <div className="todays-stack__section-content">
+              {todaysSpecialDates.map((specialDate) => {
+                const years = getYearsSince(specialDate);
+                const icon = getDateTypeIcon(specialDate.type);
+                const action = getReminderActionLabel(specialDate.reminderAction);
+
+                return (
+                  <div
+                    key={specialDate.id}
+                    className="special-date-card special-date-card--today"
+                  >
+                    <span className="special-date-card__icon">{icon}</span>
+                    <div className="special-date-card__content">
+                      <h4 className="special-date-card__title">{specialDate.title}</h4>
+                      <p className="special-date-card__action">
+                        {action} {specialDate.personName}
+                        {years !== null && specialDate.type === "birthday" && (
+                          <span className="special-date-card__years"> - turning {years + 1}!</span>
+                        )}
+                        {years !== null && specialDate.type === "wedding_anniversary" && (
+                          <span className="special-date-card__years"> - {years} years!</span>
+                        )}
+                        {years !== null && specialDate.type === "death_anniversary" && (
+                          <span className="special-date-card__years"> - {years} years</span>
+                        )}
+                      </p>
+                      {specialDate.notes && (
+                        <p className="special-date-card__notes">{specialDate.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Special Dates (next 7 days) */}
+        {upcomingSpecialDates.length > 0 && (
+          <div className="todays-stack__section todays-stack__section--upcoming">
+            <div className="todays-stack__section-header">
+              <span className="todays-stack__section-icon">📅</span>
+              <span className="todays-stack__section-title">Coming Up</span>
+            </div>
+            <div className="todays-stack__section-content">
+              {upcomingSpecialDates.slice(0, 3).map((specialDate) => {
+                const icon = getDateTypeIcon(specialDate.type);
+                // Calculate days until
+                const [, month, day] = specialDate.date.split("-").map(Number);
+                const thisYear = new Date().getFullYear();
+                let targetDate = new Date(thisYear, month - 1, day);
+                if (targetDate < new Date()) {
+                  targetDate = new Date(thisYear + 1, month - 1, day);
+                }
+                const daysUntil = Math.ceil(
+                  (targetDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                );
+
+                return (
+                  <div
+                    key={specialDate.id}
+                    className="special-date-card special-date-card--upcoming"
+                  >
+                    <span className="special-date-card__icon">{icon}</span>
+                    <div className="special-date-card__content">
+                      <h4 className="special-date-card__title">{specialDate.title}</h4>
+                      <p className="special-date-card__meta">
+                        {specialDate.personName} &middot;{" "}
+                        {daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Component Edit Modal */}
+      {editingComponent && onUpdateComponent && (
+        <ComponentEditModal
+          component={editingComponent.component}
+          system={editingComponent.system}
+          onClose={() => setEditingComponent(null)}
+          onSave={(updated) => {
+            onUpdateComponent(editingComponent.system.id, updated);
+            setEditingComponent(null);
+          }}
+          onDelete={onDeleteComponent ? () => {
+            onDeleteComponent(editingComponent.system.id, editingComponent.component.id);
+            setEditingComponent(null);
+          } : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+// Component Edit Modal with day type selection
+function ComponentEditModal({
+  component,
+  system,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  component: SystemComponent;
+  system: System;
+  onClose: () => void;
+  onSave: (component: SystemComponent) => void;
+  onDelete?: () => void;
+}) {
+  const [title, setTitle] = useState(component.title);
+  const [response, setResponse] = useState(component.response);
+  const [cueValue, setCueValue] = useState(component.cue.value);
+  const [dayTypes, setDayTypes] = useState<DayType[]>(component.dayTypes || []);
+  const [status, setStatus] = useState(component.status);
+
+  const handleToggleDayType = (dayType: DayType) => {
+    setDayTypes((prev) =>
+      prev.includes(dayType)
+        ? prev.filter((dt) => dt !== dayType)
+        : [...prev, dayType]
+    );
+  };
+
+  const handleSave = () => {
+    if (!title.trim()) return;
+    onSave({
+      ...component,
+      title: title.trim(),
+      response,
+      cue: { ...component.cue, value: cueValue },
+      dayTypes: dayTypes.length > 0 ? dayTypes : undefined,
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const loopColor = LOOP_COLORS[system.loop].border;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="habit-edit-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-header-title">
+            <span style={{ color: loopColor }}>{LOOP_DEFINITIONS[system.loop].icon}</span>
+            <h3>Edit Component</h3>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="habit-edit-content">
+          {/* Show which system this component belongs to */}
+          <div className="habit-edit-system-info">
+            <span className="habit-edit-system-label">Part of system:</span>
+            <span className="habit-edit-system-id">{system.title}</span>
+          </div>
+
+          <div className="form-field">
+            <label>Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Component title"
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Action (2-minute version)</label>
+            <input
+              type="text"
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+              placeholder="What you do"
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Cue ({component.cue.type})</label>
+            <input
+              type="text"
+              value={cueValue}
+              onChange={(e) => setCueValue(e.target.value)}
+              placeholder="When/where this happens"
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          {/* Day Types */}
+          <div className="form-field">
+            <label>Active on Day Types</label>
+            <p className="form-field-hint">Leave empty to run on all days</p>
+            <div className="day-type-selector">
+              {BUILT_IN_DAY_TYPES.map((dt) => {
+                const config = DEFAULT_DAY_TYPE_CONFIGS[dt];
+                const isSelected = dayTypes.includes(dt);
+                return (
+                  <button
+                    key={dt}
+                    type="button"
+                    className={`day-type-chip ${isSelected ? "selected" : ""}`}
+                    onClick={() => handleToggleDayType(dt)}
+                    style={isSelected ? { backgroundColor: config.color, borderColor: config.color } : {}}
+                  >
+                    <span className="day-type-chip-icon">{config.icon}</span>
+                    <span className="day-type-chip-label">{config.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {dayTypes.length === 0 && (
+              <p className="form-field-note">This component will run on all day types</p>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div className="habit-edit-stats">
+            <div className="habit-edit-stat">
+              <span className="habit-edit-stat-value">🔥 {component.streak}</span>
+              <span className="habit-edit-stat-label">Current Streak</span>
+            </div>
+            <div className="habit-edit-stat">
+              <span className="habit-edit-stat-value">🏆 {component.longestStreak}</span>
+              <span className="habit-edit-stat-label">Best Streak</span>
+            </div>
+            <div className="habit-edit-stat">
+              <span className="habit-edit-stat-value">{component.totalCompletions}</span>
+              <span className="habit-edit-stat-label">Total</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-actions">
+          {onDelete && (
+            <button
+              className="modal-btn modal-btn--danger"
+              onClick={() => {
+                if (confirm("Delete this component? This cannot be undone.")) {
+                  onDelete();
+                }
+              }}
+            >
+              Delete
+            </button>
+          )}
+          <div className="modal-actions-right">
+            <button className="modal-btn modal-btn--secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="modal-btn modal-btn--primary"
+              onClick={handleSave}
+              disabled={!title.trim()}
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

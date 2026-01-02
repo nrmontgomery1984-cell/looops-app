@@ -1,3 +1,15 @@
+/**
+ * @deprecated HabitsTracker is deprecated. Use ComponentTracker instead.
+ *
+ * This file is kept for backward compatibility during migration.
+ * New code should use ComponentTracker from ./ComponentTracker.tsx which works with
+ * SystemComponents (habits embedded within Systems) instead of standalone Habits.
+ *
+ * Migration path:
+ * - Existing habits are migrated to system components via MIGRATE_HABITS_TO_COMPONENTS action
+ * - ComponentTracker provides the same functionality but works with the new data model
+ * - HabitsWidget is replaced by ComponentWidget
+ */
 // Habits Tracker - Track daily habits with streaks and completion
 // Shows today's habits with visual streak indicators
 // Enhanced with archetype-aware personalization

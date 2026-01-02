@@ -1,4 +1,5 @@
 // Annual Goals Wizard - Multi-step wizard for setting annual goals based on archetype
+// Updated: Now includes "systems" step to create supporting systems for each goal
 
 import React, { useState, useMemo } from "react";
 import {
@@ -11,6 +12,9 @@ import {
   LOOP_COLORS,
   LOOP_DEFINITIONS,
   DirectionalDocument,
+  System,
+  SystemTemplate,
+  SYSTEM_TEMPLATES,
 } from "../../types";
 import {
   generateGoalSuggestions,
@@ -18,16 +22,28 @@ import {
   decomposeAnnualToQuarterly,
   GoalSuggestion,
 } from "../../engines/goalEngine";
+import {
+  suggestSystemsForGoal,
+  createSystemFromTemplate,
+} from "../../engines/systemEngine";
 import { GoalSuggestionCard } from "./GoalSuggestionCard";
 
-type WizardStep = "intro" | "suggestions" | "customize" | "decompose" | "review";
+type WizardStep = "intro" | "suggestions" | "customize" | "decompose" | "systems" | "review";
+
+// Selected system for a goal
+type SelectedSystemForGoal = {
+  goalId: string;
+  template: SystemTemplate;
+  customTitle?: string;
+};
 
 type AnnualGoalsWizardProps = {
   prototype: UserPrototype | null;
   loopStates: Record<LoopId, LoopStateType>;
   existingGoals: GoalHierarchy;
+  existingSystems?: System[];
   directionalDocument?: DirectionalDocument | null;
-  onComplete: (goals: Goal[]) => void;
+  onComplete: (goals: Goal[], systems: Omit<System, "id">[]) => void;
   onCancel: () => void;
 };
 
@@ -35,6 +51,7 @@ export function AnnualGoalsWizard({
   prototype,
   loopStates,
   existingGoals,
+  existingSystems = [],
   directionalDocument,
   onComplete,
   onCancel,
@@ -47,6 +64,8 @@ export function AnnualGoalsWizard({
   const [customGoals, setCustomGoals] = useState<Goal[]>([]);
   const [activeLoop, setActiveLoop] = useState<LoopId | null>(null);
   const [showDecomposition, setShowDecomposition] = useState<Record<string, boolean>>({});
+  const [selectedSystems, setSelectedSystems] = useState<SelectedSystemForGoal[]>([]);
+  const [expandedGoalInSystems, setExpandedGoalInSystems] = useState<string | null>(null);
 
   // Generate suggestions based on prototype and directional document
   const suggestions = useMemo(() => {
@@ -119,6 +138,13 @@ export function AnnualGoalsWizard({
         setStep("decompose");
         break;
       case "decompose":
+        setStep("systems");
+        // Auto-expand first goal when entering systems step
+        if (customGoals.length > 0) {
+          setExpandedGoalInSystems(customGoals[0].id);
+        }
+        break;
+      case "systems":
         setStep("review");
         break;
       case "review":
@@ -133,7 +159,14 @@ export function AnnualGoalsWizard({
             allGoals.push(...quarterlyGoals);
           }
         });
-        onComplete(allGoals);
+
+        // Create systems from selected templates
+        const systemsToCreate: Omit<System, "id">[] = selectedSystems.map(({ goalId, template, customTitle }) => {
+          const goal = customGoals.find(g => g.id === goalId)!;
+          return createSystemFromTemplate(template, goal, customTitle);
+        });
+
+        onComplete(allGoals, systemsToCreate);
         break;
     }
   };
@@ -149,8 +182,11 @@ export function AnnualGoalsWizard({
       case "decompose":
         setStep("customize");
         break;
-      case "review":
+      case "systems":
         setStep("decompose");
+        break;
+      case "review":
+        setStep("systems");
         break;
     }
   };
@@ -473,6 +509,151 @@ export function AnnualGoalsWizard({
     </div>
   );
 
+  // Get suggested systems for a goal
+  const getSystemSuggestionsForGoal = (goal: Goal) => {
+    return suggestSystemsForGoal(goal, directionalDocument || null, existingSystems);
+  };
+
+  // Handle system selection for a goal
+  const toggleSystemForGoal = (goalId: string, template: SystemTemplate) => {
+    setSelectedSystems(prev => {
+      const existingIndex = prev.findIndex(s => s.goalId === goalId && s.template.id === template.id);
+      if (existingIndex >= 0) {
+        // Remove it
+        return prev.filter((_, idx) => idx !== existingIndex);
+      }
+      // Add it (allow multiple systems per goal)
+      return [...prev, { goalId, template }];
+    });
+  };
+
+  // Check if a system template is selected for a goal
+  const isSystemSelectedForGoal = (goalId: string, templateId: string) => {
+    return selectedSystems.some(s => s.goalId === goalId && s.template.id === templateId);
+  };
+
+  // Get count of systems selected for a goal
+  const getSystemCountForGoal = (goalId: string) => {
+    return selectedSystems.filter(s => s.goalId === goalId).length;
+  };
+
+  // Render systems step
+  const renderSystems = () => (
+    <div className="wizard-step wizard-step--systems">
+      <h2 className="wizard-step__title">Create Supporting Systems</h2>
+      <p className="wizard-step__description">
+        Systems are the daily habits and routines that make your goals inevitable.
+        Select systems to support each goal, or skip to add them later.
+        <span className="wizard-step__count">
+          {selectedSystems.length} systems selected
+        </span>
+      </p>
+
+      <div className="wizard-systems__list">
+        {customGoals.map((goal) => {
+          const color = LOOP_COLORS[goal.loop];
+          const def = LOOP_DEFINITIONS[goal.loop];
+          const isExpanded = expandedGoalInSystems === goal.id;
+          const systemCount = getSystemCountForGoal(goal.id);
+          const suggestions = getSystemSuggestionsForGoal(goal);
+
+          return (
+            <div
+              key={goal.id}
+              className="wizard-systems__goal"
+              style={{ borderColor: color.border }}
+            >
+              <div
+                className="wizard-systems__goal-header"
+                onClick={() => setExpandedGoalInSystems(isExpanded ? null : goal.id)}
+              >
+                <div className="wizard-systems__goal-info">
+                  <span
+                    className="wizard-systems__goal-badge"
+                    style={{ backgroundColor: color.border }}
+                  >
+                    {def.icon}
+                  </span>
+                  <span className="wizard-systems__goal-title">{goal.title}</span>
+                </div>
+                <div className="wizard-systems__goal-actions">
+                  {systemCount > 0 && (
+                    <span className="wizard-systems__goal-count">
+                      {systemCount} system{systemCount !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <span className={`wizard-systems__expand ${isExpanded ? "wizard-systems__expand--open" : ""}`}>
+                    {isExpanded ? "▼" : "▶"}
+                  </span>
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div className="wizard-systems__templates">
+                  {suggestions.length === 0 ? (
+                    <p className="wizard-systems__no-suggestions">
+                      No system templates available for this goal type.
+                      You can create custom systems later.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="wizard-systems__hint">
+                        Select systems that will help you achieve this goal:
+                      </p>
+                      <div className="wizard-systems__template-grid">
+                        {suggestions.map(({ template, score, reasons }) => {
+                          const isSelected = isSystemSelectedForGoal(goal.id, template.id);
+                          return (
+                            <div
+                              key={template.id}
+                              className={`wizard-systems__template ${isSelected ? "wizard-systems__template--selected" : ""}`}
+                              onClick={() => toggleSystemForGoal(goal.id, template)}
+                              style={{ borderColor: isSelected ? color.border : undefined }}
+                            >
+                              <div className="wizard-systems__template-header">
+                                <h4 className="wizard-systems__template-title">{template.title}</h4>
+                                {isSelected && <span className="wizard-systems__template-check">✓</span>}
+                              </div>
+                              <p className="wizard-systems__template-desc">{template.description}</p>
+                              <div className="wizard-systems__template-meta">
+                                <span className="wizard-systems__template-duration">
+                                  {template.estimatedDuration}
+                                </span>
+                                <span className="wizard-systems__template-score">
+                                  Match: {score}%
+                                </span>
+                              </div>
+                              {reasons.length > 0 && (
+                                <div className="wizard-systems__template-reasons">
+                                  {reasons.slice(0, 2).map((reason, idx) => (
+                                    <span key={idx} className="wizard-systems__template-reason">
+                                      {reason}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="wizard-systems__footer-note">
+        <p>
+          You can always add more systems later from the Systems screen.
+          Start with 1-2 systems per goal to avoid overwhelm.
+        </p>
+      </div>
+    </div>
+  );
+
   // Render review step
   const renderReview = () => (
     <div className="wizard-step wizard-step--review">
@@ -491,6 +672,10 @@ export function AnnualGoalsWizard({
             {Object.values(showDecomposition).filter(Boolean).length * 4}
           </span>
           <span className="wizard-review__stat-label">Quarterly Milestones</span>
+        </div>
+        <div className="wizard-review__stat">
+          <span className="wizard-review__stat-value">{selectedSystems.length}</span>
+          <span className="wizard-review__stat-label">Systems to Create</span>
         </div>
         <div className="wizard-review__stat">
           <span className="wizard-review__stat-value">
@@ -554,6 +739,8 @@ export function AnnualGoalsWizard({
         return renderCustomize();
       case "decompose":
         return renderDecompose();
+      case "systems":
+        return renderSystems();
       case "review":
         return renderReview();
     }
@@ -561,9 +748,11 @@ export function AnnualGoalsWizard({
 
   // Get step progress
   const getStepNumber = () => {
-    const steps: WizardStep[] = ["intro", "suggestions", "customize", "decompose", "review"];
+    const steps: WizardStep[] = ["intro", "suggestions", "customize", "decompose", "systems", "review"];
     return steps.indexOf(step) + 1;
   };
+
+  const totalSteps = 6;
 
   // Check if can proceed
   const canProceed = () => {
@@ -583,11 +772,11 @@ export function AnnualGoalsWizard({
           <div className="annual-goals-wizard__progress-bar">
             <div
               className="annual-goals-wizard__progress-fill"
-              style={{ width: `${(getStepNumber() / 5) * 100}%` }}
+              style={{ width: `${(getStepNumber() / totalSteps) * 100}%` }}
             />
           </div>
           <span className="annual-goals-wizard__progress-text">
-            Step {getStepNumber()} of 5
+            Step {getStepNumber()} of {totalSteps}
           </span>
         </div>
       </div>

@@ -47,7 +47,7 @@ export function QuickActionsFAB({ onAddTask, onStartRoutine }: QuickActionsFABPr
 
   // Get today's routines for the picker
   const todaysRoutines = useMemo(() => {
-    const activeRoutines = routines.items.filter(r => r.status === "active");
+    const activeRoutines = (routines?.items || []).filter(r => r.status === "active");
     if (smartSchedule.enabled) {
       const dayTypes = getDayTypes(new Date(), smartSchedule) as DayType[];
       const filtered = getRoutinesDueTodayWithDayType(activeRoutines, dayTypes);

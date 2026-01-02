@@ -90,6 +90,78 @@ export interface HabitCompletion {
 }
 
 // =============================================================================
+// SYSTEM COMPONENTS - Trackable behaviors embedded in systems (replaces standalone habits)
+// =============================================================================
+
+export interface SystemComponent {
+  id: string;
+  title: string;
+  description?: string;
+  type: "daily" | "weekly" | "custom"; // Primary tracking frequency type
+
+  // The 4 Laws of Atomic Habits
+  cue: HabitCue; // Make it obvious
+  craving?: string; // Make it attractive - why you want this
+  response: string; // Make it easy - the actual behavior (2-minute version)
+  reward?: string; // Make it satisfying - immediate reward
+
+  // Scheduling (same structure as Habit for compatibility)
+  frequency: HabitFrequency;
+  customDays?: number[]; // 0-6, Sunday-Saturday for custom frequency
+  timeOfDay?: HabitTimeOfDay;
+
+  // Day type filtering
+  dayTypes?: DayType[];
+  dayTypeOverrides?: Partial<Record<DayType, HabitDayTypeOverride>>;
+
+  // Component stacking (within the system)
+  stackedAfter?: string; // ID of another component this comes after
+  stackedBefore?: string; // ID of another component this comes before
+
+  // Routine integration - embed this component as a step in an active routine
+  linkedRoutineId?: string; // ID of routine this component should be part of
+
+  // Tracking
+  streak: number;
+  longestStreak: number;
+  totalCompletions: number;
+
+  // Status
+  status: "active" | "paused" | "archived";
+  createdAt: string;
+  updatedAt: string;
+}
+
+// =============================================================================
+// SYSTEM MILESTONES - Progress checkpoints for systems
+// =============================================================================
+
+export interface SystemMilestone {
+  id: string;
+  title: string;
+  description?: string;
+  targetDate: string;
+  completedAt?: string;
+  status: "pending" | "achieved" | "missed";
+  linkedMetricId?: string; // Optional link to metric that defines "done"
+  createdAt: string;
+}
+
+// =============================================================================
+// COMPONENT COMPLETION - Tracking when system components are done
+// =============================================================================
+
+export interface ComponentCompletion {
+  id: string;
+  componentId: string;
+  systemId: string;
+  completedAt: string;
+  date: string; // YYYY-MM-DD for easy grouping
+  notes?: string;
+  difficulty?: 1 | 2 | 3 | 4 | 5; // How hard was it today?
+}
+
+// =============================================================================
 // IMPLEMENTATION INTENTIONS - Making habits concrete
 // =============================================================================
 
@@ -158,13 +230,21 @@ export interface System {
 
   // The goal this system serves
   goalStatement: string; // "Lose 20 pounds"
-  linkedGoalId?: string; // Optional link to a Goal object
+  linkedGoalId?: string; // Link to a Goal object (strongly encouraged but optional for legacy)
 
   // Identity layer
   identity: Identity;
 
-  // Habits that make up this system
-  habitIds: string[];
+  // Embedded components (trackable behaviors) - replaces habitIds reference
+  // Optional during migration, will be required in future
+  components?: SystemComponent[];
+
+  // Milestones for progress tracking (optional)
+  milestones?: SystemMilestone[];
+
+  // Legacy: habitIds for backward compatibility during migration
+  // @deprecated - use components instead
+  habitIds?: string[];
 
   // Environment design
   environmentTweaks: EnvironmentTweak[];
@@ -180,7 +260,7 @@ export interface System {
 
   // Status and tracking
   status: SystemStatus;
-  healthScore?: number; // 0-100, calculated from habit adherence
+  healthScore?: number; // 0-100, calculated from component adherence
   startedAt: string;
   targetDate?: string;
   completedAt?: string;
@@ -203,14 +283,33 @@ export interface SystemTemplate {
   goalPrompt: string; // "How much weight do you want to lose?"
   identityTemplate: string; // "I am a person who ${response}"
 
-  suggestedHabits: Array<{
+  // Suggested components (preferred - replaces suggestedHabits)
+  suggestedComponents?: Array<{
     title: string;
     description: string;
     cue: HabitCue;
     response: string;
     reward?: string;
     frequency: HabitFrequency;
-    timeOfDay?: "morning" | "afternoon" | "evening" | "anytime";
+    timeOfDay?: HabitTimeOfDay;
+  }>;
+
+  // @deprecated - use suggestedComponents instead (kept for backward compatibility)
+  suggestedHabits?: Array<{
+    title: string;
+    description: string;
+    cue: HabitCue;
+    response: string;
+    reward?: string;
+    frequency: HabitFrequency;
+    timeOfDay?: HabitTimeOfDay;
+  }>;
+
+  // Suggested milestones with week offsets (optional)
+  suggestedMilestones?: Array<{
+    title: string;
+    description?: string;
+    weekOffset: number; // Weeks from system start date
   }>;
 
   suggestedEnvironmentTweaks: Array<{
@@ -288,6 +387,7 @@ export function calculateStreak(completions: HabitCompletion[], frequency: Habit
   return streak;
 }
 
+// @deprecated - use calculateSystemHealthFromComponents instead
 export function calculateSystemHealth(system: System, habits: Habit[], completions: HabitCompletion[]): number {
   if (habits.length === 0) return 0;
 
@@ -334,6 +434,114 @@ export function calculateSystemHealth(system: System, habits: Habit[], completio
   return Math.round((totalCompleted / totalExpected) * 100);
 }
 
+// New: Calculate system health from embedded components
+export function calculateSystemHealthFromComponents(
+  system: System,
+  completions: ComponentCompletion[]
+): number {
+  const components = system.components || [];
+  if (components.length === 0) return 0;
+
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    return date.toISOString().split("T")[0];
+  });
+
+  let totalExpected = 0;
+  let totalCompleted = 0;
+
+  components.forEach(component => {
+    if (component.status !== "active") return;
+
+    last7Days.forEach(date => {
+      const dayOfWeek = new Date(date).getDay();
+      let shouldComplete = false;
+
+      if (component.frequency === "daily") {
+        shouldComplete = true;
+      } else if (component.frequency === "weekdays") {
+        shouldComplete = dayOfWeek !== 0 && dayOfWeek !== 6;
+      } else if (component.frequency === "weekends") {
+        shouldComplete = dayOfWeek === 0 || dayOfWeek === 6;
+      } else if (component.frequency === "weekly") {
+        shouldComplete = dayOfWeek === 1; // Count Mondays
+      } else if (component.frequency === "custom" && component.customDays) {
+        shouldComplete = component.customDays.includes(dayOfWeek);
+      }
+
+      if (shouldComplete) {
+        totalExpected++;
+        const wasCompleted = completions.some(
+          c => c.componentId === component.id &&
+               c.systemId === system.id &&
+               c.date === date
+        );
+        if (wasCompleted) {
+          totalCompleted++;
+        }
+      }
+    });
+  });
+
+  if (totalExpected === 0) return 100;
+  return Math.round((totalCompleted / totalExpected) * 100);
+}
+
+// Calculate streak for a component
+export function calculateComponentStreak(
+  componentId: string,
+  completions: ComponentCompletion[],
+  frequency: HabitFrequency
+): number {
+  const componentCompletions = completions.filter(c => c.componentId === componentId);
+  if (componentCompletions.length === 0) return 0;
+
+  const sortedDates = componentCompletions
+    .map(c => c.date)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+  const today = new Date().toISOString().split("T")[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+
+  // Must have completed today or yesterday to have an active streak
+  if (sortedDates[0] !== today && sortedDates[0] !== yesterday) {
+    return 0;
+  }
+
+  let streak = 1;
+  let currentDate = new Date(sortedDates[0]);
+
+  for (let i = 1; i < sortedDates.length; i++) {
+    const prevDate = new Date(currentDate);
+
+    if (frequency === "daily") {
+      prevDate.setDate(prevDate.getDate() - 1);
+    } else if (frequency === "weekdays") {
+      do {
+        prevDate.setDate(prevDate.getDate() - 1);
+      } while (prevDate.getDay() === 0 || prevDate.getDay() === 6);
+    } else if (frequency === "weekends") {
+      do {
+        prevDate.setDate(prevDate.getDate() - 1);
+      } while (prevDate.getDay() !== 0 && prevDate.getDay() !== 6);
+    } else if (frequency === "weekly") {
+      prevDate.setDate(prevDate.getDate() - 7);
+    }
+
+    const expectedDate = prevDate.toISOString().split("T")[0];
+
+    if (sortedDates[i] === expectedDate) {
+      streak++;
+      currentDate = new Date(sortedDates[i]);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
 export function formatIntention(intention: ImplementationIntention): string {
   return `I will ${intention.behavior} ${intention.when.value} ${intention.where}`;
 }
@@ -360,6 +568,7 @@ function habitMatchesFrequency(habit: Habit, date: Date = new Date()): boolean {
 
 // Legacy function - no day type filtering
 export function getHabitsDueToday(habits: Habit[]): Habit[] {
+  if (!habits || !Array.isArray(habits)) return [];
   return habits.filter(habit => {
     if (habit.status !== "active") return false;
     return habitMatchesFrequency(habit);
@@ -374,6 +583,7 @@ export function getHabitsDueTodayWithDayType(
   dayType: DayType | DayType[],
   date: Date = new Date()
 ): Habit[] {
+  if (!habits || !Array.isArray(habits)) return [];
   // Normalize to array for consistent handling
   const dayTypes = Array.isArray(dayType) ? dayType : [dayType];
 
@@ -426,6 +636,173 @@ export function getEffectiveHabitCue(
     ...habit.cue,
     value: override.cueValue,
   };
+}
+
+// =============================================================================
+// COMPONENT HELPER FUNCTIONS - For new embedded component system
+// =============================================================================
+
+// Check if component matches frequency for the given date
+function componentMatchesFrequency(component: SystemComponent, date: Date = new Date()): boolean {
+  const dayOfWeek = date.getDay();
+
+  switch (component.frequency) {
+    case "daily":
+      return true;
+    case "weekdays":
+      return dayOfWeek !== 0 && dayOfWeek !== 6;
+    case "weekends":
+      return dayOfWeek === 0 || dayOfWeek === 6;
+    case "weekly":
+      return true; // Show weekly components every day, user decides when
+    case "custom":
+      return component.customDays?.includes(dayOfWeek) ?? false;
+    default:
+      return false;
+  }
+}
+
+// Get all components due today from a system (no day type filtering)
+export function getComponentsDueToday(components: SystemComponent[]): SystemComponent[] {
+  if (!components || !Array.isArray(components)) return [];
+  return components.filter(component => {
+    if (component.status !== "active") return false;
+    return componentMatchesFrequency(component);
+  });
+}
+
+// Get components due today with day type filtering
+export function getComponentsDueTodayWithDayType(
+  components: SystemComponent[],
+  dayType: DayType | DayType[],
+  date: Date = new Date()
+): SystemComponent[] {
+  if (!components || !Array.isArray(components)) return [];
+  const dayTypes = Array.isArray(dayType) ? dayType : [dayType];
+
+  return components.filter(component => {
+    if (component.status !== "active") return false;
+
+    // Check frequency match first
+    if (!componentMatchesFrequency(component, date)) return false;
+
+    // If component has no dayTypes set, it applies to ALL day types
+    if (!component.dayTypes || component.dayTypes.length === 0) {
+      return true;
+    }
+
+    // Check if ANY of the component's dayTypes matches ANY of the day's dayTypes
+    return component.dayTypes.some(ct => dayTypes.includes(ct));
+  });
+}
+
+// Get all components due today from multiple systems
+export function getAllComponentsDueToday(
+  systems: System[],
+  dayTypes?: DayType | DayType[]
+): Array<{ system: System; component: SystemComponent }> {
+  if (!systems || !Array.isArray(systems)) return [];
+  const result: Array<{ system: System; component: SystemComponent }> = [];
+
+  systems.filter(s => s.status === "active").forEach(system => {
+    const components = system.components || [];
+    const dueComponents = dayTypes
+      ? getComponentsDueTodayWithDayType(components, dayTypes)
+      : getComponentsDueToday(components);
+
+    dueComponents.forEach(component => {
+      result.push({ system, component });
+    });
+  });
+
+  return result;
+}
+
+// Get the effective time of day for a component on a specific day type
+export function getEffectiveComponentTimeOfDay(
+  component: SystemComponent,
+  dayType: DayType
+): HabitTimeOfDay | undefined {
+  if (!component.dayTypeOverrides || !component.dayTypeOverrides[dayType]) {
+    return component.timeOfDay;
+  }
+
+  const override = component.dayTypeOverrides[dayType];
+  return override.timeOfDay ?? component.timeOfDay;
+}
+
+// Get the effective cue value for a component on a specific day type
+export function getEffectiveComponentCue(
+  component: SystemComponent,
+  dayType: DayType
+): HabitCue {
+  if (!component.dayTypeOverrides || !component.dayTypeOverrides[dayType]) {
+    return component.cue;
+  }
+
+  const override = component.dayTypeOverrides[dayType];
+  if (!override.cueValue) {
+    return component.cue;
+  }
+
+  return {
+    ...component.cue,
+    value: override.cueValue,
+  };
+}
+
+// Convert a Habit to a SystemComponent (for migration)
+export function habitToComponent(habit: Habit): SystemComponent {
+  return {
+    id: habit.id,
+    title: habit.title,
+    description: habit.description,
+    type: habit.frequency === "daily" ? "daily" :
+          habit.frequency === "weekly" ? "weekly" : "custom",
+    cue: habit.cue,
+    craving: habit.craving,
+    response: habit.response,
+    reward: habit.reward,
+    frequency: habit.frequency,
+    customDays: habit.customDays,
+    timeOfDay: habit.timeOfDay,
+    dayTypes: habit.dayTypes,
+    dayTypeOverrides: habit.dayTypeOverrides,
+    stackedAfter: habit.stackedAfter,
+    stackedBefore: habit.stackedBefore,
+    streak: habit.streak,
+    longestStreak: habit.longestStreak,
+    totalCompletions: habit.totalCompletions,
+    status: habit.status,
+    createdAt: habit.createdAt,
+    updatedAt: habit.updatedAt,
+  };
+}
+
+// Get suggested components from a template (handles both old and new format)
+export function getTemplateSuggestedComponents(template: SystemTemplate): Array<{
+  title: string;
+  description: string;
+  cue: HabitCue;
+  response: string;
+  reward?: string;
+  frequency: HabitFrequency;
+  timeOfDay?: HabitTimeOfDay;
+}> {
+  // Prefer new format, fall back to old format
+  return template.suggestedComponents || template.suggestedHabits || [];
+}
+
+// Get suggested milestones from a template (with default)
+export function getTemplateSuggestedMilestones(template: SystemTemplate): Array<{
+  title: string;
+  description?: string;
+  weekOffset: number;
+}> {
+  return template.suggestedMilestones || [
+    { title: "First week complete", weekOffset: 1 },
+    { title: "One month checkpoint", weekOffset: 4 },
+  ];
 }
 
 // =============================================================================
@@ -787,6 +1164,149 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
       { obstacle: "I don't have time to read", solution: "10 minutes = 20 books/year. You have 10 minutes." },
       { obstacle: "I keep abandoning books", solution: "Give yourself permission to quit. Life's too short for bad books." },
       { obstacle: "I fall asleep when I read", solution: "That's a feature, not a bug. Better than phone-induced insomnia." },
+    ],
+  },
+  {
+    id: "tpl_hobby_mastery",
+    title: "Hobby Mastery",
+    description: "Develop genuine skill and find flow in a creative pursuit.",
+    loop: "Fun",
+    category: "hobby",
+    goalPrompt: "What hobby do you want to master?",
+    identityTemplate: "I am someone who practices their craft",
+    difficulty: "intermediate",
+    estimatedDuration: "ongoing",
+    tags: ["hobby", "skill", "mastery", "creative", "practice"],
+    suggestedHabits: [
+      {
+        title: "Daily practice session",
+        description: "Dedicated practice time for your craft",
+        cue: { type: "time", value: "Same time each day" },
+        response: "Practice for at least 20 minutes with full focus",
+        reward: "Track your streak, notice improvement",
+        frequency: "daily",
+        timeOfDay: "anytime",
+      },
+      {
+        title: "Weekly skill challenge",
+        description: "Push beyond comfort zone with a new technique",
+        cue: { type: "time", value: "Weekend morning" },
+        response: "Try something slightly harder than your current level",
+        reward: "Document progress, share if comfortable",
+        frequency: "weekly",
+        timeOfDay: "morning",
+      },
+    ],
+    suggestedEnvironmentTweaks: [
+      { description: "Dedicated practice space always ready", type: "add" },
+      { description: "Equipment/tools visible and accessible", type: "modify" },
+      { description: "Remove distractions from practice area", type: "remove" },
+      { description: "Progress journal or photos nearby", type: "add" },
+    ],
+    suggestedMetrics: [
+      { name: "Practice sessions", unit: "count" },
+      { name: "Practice minutes", unit: "min" },
+      { name: "Skills learned", unit: "count" },
+    ],
+    commonObstacles: [
+      { obstacle: "I don't have time to practice", solution: "20 minutes exists. Morning, lunch, evening - pick one and protect it." },
+      { obstacle: "I'm not improving", solution: "Progress is invisible daily, obvious quarterly. Keep showing up." },
+      { obstacle: "I get frustrated and quit", solution: "Frustration = edge of growth. Scale back difficulty, maintain consistency." },
+    ],
+  },
+  {
+    id: "tpl_creative_practice",
+    title: "Creative Practice",
+    description: "Build a consistent creative practice for art, music, writing, or crafts.",
+    loop: "Fun",
+    category: "creative",
+    goalPrompt: "What creative skill do you want to develop?",
+    identityTemplate: "I am a creative person who makes things",
+    difficulty: "beginner",
+    estimatedDuration: "ongoing",
+    tags: ["creative", "art", "music", "writing", "craft", "practice"],
+    suggestedHabits: [
+      {
+        title: "Morning pages / warm-up",
+        description: "Start each day with low-stakes creative output",
+        cue: { type: "preceding_action", value: "After morning coffee/tea" },
+        response: "10 minutes of creation without judgment (sketching, scales, freewriting)",
+        reward: "Limbered up creative muscles, ideas flowing",
+        frequency: "daily",
+        timeOfDay: "morning",
+      },
+      {
+        title: "Create before consume",
+        description: "Make something before consuming media",
+        cue: { type: "preceding_action", value: "Before opening social media or streaming" },
+        response: "Create for 15 minutes first",
+        reward: "You're a creator, not just a consumer",
+        frequency: "daily",
+        timeOfDay: "anytime",
+      },
+    ],
+    suggestedEnvironmentTweaks: [
+      { description: "Creative supplies visible on desk/table", type: "modify" },
+      { description: "Inspiration board or reference images nearby", type: "add" },
+      { description: "Phone in another room during creative time", type: "remove" },
+      { description: "Finished work displayed somewhere you'll see it", type: "add" },
+    ],
+    suggestedMetrics: [
+      { name: "Pieces created", unit: "count" },
+      { name: "Creative hours", unit: "hours" },
+      { name: "Projects completed", unit: "count" },
+    ],
+    commonObstacles: [
+      { obstacle: "I'm not creative", solution: "Creativity is a muscle. It grows with use. Start ugly, improve later." },
+      { obstacle: "I don't know what to make", solution: "Copy something you like. Constraints spark creativity." },
+      { obstacle: "My work isn't good enough", solution: "Good enough for what? The only bad art is the art you didn't make." },
+    ],
+  },
+  {
+    id: "tpl_play_adventure",
+    title: "Play & Adventure",
+    description: "Inject more spontaneity, play, and new experiences into life.",
+    loop: "Fun",
+    category: "adventure",
+    goalPrompt: "What kind of adventures or new experiences do you crave?",
+    identityTemplate: "I am someone who says yes to life",
+    difficulty: "beginner",
+    estimatedDuration: "ongoing",
+    tags: ["adventure", "play", "exploration", "novelty", "spontaneity"],
+    suggestedHabits: [
+      {
+        title: "Weekly adventure",
+        description: "Do something new or different each week",
+        cue: { type: "time", value: "Weekend" },
+        response: "Try a new restaurant, walk a new route, visit somewhere you've never been",
+        reward: "Stories to tell, expanded world",
+        frequency: "weekly",
+        timeOfDay: "anytime",
+      },
+      {
+        title: "Daily play moment",
+        description: "Find play in ordinary moments",
+        cue: { type: "preceding_action", value: "When feeling stressed or bored" },
+        response: "Do something playful - silly voices, dance break, play with a pet",
+        reward: "Lightness, laughter, perspective",
+        frequency: "daily",
+        timeOfDay: "anytime",
+      },
+    ],
+    suggestedEnvironmentTweaks: [
+      { description: "Adventure jar with ideas for new things to try", type: "add" },
+      { description: "Yes list on fridge - things you want to say yes to", type: "add" },
+      { description: "Comfortable shoes/gear ready for spontaneous outings", type: "modify" },
+    ],
+    suggestedMetrics: [
+      { name: "New experiences", unit: "count" },
+      { name: "Places visited", unit: "count" },
+      { name: "Play moments", unit: "count" },
+    ],
+    commonObstacles: [
+      { obstacle: "I don't have time for fun", solution: "You don't have time NOT to have fun. Burnout costs more." },
+      { obstacle: "Nothing sounds fun anymore", solution: "That's a sign you need this most. Start small, dopamine recovers." },
+      { obstacle: "I feel guilty relaxing", solution: "Rest is productive. Play is necessary. You're not a machine." },
     ],
   },
 

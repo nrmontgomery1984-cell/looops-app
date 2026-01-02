@@ -1,7 +1,7 @@
 // Loop Dashboard - Customizable widget-based dashboard for each loop
 // Each loop has its own dashboard with widgets the user can configure
 
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   LoopId,
   LoopDashboard as LoopDashboardType,
@@ -15,14 +15,20 @@ import {
   Habit,
   HabitCompletion,
   System,
+  ComponentCompletion,
   Note,
   Goal,
   getWidgetGridClass,
   Caregiver,
   BabysitterSession,
+  Person,
+  SpecialDate,
 } from "../../types";
+import { ComponentWidget } from "../systems/ComponentTracker";
+// @deprecated - keeping HabitsWidget import for backward compatibility during migration
 import { HabitsWidget } from "../systems/HabitsTracker";
 import { BabysitterWidget } from "./BabysitterWidget";
+import { SpecialDatesWidget } from "./SpecialDatesWidget";
 import { HealthWidget } from "./HealthWidget";
 import { CalendarWidget as GoogleCalendarWidget } from "./CalendarWidget";
 import { SpotifyWidget } from "./SpotifyWidget";
@@ -53,16 +59,25 @@ interface LoopDashboardProps {
   habits: Habit[];
   habitCompletions: HabitCompletion[];
   systems: System[];
+  componentCompletions: ComponentCompletion[];
   notes: Note[];
   goals: Goal[];
   // Babysitter data (Family loop)
   caregivers: Caregiver[];
   babysitterSessions: BabysitterSession[];
+  // Special Dates data (Family loop)
+  specialDatesPeople: Person[];
+  specialDates: SpecialDate[];
   // Actions
   onCompleteTask: (taskId: string) => void;
   onSelectTask: (taskId: string) => void;
+  // @deprecated - use onCompleteComponent instead
   onCompleteHabit: (habitId: string, date: string) => void;
+  // @deprecated - use onUncompleteComponent instead
   onUncompleteHabit: (habitId: string, date: string) => void;
+  // Component actions (new)
+  onCompleteComponent: (systemId: string, componentId: string, date: string) => void;
+  onUncompleteComponent: (systemId: string, componentId: string, date: string) => void;
   onUpdateDashboard: (dashboard: LoopDashboardType) => void;
   onOpenSystemBuilder: () => void;
   onAddNote: (note: Note) => void;
@@ -74,7 +89,42 @@ interface LoopDashboardProps {
   onAddCaregiver: (caregiver: Caregiver) => void;
   onUpdateCaregiver: (caregiver: Caregiver) => void;
   onDeactivateCaregiver: (caregiverId: string) => void;
+  // Special Dates actions
+  onAddPerson: (person: Person) => void;
+  onUpdatePerson: (person: Person) => void;
+  onDeletePerson: (personId: string) => void;
+  onAddSpecialDate: (date: SpecialDate) => void;
+  onUpdateSpecialDate: (date: SpecialDate) => void;
+  onDeleteSpecialDate: (dateId: string) => void;
   onBack?: () => void;
+}
+
+// Grid configuration constants
+const GRID_COLS = 4;
+const GRID_ROW_HEIGHT = 120; // pixels per grid row
+
+// Helper to get grid size from legacy WidgetSize
+function getDefaultGridSize(size: WidgetSize): { colSpan: number; rowSpan: number } {
+  switch (size) {
+    case "small":
+      return { colSpan: 1, rowSpan: 2 };
+    case "medium":
+      return { colSpan: 2, rowSpan: 2 };
+    case "large":
+      return { colSpan: 3, rowSpan: 3 };
+    case "full":
+      return { colSpan: 4, rowSpan: 3 };
+    default:
+      return { colSpan: 2, rowSpan: 2 };
+  }
+}
+
+// Get effective grid size for a widget
+function getWidgetGridSize(widget: WidgetConfig): { colSpan: number; rowSpan: number } {
+  if (widget.gridSize) {
+    return widget.gridSize;
+  }
+  return getDefaultGridSize(widget.size);
 }
 
 export function LoopDashboard({
@@ -84,14 +134,19 @@ export function LoopDashboard({
   habits,
   habitCompletions,
   systems,
+  componentCompletions,
   notes,
   goals,
   caregivers,
   babysitterSessions,
+  specialDatesPeople,
+  specialDates,
   onCompleteTask,
   onSelectTask,
   onCompleteHabit,
   onUncompleteHabit,
+  onCompleteComponent,
+  onUncompleteComponent,
   onUpdateDashboard,
   onOpenSystemBuilder,
   onAddNote,
@@ -102,19 +157,44 @@ export function LoopDashboard({
   onAddCaregiver,
   onUpdateCaregiver,
   onDeactivateCaregiver,
+  onAddPerson,
+  onUpdatePerson,
+  onDeletePerson,
+  onAddSpecialDate,
+  onUpdateSpecialDate,
+  onDeleteSpecialDate,
   onBack,
 }: LoopDashboardProps) {
   const [showWidgetPicker, setShowWidgetPicker] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
+  const [resizingWidget, setResizingWidget] = useState<string | null>(null);
+  const [resizeDirection, setResizeDirection] = useState<"e" | "s" | "se" | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const loopColor = LOOP_COLORS[loop];
   const loopDef = LOOP_DEFINITIONS[loop];
 
-  // Filter data for this loop
-  const loopTasks = tasks.filter(t => t.loop === loop && t.status !== "done");
-  const loopHabits = habits.filter(h => h.loop === loop && h.status === "active");
-  const loopSystems = systems.filter(s => s.loop === loop && s.status === "active");
-  const loopNotes = notes.filter(n => n.loop === loop);
-  const loopGoals = goals.filter(g => g.loop === loop);
+  // State for recurring tasks filter
+  const [showRecurring, setShowRecurring] = useState(false);
+
+  // Filter data for this loop (with defensive checks for undefined arrays)
+  const loopTasks = (tasks || []).filter(t => {
+    if (t.loop !== loop || t.status === "done") return false;
+    // If recurring filter is off, hide recurring tasks unless due today/tomorrow
+    if (!showRecurring && t.recurrence && t.dueDate) {
+      const today = new Date().toISOString().split("T")[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+      return t.dueDate === today || t.dueDate === tomorrowStr;
+    }
+    return true;
+  });
+  const loopHabits = (habits || []).filter(h => h.loop === loop && h.status === "active");
+  const loopSystems = (systems || []).filter(s => s.loop === loop && s.status === "active");
+  const loopNotes = (notes || []).filter(n => n.loop === loop);
+  const loopGoals = (goals || []).filter(g => g.loop === loop);
 
   // Calculate system health
   const getSystemHealth = () => {
@@ -124,6 +204,111 @@ export function LoopDashboard({
   };
 
   const systemHealth = getSystemHealth();
+
+  // Handle widget resize
+  const handleResizeStart = useCallback((
+    e: React.MouseEvent,
+    widgetId: string,
+    direction: "e" | "s" | "se"
+  ) => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingWidget(widgetId);
+    setResizeDirection(direction);
+
+    const widget = (dashboard.widgets || []).find(w => w.id === widgetId);
+    if (!widget || !gridRef.current) return;
+
+    const gridRect = gridRef.current.getBoundingClientRect();
+    const cellWidth = gridRect.width / GRID_COLS;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startGridSize = getWidgetGridSize(widget);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+
+      let newColSpan = startGridSize.colSpan;
+      let newRowSpan = startGridSize.rowSpan;
+
+      if (direction === "e" || direction === "se") {
+        const colDelta = Math.round(deltaX / cellWidth);
+        newColSpan = Math.max(1, Math.min(GRID_COLS, startGridSize.colSpan + colDelta));
+      }
+
+      if (direction === "s" || direction === "se") {
+        const rowDelta = Math.round(deltaY / GRID_ROW_HEIGHT);
+        newRowSpan = Math.max(1, Math.min(4, startGridSize.rowSpan + rowDelta));
+      }
+
+      // Update widget
+      onUpdateDashboard({
+        ...dashboard,
+        widgets: (dashboard.widgets || []).map(w =>
+          w.id === widgetId
+            ? { ...w, gridSize: { colSpan: newColSpan, rowSpan: newRowSpan } }
+            : w
+        ),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    const handleMouseUp = () => {
+      setResizingWidget(null);
+      setResizeDirection(null);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, [editMode, dashboard, onUpdateDashboard]);
+
+  // Handle widget drag for reordering
+  const handleDragStart = useCallback((e: React.DragEvent, widgetId: string) => {
+    if (!editMode) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedWidget(widgetId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", widgetId);
+  }, [editMode]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!editMode || !draggedWidget) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, [editMode, draggedWidget]);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetWidgetId: string) => {
+    if (!editMode || !draggedWidget || draggedWidget === targetWidgetId) return;
+    e.preventDefault();
+
+    const widgets = [...(dashboard.widgets || [])];
+    const dragIndex = widgets.findIndex(w => w.id === draggedWidget);
+    const dropIndex = widgets.findIndex(w => w.id === targetWidgetId);
+
+    if (dragIndex !== -1 && dropIndex !== -1) {
+      // Remove dragged widget and insert at new position
+      const [draggedItem] = widgets.splice(dragIndex, 1);
+      widgets.splice(dropIndex, 0, draggedItem);
+
+      onUpdateDashboard({
+        ...dashboard,
+        widgets,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    setDraggedWidget(null);
+  }, [editMode, draggedWidget, dashboard, onUpdateDashboard]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedWidget(null);
+  }, []);
 
   // Render individual widget
   const renderWidget = (config: WidgetConfig) => {
@@ -141,6 +326,21 @@ export function LoopDashboard({
         );
 
       case "habits":
+        // Use ComponentWidget for systems with embedded components
+        // Falls back to legacy HabitsWidget if no systems with components
+        const systemsWithComponents = loopSystems.filter(s => (s.components || []).length > 0);
+        if (systemsWithComponents.length > 0) {
+          return (
+            <ComponentWidget
+              systems={systemsWithComponents}
+              completions={componentCompletions}
+              onComplete={onCompleteComponent}
+              onUncomplete={onUncompleteComponent}
+              loop={loop}
+            />
+          );
+        }
+        // Legacy fallback for standalone habits
         return (
           <HabitsWidget
             habits={loopHabits}
@@ -157,6 +357,7 @@ export function LoopDashboard({
             systems={loopSystems}
             habits={loopHabits}
             completions={habitCompletions}
+            componentCompletions={componentCompletions}
             onCreateSystem={onOpenSystemBuilder}
           />
         );
@@ -208,6 +409,20 @@ export function LoopDashboard({
             onAddCaregiver={onAddCaregiver}
             onUpdateCaregiver={onUpdateCaregiver}
             onDeactivateCaregiver={onDeactivateCaregiver}
+          />
+        );
+
+      case "special_dates":
+        return (
+          <SpecialDatesWidget
+            people={specialDatesPeople}
+            dates={specialDates}
+            onAddPerson={onAddPerson}
+            onUpdatePerson={onUpdatePerson}
+            onDeletePerson={onDeletePerson}
+            onAddDate={onAddSpecialDate}
+            onUpdateDate={onUpdateSpecialDate}
+            onDeleteDate={onDeleteSpecialDate}
           />
         );
 
@@ -282,6 +497,15 @@ export function LoopDashboard({
           />
         );
 
+      case "finance_manager":
+        return <FinanceScreen embedded />;
+
+      case "meal_prep":
+        return <MealPrepScreen embedded />;
+
+      case "zero_waste":
+        return <ZeroWasteWidget />;
+
       default:
         return (
           <div className="widget-placeholder">
@@ -306,6 +530,21 @@ export function LoopDashboard({
           <h1>{loop}</h1>
         </div>
         <div className="loop-dashboard-actions">
+          <label className="recurring-toggle" title="Show all recurring tasks (not just those due soon)">
+            <input
+              type="checkbox"
+              checked={showRecurring}
+              onChange={(e) => setShowRecurring(e.target.checked)}
+            />
+            <span className="recurring-toggle-label">Show recurring</span>
+          </label>
+          <button
+            className={`dashboard-action-btn ${editMode ? "active" : ""}`}
+            onClick={() => setEditMode(!editMode)}
+            title={editMode ? "Exit edit mode" : "Edit dashboard layout"}
+          >
+            {editMode ? "✓ Done" : "✏️ Edit"}
+          </button>
           <button
             className="dashboard-action-btn"
             onClick={() => setShowWidgetPicker(true)}
@@ -336,49 +575,38 @@ export function LoopDashboard({
         )}
       </div>
 
-      {/* Finance Widget for Wealth loop */}
-      {loop === "Wealth" && (
-        <div className="loop-dashboard-full-widget">
-          <div className="full-widget-header">
-            <span className="full-widget-icon">💰</span>
-            <h3>Finance Manager</h3>
-          </div>
-          <FinanceScreen embedded />
-        </div>
-      )}
-
-      {/* Meal Prep Widget for Health loop */}
-      {loop === "Health" && (
-        <div className="loop-dashboard-full-widget">
-          <div className="full-widget-header">
-            <span className="full-widget-icon">🍽️</span>
-            <h3>Meal Prep</h3>
-          </div>
-          <MealPrepScreen embedded />
-        </div>
-      )}
-
-      {/* Zero Waste Widget for Health loop */}
-      {loop === "Health" && (
-        <div className="loop-dashboard-full-widget">
-          <div className="full-widget-header">
-            <span className="full-widget-icon">♻️</span>
-            <h3>Zero Waste</h3>
-          </div>
-          <ZeroWasteWidget />
-        </div>
-      )}
-
-      <div className="loop-dashboard-widgets">
-        {dashboard.widgets.map(widget => {
+      <div
+        ref={gridRef}
+        className={`loop-dashboard-widgets ${editMode ? "edit-mode" : ""}`}
+      >
+        {(dashboard.widgets || []).map(widget => {
           const def = WIDGET_DEFINITIONS[widget.type];
           const availableSizes = def.availableSizes;
+          const gridSize = getWidgetGridSize(widget);
+          const isDragging = draggedWidget === widget.id;
+          const isResizing = resizingWidget === widget.id;
 
           const changeSize = (newSize: WidgetSize) => {
             onUpdateDashboard({
               ...dashboard,
-              widgets: dashboard.widgets.map(w =>
-                w.id === widget.id ? { ...w, size: newSize } : w
+              widgets: (dashboard.widgets || []).map(w =>
+                w.id === widget.id
+                  ? { ...w, size: newSize, gridSize: getDefaultGridSize(newSize) }
+                  : w
+              ),
+              updatedAt: new Date().toISOString(),
+            });
+          };
+
+          const isPinned = widget.pinned || false;
+
+          const togglePin = () => {
+            onUpdateDashboard({
+              ...dashboard,
+              widgets: (dashboard.widgets || []).map(w =>
+                w.id === widget.id
+                  ? { ...w, pinned: !w.pinned }
+                  : w
               ),
               updatedAt: new Date().toISOString(),
             });
@@ -387,15 +615,43 @@ export function LoopDashboard({
           return (
             <div
               key={widget.id}
-              className={`widget-container ${getWidgetGridClass(widget.size)}`}
+              className={`widget-container ${getWidgetGridClass(widget.size)} ${editMode ? "editable" : ""} ${isDragging ? "dragging" : ""} ${isResizing ? "resizing" : ""} ${isPinned ? "pinned" : ""}`}
+              style={editMode ? {
+                gridColumn: `span ${gridSize.colSpan}`,
+                gridRow: `span ${gridSize.rowSpan}`,
+              } : undefined}
+              draggable={editMode && !isPinned}
+              onDragStart={(e) => handleDragStart(e, widget.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, widget.id)}
+              onDragEnd={handleDragEnd}
             >
               <div className="widget-header">
+                {editMode && !isPinned && (
+                  <span className="widget-drag-handle" title="Drag to reorder">
+                    ⋮⋮
+                  </span>
+                )}
+                {editMode && isPinned && (
+                  <span className="widget-pinned-indicator" title="Pinned - click to unpin">
+                    📌
+                  </span>
+                )}
                 <span className="widget-icon">{def.icon}</span>
                 <span className="widget-title">
                   {widget.title || def.name}
                 </span>
                 <div className="widget-controls">
-                  {availableSizes.length > 1 && (
+                  {editMode && (
+                    <button
+                      className={`widget-pin-btn ${isPinned ? "pinned" : ""}`}
+                      onClick={togglePin}
+                      title={isPinned ? "Unpin widget" : "Pin widget in place"}
+                    >
+                      {isPinned ? "📌" : "📍"}
+                    </button>
+                  )}
+                  {!editMode && availableSizes.length > 1 && (
                     <div className="widget-size-controls">
                       {availableSizes.map(size => (
                         <button
@@ -409,12 +665,17 @@ export function LoopDashboard({
                       ))}
                     </div>
                   )}
+                  {editMode && (
+                    <span className="widget-size-indicator">
+                      {gridSize.colSpan}×{gridSize.rowSpan}
+                    </span>
+                  )}
                   <button
                     className="widget-remove-btn"
                     onClick={() => {
                       onUpdateDashboard({
                         ...dashboard,
-                        widgets: dashboard.widgets.filter(w => w.id !== widget.id),
+                        widgets: (dashboard.widgets || []).filter(w => w.id !== widget.id),
                         updatedAt: new Date().toISOString(),
                       });
                     }}
@@ -427,6 +688,27 @@ export function LoopDashboard({
               <div className="widget-content">
                 {renderWidget(widget)}
               </div>
+
+              {/* Resize handles - only visible in edit mode, not for pinned widgets */}
+              {editMode && !isPinned && (
+                <>
+                  <div
+                    className="resize-handle resize-handle-e"
+                    onMouseDown={(e) => handleResizeStart(e, widget.id, "e")}
+                    title="Drag to resize width"
+                  />
+                  <div
+                    className="resize-handle resize-handle-s"
+                    onMouseDown={(e) => handleResizeStart(e, widget.id, "s")}
+                    title="Drag to resize height"
+                  />
+                  <div
+                    className="resize-handle resize-handle-se"
+                    onMouseDown={(e) => handleResizeStart(e, widget.id, "se")}
+                    title="Drag to resize"
+                  />
+                </>
+              )}
             </div>
           );
         })}
@@ -446,13 +728,13 @@ export function LoopDashboard({
             };
             onUpdateDashboard({
               ...dashboard,
-              widgets: [...dashboard.widgets, newWidget],
+              widgets: [...(dashboard.widgets || []), newWidget],
               updatedAt: new Date().toISOString(),
             });
             setShowWidgetPicker(false);
           }}
           onClose={() => setShowWidgetPicker(false)}
-          existingTypes={dashboard.widgets.map(w => w.type)}
+          existingTypes={(dashboard.widgets || []).map(w => w.type)}
         />
       )}
     </div>
@@ -469,8 +751,16 @@ function WidgetPicker({
   onClose: () => void;
   existingTypes: WidgetType[];
 }) {
+  const [search, setSearch] = useState("");
+
   const availableWidgets = Object.values(WIDGET_DEFINITIONS).filter(
     def => !existingTypes.includes(def.type)
+  );
+
+  const filteredWidgets = availableWidgets.filter(def =>
+    search === "" ||
+    def.name.toLowerCase().includes(search.toLowerCase()) ||
+    def.description.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -480,8 +770,17 @@ function WidgetPicker({
           <h3>Add Widget</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
+        <div className="widget-picker-search">
+          <input
+            type="text"
+            placeholder="Search widgets..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus
+          />
+        </div>
         <div className="widget-picker-grid">
-          {availableWidgets.map(def => (
+          {filteredWidgets.map(def => (
             <button
               key={def.type}
               className="widget-picker-item"
@@ -493,6 +792,11 @@ function WidgetPicker({
             </button>
           ))}
         </div>
+        {filteredWidgets.length === 0 && availableWidgets.length > 0 && (
+          <div className="widget-picker-empty">
+            No widgets match "{search}"
+          </div>
+        )}
         {availableWidgets.length === 0 && (
           <div className="widget-picker-empty">
             All widgets have been added to this dashboard.
@@ -548,11 +852,13 @@ function SystemHealthWidget({
   systems,
   habits,
   completions,
+  componentCompletions = [],
   onCreateSystem,
 }: {
   systems: System[];
   habits: Habit[];
   completions: HabitCompletion[];
+  componentCompletions?: ComponentCompletion[];
   onCreateSystem: () => void;
 }) {
   if (systems.length === 0) {
@@ -583,7 +889,7 @@ function SystemHealthWidget({
             />
           </div>
           <div className="system-health-habits">
-            {system.habitIds.length} habits
+            {(system.components || []).length || (system.habitIds || []).length} components
           </div>
         </div>
       ))}

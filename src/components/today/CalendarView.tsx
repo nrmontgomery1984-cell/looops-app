@@ -1,6 +1,6 @@
 // Calendar View - Shows Google Calendar events and tasks side-by-side per day
 import { useState, useEffect } from "react";
-import { Task, LoopId, LoopStateType, LOOP_DEFINITIONS, LOOP_COLORS } from "../../types";
+import { Task, LoopId, LoopStateType, LOOP_DEFINITIONS, LOOP_COLORS, parseLocalDate } from "../../types";
 
 type CalendarViewProps = {
   tasks: Task[];
@@ -38,8 +38,8 @@ function getTaskUrgencyColor(task: Task): string {
   if (!task.dueDate) return "#737390";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const dueDate = new Date(task.dueDate);
-  dueDate.setHours(0, 0, 0, 0);
+  const dueDate = parseLocalDate(task.dueDate);
+  if (!dueDate) return "#737390";
   const daysDiff = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   if (daysDiff < 0) return "#F27059"; // Overdue - Coral
   if (daysDiff === 0) return "#F4B942"; // Today - Amber

@@ -28,6 +28,7 @@ type TaskDetailModalProps = {
   onClose: () => void;
   onAddSubtask: (parentId: string, title: string) => void;
   onToggleSubtask: (taskId: string) => void;
+  onToggleComplete?: (taskId: string) => void;
 };
 
 export function TaskDetailModal({
@@ -41,6 +42,7 @@ export function TaskDetailModal({
   onClose,
   onAddSubtask,
   onToggleSubtask,
+  onToggleComplete,
 }: TaskDetailModalProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
@@ -162,8 +164,22 @@ export function TaskDetailModal({
       <div className="task-detail-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="task-detail-header">
-          <div className="task-detail-loop-badge" style={{ backgroundColor: loopColors.bg, color: loopColors.text }}>
-            {loopDef.icon} {loop}
+          <div className="task-detail-header-left">
+            <div className="task-detail-loop-badge" style={{ backgroundColor: loopColors.bg, color: loopColors.text }}>
+              {loopDef.icon} {loop}
+            </div>
+            {onToggleComplete && (
+              <button
+                className={`task-detail-complete-btn ${task.status === "done" ? "completed" : ""}`}
+                onClick={() => onToggleComplete(task.id)}
+                title={task.status === "done" ? "Mark incomplete" : "Mark complete"}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+                {task.status === "done" ? "Completed" : "Complete"}
+              </button>
+            )}
           </div>
           <button className="modal-close-btn" onClick={onClose}>
             <svg viewBox="0 0 24 24" fill="currentColor">

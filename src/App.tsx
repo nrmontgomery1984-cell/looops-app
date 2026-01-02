@@ -512,9 +512,22 @@ function AppContent() {
   // Get today's tasks with archetype framing and state-based prioritization
   const todaysTasks = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
-    let filtered = tasks.items.filter(
-      (t) => t.status !== "done" && t.status !== "dropped" && t.priority !== 0 && (t.dueDate === today || (t.dueDate && t.dueDate < today))
-    );
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+    let filtered = (tasks?.items || []).filter((t) => {
+      // Skip completed, dropped, or someday tasks
+      if (t.status === "done" || t.status === "dropped" || t.priority === 0) return false;
+
+      // For recurring tasks, only show if due today or tomorrow (day before)
+      if (t.recurrence && t.dueDate) {
+        return t.dueDate === today || t.dueDate === tomorrowStr;
+      }
+
+      // For non-recurring tasks, show if due today or overdue
+      return t.dueDate === today || (t.dueDate && t.dueDate < today);
+    });
 
     // Apply archetype framing if prototype exists
     if (user.prototype?.archetypeBlend?.primary) {
@@ -763,15 +776,18 @@ function AppContent() {
                 <div className="today-main">
                   <TodaysStack
                     tasks={filteredTodayTasks}
-                    habits={habits.items}
-                    habitCompletions={habits.completions}
+                    systems={systems.items}
+                    componentCompletions={systems.completions}
                     routines={routines.items}
+                    specialDates={state.specialDates.dates}
                     loopStates={loops.states}
                     onCompleteTask={handleCompleteTask}
                     onSkipTask={handleSkipTask}
                     onSelectTask={(id) => dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: id } })}
-                    onCompleteHabit={(habitId, date) => dispatch({ type: "COMPLETE_HABIT", payload: { habitId, date } })}
-                    onUncompleteHabit={(habitId, date) => dispatch({ type: "UNCOMPLETE_HABIT", payload: { habitId, date } })}
+                    onCompleteComponent={(systemId, componentId, date) => dispatch({ type: "COMPLETE_COMPONENT", payload: { systemId, componentId, date } })}
+                    onUncompleteComponent={(systemId, componentId, date) => dispatch({ type: "UNCOMPLETE_COMPONENT", payload: { systemId, componentId, date } })}
+                    onUpdateComponent={(systemId, component) => dispatch({ type: "UPDATE_COMPONENT", payload: { systemId, component } })}
+                    onDeleteComponent={(systemId, componentId) => dispatch({ type: "DELETE_COMPONENT", payload: { systemId, componentId } })}
                     onStartRoutine={(routineId) => {
                       const routine = routines.items.find(r => r.id === routineId);
                       if (routine) {
@@ -863,7 +879,7 @@ function AppContent() {
               </div>
             ) : (
               <CalendarView
-                tasks={todayFilter === "all" ? tasks.items : tasks.items.filter((t) => t.loop === todayFilter)}
+                tasks={todayFilter === "all" ? (tasks?.items || []) : (tasks?.items || []).filter((t) => t.loop === todayFilter)}
                 loopStates={loops.states}
                 onSelectTask={(id) => dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: id } })}
                 onSelectDate={(date) => {
@@ -962,13 +978,32 @@ function AppContent() {
         return (
           <SystemsScreen
             systems={systems.items}
-            habits={habits.items}
-            completions={habits.completions}
+            componentCompletions={systems.completions}
             smartSchedule={state.smartSchedule}
             goals={allGoals}
+            // System actions
             onAddSystem={(system) => dispatch({ type: "ADD_SYSTEM", payload: system })}
             onUpdateSystem={(system) => dispatch({ type: "UPDATE_SYSTEM", payload: system })}
             onDeleteSystem={(systemId) => dispatch({ type: "DELETE_SYSTEM", payload: systemId })}
+            // Component actions (new)
+            onCompleteComponent={(systemId, componentId, date, notes) =>
+              dispatch({ type: "COMPLETE_COMPONENT", payload: { systemId, componentId, date, notes } })
+            }
+            onUncompleteComponent={(systemId, componentId, date) =>
+              dispatch({ type: "UNCOMPLETE_COMPONENT", payload: { systemId, componentId, date } })
+            }
+            onUpdateComponent={(systemId, component) =>
+              dispatch({ type: "UPDATE_COMPONENT", payload: { systemId, component } })
+            }
+            onDeleteComponent={(systemId, componentId) =>
+              dispatch({ type: "DELETE_COMPONENT", payload: { systemId, componentId } })
+            }
+            // Goal actions
+            onOpenGoalsWizard={() => setShowGoalsWizard(true)}
+            onDeleteGoal={(goalId) => dispatch({ type: "DELETE_GOAL", payload: goalId })}
+            // Legacy habit props (deprecated, kept for migration)
+            habits={habits.items}
+            completions={habits.completions}
             onAddHabit={(habit) => dispatch({ type: "ADD_HABIT", payload: habit })}
             onUpdateHabit={(habit) => dispatch({ type: "UPDATE_HABIT", payload: habit })}
             onDeleteHabit={(habitId) => dispatch({ type: "DELETE_HABIT", payload: habitId })}
@@ -978,8 +1013,6 @@ function AppContent() {
             onUncompleteHabit={(habitId, date) =>
               dispatch({ type: "UNCOMPLETE_HABIT", payload: { habitId, date } })
             }
-            onOpenGoalsWizard={() => setShowGoalsWizard(true)}
-            onDeleteGoal={(goalId) => dispatch({ type: "DELETE_GOAL", payload: goalId })}
           />
         );
 
@@ -999,6 +1032,7 @@ function AppContent() {
               habits={habits.items}
               habitCompletions={habits.completions}
               systems={systems.items}
+              componentCompletions={systems.completions}
               notes={state.notes || []}
               goals={[
                 ...state.goals.annual,
@@ -1009,10 +1043,18 @@ function AppContent() {
               ]}
               caregivers={state.babysitter.caregivers}
               babysitterSessions={state.babysitter.sessions}
+              specialDatesPeople={state.specialDates.people}
+              specialDates={state.specialDates.dates}
               onCompleteTask={(taskId) => dispatch({ type: "COMPLETE_TASK", payload: taskId })}
               onSelectTask={(taskId) => dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: taskId } })}
               onCompleteHabit={(habitId, date) => dispatch({ type: "COMPLETE_HABIT", payload: { habitId, date } })}
               onUncompleteHabit={(habitId, date) => dispatch({ type: "UNCOMPLETE_HABIT", payload: { habitId, date } })}
+              onCompleteComponent={(systemId, componentId, date) =>
+                dispatch({ type: "COMPLETE_COMPONENT", payload: { systemId, componentId, date } })
+              }
+              onUncompleteComponent={(systemId, componentId, date) =>
+                dispatch({ type: "UNCOMPLETE_COMPONENT", payload: { systemId, componentId, date } })
+              }
               onUpdateDashboard={(dashboard) => dispatch({ type: "UPDATE_DASHBOARD", payload: dashboard })}
               onOpenSystemBuilder={() => {}}
               onAddNote={(note) => dispatch({ type: "ADD_NOTE", payload: note })}
@@ -1023,6 +1065,12 @@ function AppContent() {
               onAddCaregiver={(caregiver) => dispatch({ type: "ADD_CAREGIVER", payload: caregiver })}
               onUpdateCaregiver={(caregiver) => dispatch({ type: "UPDATE_CAREGIVER", payload: caregiver })}
               onDeactivateCaregiver={(caregiverId) => dispatch({ type: "DEACTIVATE_CAREGIVER", payload: caregiverId })}
+              onAddPerson={(person) => dispatch({ type: "ADD_PERSON", payload: person })}
+              onUpdatePerson={(person) => dispatch({ type: "UPDATE_PERSON", payload: person })}
+              onDeletePerson={(personId) => dispatch({ type: "DELETE_PERSON", payload: personId })}
+              onAddSpecialDate={(date) => dispatch({ type: "ADD_SPECIAL_DATE", payload: date })}
+              onUpdateSpecialDate={(date) => dispatch({ type: "UPDATE_SPECIAL_DATE", payload: date })}
+              onDeleteSpecialDate={(dateId) => dispatch({ type: "DELETE_SPECIAL_DATE", payload: dateId })}
               onBack={() => setSelectedLoopDashboard(null)}
             />
           );
@@ -1090,13 +1138,13 @@ function AppContent() {
                     const loopColor = LOOP_COLORS[loopId];
                     const loopState = loops.states[loopId];
                     const currentState = loopState?.currentState || "MAINTAIN";
-                    const loopTasks = tasks.items.filter(
+                    const loopTasks = (tasks?.items || []).filter(
                       (t) => t.loop === loopId && t.status !== "done"
                     );
-                    const loopHabits = habits.items.filter(
+                    const loopHabits = (habits?.items || []).filter(
                       (h) => h.loop === loopId && h.status === "active"
                     );
-                    const loopSystems = systems.items.filter(
+                    const loopSystems = (systems?.items || []).filter(
                       (s) => s.loop === loopId && s.status === "active"
                     );
 
@@ -1146,7 +1194,7 @@ function AppContent() {
                   const loopColor = LOOP_COLORS[loopId];
                   const loopState = loops.states[loopId];
                   const currentState = loopState?.currentState || "MAINTAIN";
-                  const loopTasks = tasks.items.filter(
+                  const loopTasks = (tasks?.items || []).filter(
                     (t) => t.loop === loopId && t.status !== "done"
                   );
 
@@ -2042,16 +2090,27 @@ function AppContent() {
             prototype={user.prototype}
             loopStates={currentLoopStates}
             existingGoals={state.goals}
+            existingSystems={state.systems.items}
             directionalDocument={state.directionalDocument}
-            onComplete={(goals) => {
+            onComplete={(goals, systemsToCreate) => {
               // Add all goals to state
               goals.forEach((goal) => {
                 dispatch({ type: "ADD_GOAL", payload: goal });
               });
+
+              // Create systems selected in the wizard
+              systemsToCreate.forEach((systemData) => {
+                const system = {
+                  ...systemData,
+                  id: `system_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+                };
+                dispatch({ type: "ADD_SYSTEM", payload: system });
+              });
+
               setShowGoalsWizard(false);
 
-              // Navigate to Systems screen with Goals tab to show system suggestions
-              if (goals.length > 0) {
+              // Navigate to Systems screen to show newly created systems
+              if (goals.length > 0 || systemsToCreate.length > 0) {
                 dispatch({ type: "SET_ACTIVE_TAB", payload: "systems" });
               }
             }}
@@ -2141,7 +2200,7 @@ function AppContent() {
                     <p className="system-suggestion-desc">{system.description}</p>
                     <div className="system-suggestion-meta">
                       <span className="system-suggestion-duration">{system.estimatedDuration}</span>
-                      <span className="system-suggestion-habits">{system.suggestedHabits.length} habits</span>
+                      <span className="system-suggestion-habits">{(system.suggestedComponents || system.suggestedHabits || []).length} components</span>
                     </div>
                     <button
                       className="system-suggestion-start"
@@ -2212,10 +2271,10 @@ function AppContent() {
 
       {/* Global Task Detail Modal - accessible from anywhere */}
       {ui.modals.taskDetail && (() => {
-        const selectedTask = tasks.items.find(t => t.id === ui.modals.taskDetail);
+        const selectedTask = (tasks?.items || []).find(t => t.id === ui.modals.taskDetail);
         if (!selectedTask) return null;
 
-        const subtasks = tasks.items.filter(t => t.parentId === selectedTask.id);
+        const subtasks = (tasks?.items || []).filter(t => t.parentId === selectedTask.id);
 
         return (
           <TaskDetailModal
@@ -2250,6 +2309,16 @@ function AppContent() {
                     status: subtask.status === "done" ? "todo" : "done",
                   },
                 });
+              }
+            }}
+            onToggleComplete={(taskId) => {
+              const task = tasks.items.find(t => t.id === taskId);
+              if (task) {
+                if (task.status === "done") {
+                  dispatch({ type: "UNCOMPLETE_TASK", payload: taskId });
+                } else {
+                  dispatch({ type: "COMPLETE_TASK", payload: taskId });
+                }
               }
             }}
           />

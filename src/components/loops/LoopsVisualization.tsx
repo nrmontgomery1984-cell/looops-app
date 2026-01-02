@@ -6,6 +6,7 @@ import {
   LoopStateType,
   Task,
   LOOP_DEFINITIONS,
+  parseLocalDate,
 } from "../../types";
 import { getStateDisplayName, getStateColor } from "../../engines/stateEngine";
 
@@ -397,8 +398,8 @@ function getTaskUrgencyColor(task: Task): string {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const dueDate = new Date(task.dueDate);
-  dueDate.setHours(0, 0, 0, 0);
+  const dueDate = parseLocalDate(task.dueDate);
+  if (!dueDate) return TASK_URGENCY_COLORS.none;
   const daysDiff = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   if (daysDiff < 0) return TASK_URGENCY_COLORS.overdue;
@@ -407,7 +408,8 @@ function getTaskUrgencyColor(task: Task): string {
 }
 
 function formatDue(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
+  if (!date) return dateStr;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diff = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
