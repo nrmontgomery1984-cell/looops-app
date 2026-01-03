@@ -283,15 +283,15 @@ export function LoopsVisualization({
                   {loop.icon}
                 </text>
 
-                {/* Task circles inside - each parent task is one dot */}
+                {/* Task circles inside - each parent task is one dot, colored by urgency */}
                 {taskPositions.map((pos, idx) => (
                   <circle
                     key={idx}
                     cx={pos.x}
                     cy={pos.y}
                     r={pos.r}
-                    fill={stateColor}
-                    opacity="0.8"
+                    fill={getTaskUrgencyColor(loopTasks[idx])}
+                    opacity="0.9"
                     className="task-circle"
                   />
                 ))}
