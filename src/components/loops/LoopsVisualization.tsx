@@ -40,15 +40,25 @@ export function LoopsVisualization({
 }: LoopsVisualizationProps) {
   const [hoveredLoop, setHoveredLoop] = useState<LoopId | null>(null);
 
-  // Get parent tasks for a specific loop (excluding done, subtasks, and Someday tasks)
+  // Get parent tasks for a specific loop (excluding done, subtasks, Someday tasks, and future recurring)
   // Each parent task = one dot in the loop visualization
   const getTasksForLoop = (loopId: LoopId): Task[] => {
-    return tasks.filter((t) =>
-      t.loop === loopId &&
-      t.status !== "done" &&
-      t.priority !== 0 && // Exclude Someday tasks
-      !t.parentId // Only parent tasks, not subtasks
-    );
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+    return tasks.filter((t) => {
+      if (t.loop !== loopId) return false;
+      if (t.status === "done") return false;
+      if (t.priority === 0) return false; // Exclude Someday tasks
+      if (t.parentId) return false; // Only parent tasks, not subtasks
+
+      // Hide recurring tasks unless due today or tomorrow
+      if (t.recurrence && t.dueDate) {
+        return t.dueDate <= tomorrowStr;
+      }
+      return true;
+    });
   };
 
   // Generate positions for task circles inside the main circle
