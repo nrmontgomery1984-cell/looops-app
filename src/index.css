@@ -18019,6 +18019,71 @@ body.modal-open {
   color: var(--color-error, #dc2626);
 }
 
+/* Goal Actions - Delete button in expanded view */
+.goal-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.goal-actions .goal-delete-btn {
+  width: auto;
+  height: auto;
+  opacity: 1;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--color-error, #dc2626);
+  background: transparent;
+  border: 1px solid var(--color-error, #dc2626);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.goal-actions .goal-delete-btn:hover {
+  background: var(--color-error, #dc2626);
+  color: white;
+}
+
+.goal-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.goal-delete-confirm .btn-confirm-yes,
+.goal-delete-confirm .btn-confirm-no {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.goal-delete-confirm .btn-confirm-yes {
+  background: var(--color-error, #dc2626);
+  color: white;
+}
+
+.goal-delete-confirm .btn-confirm-yes:hover {
+  background: #b91c1c;
+}
+
+.goal-delete-confirm .btn-confirm-no {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.goal-delete-confirm .btn-confirm-no:hover {
+  background: var(--color-surface-hover);
+}
+
 .goal-system-title {
   font-size: 16px;
   font-weight: 600;

@@ -95,6 +95,7 @@ export function SystemsScreen({
   const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
   const [linkedGoalForBuilder, setLinkedGoalForBuilder] = useState<Goal | null>(null);
   const [deletingSystemId, setDeletingSystemId] = useState<string | null>(null);
+  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -397,6 +398,47 @@ export function SystemsScreen({
                             {goal.description && (
                               <p className="goal-full-description">{goal.description}</p>
                             )}
+
+                            {/* Goal Actions */}
+                            <div className="goal-actions">
+                              {onDeleteGoal && (
+                                deletingGoalId === goal.id ? (
+                                  <div className="goal-delete-confirm">
+                                    <span>Delete this goal?</span>
+                                    <button
+                                      className="btn-confirm-yes"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDeleteGoal(goal.id);
+                                        setDeletingGoalId(null);
+                                        setExpandedGoalId(null);
+                                      }}
+                                    >
+                                      Yes
+                                    </button>
+                                    <button
+                                      className="btn-confirm-no"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeletingGoalId(null);
+                                      }}
+                                    >
+                                      No
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    className="goal-delete-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeletingGoalId(goal.id);
+                                    }}
+                                  >
+                                    Delete Goal
+                                  </button>
+                                )
+                              )}
+                            </div>
 
                             {linkedSystems.length === 0 ? (
                               <div className="goal-no-systems">
