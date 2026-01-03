@@ -535,24 +535,195 @@ export function SystemDetail({
               )}
             </section>
 
-            {/* Obstacle Playbook */}
-            {system.obstaclePlaybook && system.obstaclePlaybook.length > 0 && (
-              <section className="system-detail-section">
-                <h2>Obstacle Playbook</h2>
-                <div className="obstacle-list">
-                  {system.obstaclePlaybook.map((item, idx) => (
-                    <div key={idx} className="obstacle-item">
-                      <div className="obstacle-problem">
-                        <span className="obstacle-label">If:</span> {item.obstacle}
-                      </div>
-                      <div className="obstacle-solution">
-                        <span className="obstacle-label">Then:</span> {item.solution}
-                      </div>
+            {/* Environment Design - Editable */}
+            <section className="system-detail-section">
+              <div className="system-detail-section-header">
+                <h2>Environment Design</h2>
+                <button
+                  className="btn-add"
+                  onClick={() => {
+                    const newTweak = {
+                      id: `tweak_${Date.now()}`,
+                      description: "",
+                      type: "add" as const,
+                      completed: false,
+                    };
+                    onUpdate({
+                      ...system,
+                      environmentTweaks: [...(system.environmentTweaks || []), newTweak],
+                      updatedAt: new Date().toISOString(),
+                    });
+                  }}
+                >
+                  + Add Tweak
+                </button>
+              </div>
+              {(!system.environmentTweaks || system.environmentTweaks.length === 0) ? (
+                <p className="system-detail-empty-text">
+                  No environment tweaks yet. Add ways to make good habits easier and bad habits harder.
+                </p>
+              ) : (
+                <div className="environment-tweaks-list">
+                  {system.environmentTweaks.map((tweak, index) => (
+                    <div
+                      key={tweak.id}
+                      className={`environment-tweak-item ${tweak.completed ? "completed" : ""}`}
+                    >
+                      <button
+                        className={`tweak-complete-btn ${tweak.completed ? "checked" : ""}`}
+                        onClick={() => {
+                          const newTweaks = [...system.environmentTweaks];
+                          newTweaks[index] = {
+                            ...tweak,
+                            completed: !tweak.completed,
+                            completedAt: !tweak.completed ? new Date().toISOString() : undefined,
+                          };
+                          onUpdate({
+                            ...system,
+                            environmentTweaks: newTweaks,
+                            updatedAt: new Date().toISOString(),
+                          });
+                        }}
+                        title={tweak.completed ? "Mark incomplete" : "Mark complete"}
+                      >
+                        {tweak.completed ? "✓" : ""}
+                      </button>
+                      <select
+                        className="tweak-type-select"
+                        value={tweak.type}
+                        onChange={(e) => {
+                          const newTweaks = [...system.environmentTweaks];
+                          newTweaks[index] = { ...tweak, type: e.target.value as "add" | "remove" | "modify" };
+                          onUpdate({
+                            ...system,
+                            environmentTweaks: newTweaks,
+                            updatedAt: new Date().toISOString(),
+                          });
+                        }}
+                      >
+                        <option value="add">+ Add</option>
+                        <option value="remove">− Remove</option>
+                        <option value="modify">~ Modify</option>
+                      </select>
+                      <input
+                        type="text"
+                        className="tweak-description-input"
+                        value={tweak.description}
+                        onChange={(e) => {
+                          const newTweaks = [...system.environmentTweaks];
+                          newTweaks[index] = { ...tweak, description: e.target.value };
+                          onUpdate({
+                            ...system,
+                            environmentTweaks: newTweaks,
+                            updatedAt: new Date().toISOString(),
+                          });
+                        }}
+                        placeholder="Describe the environment change..."
+                      />
+                      <button
+                        className="tweak-delete-btn"
+                        onClick={() => {
+                          const newTweaks = system.environmentTweaks.filter((_, i) => i !== index);
+                          onUpdate({
+                            ...system,
+                            environmentTweaks: newTweaks,
+                            updatedAt: new Date().toISOString(),
+                          });
+                        }}
+                        title="Delete"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                 </div>
-              </section>
-            )}
+              )}
+            </section>
+
+            {/* Obstacle Playbook - Editable */}
+            <section className="system-detail-section">
+              <div className="system-detail-section-header">
+                <h2>Obstacle Playbook</h2>
+                <button
+                  className="btn-add"
+                  onClick={() => {
+                    const newObstacle = {
+                      obstacle: "",
+                      solution: "",
+                    };
+                    onUpdate({
+                      ...system,
+                      obstaclePlaybook: [...(system.obstaclePlaybook || []), newObstacle],
+                      updatedAt: new Date().toISOString(),
+                    });
+                  }}
+                >
+                  + Add Plan
+                </button>
+              </div>
+              {(!system.obstaclePlaybook || system.obstaclePlaybook.length === 0) ? (
+                <p className="system-detail-empty-text">
+                  No obstacle plans yet. Plan how you'll handle setbacks before they happen.
+                </p>
+              ) : (
+                <div className="obstacle-list">
+                  {system.obstaclePlaybook.map((item, idx) => (
+                    <div key={idx} className="obstacle-item obstacle-item--editable">
+                      <div className="obstacle-row">
+                        <span className="obstacle-label">If:</span>
+                        <input
+                          type="text"
+                          className="obstacle-input"
+                          value={item.obstacle}
+                          onChange={(e) => {
+                            const newPlaybook = [...system.obstaclePlaybook!];
+                            newPlaybook[idx] = { ...item, obstacle: e.target.value };
+                            onUpdate({
+                              ...system,
+                              obstaclePlaybook: newPlaybook,
+                              updatedAt: new Date().toISOString(),
+                            });
+                          }}
+                          placeholder="I feel too tired to exercise..."
+                        />
+                      </div>
+                      <div className="obstacle-row">
+                        <span className="obstacle-label">Then:</span>
+                        <input
+                          type="text"
+                          className="obstacle-input"
+                          value={item.solution}
+                          onChange={(e) => {
+                            const newPlaybook = [...system.obstaclePlaybook!];
+                            newPlaybook[idx] = { ...item, solution: e.target.value };
+                            onUpdate({
+                              ...system,
+                              obstaclePlaybook: newPlaybook,
+                              updatedAt: new Date().toISOString(),
+                            });
+                          }}
+                          placeholder="I'll do just 5 minutes of stretching..."
+                        />
+                      </div>
+                      <button
+                        className="obstacle-delete-btn"
+                        onClick={() => {
+                          const newPlaybook = system.obstaclePlaybook!.filter((_, i) => i !== idx);
+                          onUpdate({
+                            ...system,
+                            obstaclePlaybook: newPlaybook,
+                            updatedAt: new Date().toISOString(),
+                          });
+                        }}
+                        title="Delete"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
             <section className="system-detail-section system-detail-danger">
               <h2>Danger Zone</h2>

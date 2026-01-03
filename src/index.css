@@ -18925,6 +18925,168 @@ body.modal-open {
   color: var(--color-text);
 }
 
+/* Editable Environment Tweaks */
+.system-detail-empty-text {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  padding: 16px;
+  text-align: center;
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  border: 1px dashed var(--color-border);
+}
+
+.environment-tweaks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.environment-tweak-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.environment-tweak-item.completed {
+  opacity: 0.6;
+}
+
+.environment-tweak-item.completed .tweak-description-input {
+  text-decoration: line-through;
+}
+
+.tweak-complete-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: white;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.tweak-complete-btn.checked {
+  background: var(--looops-sage);
+  border-color: var(--looops-sage);
+}
+
+.tweak-type-select {
+  padding: 6px 8px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tweak-description-input {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.tweak-description-input:focus {
+  outline: none;
+  border-color: var(--looops-coral);
+}
+
+.tweak-delete-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.tweak-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+/* Editable Obstacle Playbook */
+.obstacle-item--editable {
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+  padding-right: 40px;
+}
+
+.obstacle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.obstacle-row .obstacle-label {
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.obstacle-input {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.obstacle-input:focus {
+  outline: none;
+  border-color: var(--looops-coral);
+}
+
+.obstacle-delete-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.obstacle-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
 /* Components full list */
 .system-detail-component-full-list {
   display: flex;

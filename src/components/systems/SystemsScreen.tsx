@@ -120,6 +120,16 @@ export function SystemsScreen({
     sum + (s.components || []).reduce((cSum, c) => cSum + c.streak, 0), 0
   );
 
+  // Deduplicate goals by ID (in case of data issues) - MUST be before any early returns
+  const uniqueGoals = useMemo(() => {
+    const seen = new Set<string>();
+    return (goals || []).filter(g => {
+      if (seen.has(g.id)) return false;
+      seen.add(g.id);
+      return true;
+    });
+  }, [goals]);
+
   // System now includes embedded components, no separate habits needed
   const handleCreateSystem = (system: System, _newHabits?: Habit[]) => {
     onAddSystem(system);
@@ -185,7 +195,7 @@ export function SystemsScreen({
   };
 
   // Get goals without systems (need attention)
-  const goalsWithoutSystems = (goals || []).filter(g =>
+  const goalsWithoutSystems = uniqueGoals.filter(g =>
     g.status === "active" && !(systems || []).some(s => s.linkedGoalId === g.id)
   );
 
@@ -323,7 +333,7 @@ export function SystemsScreen({
                 )}
               </div>
 
-              {goals.length === 0 ? (
+              {uniqueGoals.length === 0 ? (
                 <div className="systems-empty">
                   <span className="systems-empty-icon">🎯</span>
                   <h3>No goals yet</h3>
@@ -339,7 +349,7 @@ export function SystemsScreen({
                 </div>
               ) : (
                 <div className="goals-with-systems-list">
-                  {(goals || []).filter(g => g.status === "active").map(goal => {
+                  {uniqueGoals.filter(g => g.status === "active").map(goal => {
                     const color = LOOP_COLORS[goal.loop];
                     const def = LOOP_DEFINITIONS[goal.loop];
                     const linkedSystems = getSystemsForGoal(goal.id);
