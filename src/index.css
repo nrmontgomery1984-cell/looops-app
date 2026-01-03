@@ -19385,6 +19385,63 @@ body.modal-open {
   color: var(--color-text-tertiary);
 }
 
+.system-list-actions {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.system-delete-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.system-delete-btn:hover {
+  opacity: 1;
+  background: rgba(255, 100, 100, 0.1);
+  border-color: rgba(255, 100, 100, 0.5);
+}
+
+.system-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.system-delete-confirm .btn-confirm-yes,
+.system-delete-confirm .btn-confirm-no {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.system-delete-confirm .btn-confirm-yes {
+  background: #ff4444;
+  color: white;
+}
+
+.system-delete-confirm .btn-confirm-yes:hover {
+  background: #ff2222;
+}
+
+.system-delete-confirm .btn-confirm-no {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.system-delete-confirm .btn-confirm-no:hover {
+  background: var(--color-surface);
+}
+
 /* ===========================================
    SYSTEM BUILDER WIZARD
    =========================================== */

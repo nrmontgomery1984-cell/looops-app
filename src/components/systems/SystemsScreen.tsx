@@ -94,6 +94,7 @@ export function SystemsScreen({
   const [selectedLoop, setSelectedLoop] = useState<LoopId | null>(null);
   const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
   const [linkedGoalForBuilder, setLinkedGoalForBuilder] = useState<Goal | null>(null);
+  const [deletingSystemId, setDeletingSystemId] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -622,6 +623,43 @@ export function SystemsScreen({
                           <span className="components-value">{systemComponents.length}</span>
                           <span className="components-label">Components</span>
                         </div>
+                      </div>
+                      <div className="system-list-actions">
+                        {deletingSystemId === system.id ? (
+                          <div className="system-delete-confirm">
+                            <span>Delete?</span>
+                            <button
+                              className="btn-confirm-yes"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteSystem(system.id);
+                                setDeletingSystemId(null);
+                              }}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              className="btn-confirm-no"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingSystemId(null);
+                              }}
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="system-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingSystemId(system.id);
+                            }}
+                            title="Delete system"
+                          >
+                            🗑
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
