@@ -51594,3 +51594,173 @@ body.modal-open {
     flex-direction: column;
   }
 }
+
+/* ============================================
+   Decision Coach Portal (Standalone)
+   ============================================ */
+
+.decision-coach-portal {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary);
+}
+
+.portal-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: center;
+  background: var(--color-bg-secondary);
+}
+
+.portal-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.portal-brand h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.portal-tagline {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.portal-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.portal-footer {
+  padding: 16px;
+  text-align: center;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-secondary);
+}
+
+.portal-footer p {
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.portal-footer a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.portal-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Portal Export Options */
+.portal-export-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.portal-export-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border-subtle);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.portal-export-btn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-tertiary);
+}
+
+.portal-export-btn--success {
+  border-color: #73A58C;
+  background: rgba(115, 165, 140, 0.15);
+}
+
+.portal-export-btn .export-icon {
+  font-size: 2rem;
+}
+
+.portal-export-btn .export-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.portal-export-btn .export-desc {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* Portal Share Info */
+.portal-share-info {
+  text-align: center;
+  padding: 16px;
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.portal-share-info p {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin: 0 0 8px 0;
+}
+
+.portal-share-url {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+}
+
+.portal-share-url code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--color-accent);
+}
+
+/* Portal Mobile Adjustments */
+@media (max-width: 600px) {
+  .portal-header {
+    padding: 16px;
+  }
+
+  .portal-brand h1 {
+    font-size: 1.25rem;
+  }
+
+  .portal-main {
+    padding: 16px;
+  }
+
+  .portal-export-options {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-export-btn {
+    padding: 16px;
+  }
+}

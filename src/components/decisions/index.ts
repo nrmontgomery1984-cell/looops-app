@@ -1,6 +1,7 @@
 // Decision Module Components
 export { DecisionsScreen } from "./DecisionsScreen";
 export { DecisionCoach } from "./DecisionCoach";
+export { DecisionCoachPortal } from "./DecisionCoachPortal";
 export { QuickDecisionFlow } from "./QuickDecisionFlow";
 export { DecisionSurvey } from "./DecisionSurvey"; // Legacy - kept for reference
 export { DecisionCard } from "./DecisionCard";

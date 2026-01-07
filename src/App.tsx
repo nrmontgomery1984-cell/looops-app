@@ -60,6 +60,7 @@ import { DecisionsScreen } from "./components/decisions";
 import { SphereDemoPage } from "./pages/sphere-demo";
 import { Routes, Route } from "react-router-dom";
 import { BabysitterPortal } from "./components/babysitter";
+import { DecisionCoachPortal } from "./components/decisions/DecisionCoachPortal";
 
 // Mock data for previewing completed directional document
 const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
@@ -2376,6 +2377,7 @@ function App() {
   return (
     <Routes>
       <Route path="/babysitter" element={<BabysitterPortal />} />
+      <Route path="/coach" element={<DecisionCoachPortal />} />
       <Route path="/*" element={<MainApp />} />
     </Routes>
   );
