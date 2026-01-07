@@ -680,10 +680,12 @@ function BabysitterPortalContent() {
 }
 
 // Export the portal wrapped with providers
+// Note: Babysitter portal uses null userId since it doesn't have Firebase auth
+// The babysitter accesses the household's local data via PIN, not their own account
 export function BabysitterPortal() {
   return (
     <AppProvider>
-      <FirebaseSyncProvider>
+      <FirebaseSyncProvider userId={null}>
         <BabysitterPortalContent />
       </FirebaseSyncProvider>
     </AppProvider>

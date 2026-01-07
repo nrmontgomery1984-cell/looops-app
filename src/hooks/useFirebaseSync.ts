@@ -20,7 +20,8 @@ export function markUserChange() {
 
 export function useFirebaseSync(
   state: Omit<AppState, 'ui'>,
-  onRemoteUpdate: (state: Partial<AppState>) => void
+  onRemoteUpdate: (state: Partial<AppState>) => void,
+  userId: string | null
 ) {
   const userRef = useRef<User | null>(null);
   const versionRef = useRef(0);
@@ -30,14 +31,14 @@ export function useFirebaseSync(
   const onRemoteUpdateRef = useRef(onRemoteUpdate);
   onRemoteUpdateRef.current = onRemoteUpdate;
 
-  // Shared document ID for all devices
-  const syncId = 'shared-user';
+  // Use the authenticated user's ID for per-user data isolation
+  const syncId = userId;
 
   // Save to cloud
   const save = useCallback(async () => {
     const user = userRef.current;
-    if (!user) {
-      console.log('[Sync] No user, cannot save');
+    if (!user || !syncId) {
+      console.log('[Sync] No user or syncId, cannot save');
       return;
     }
 
@@ -45,48 +46,41 @@ export function useFirebaseSync(
     console.log('[Sync] Saving, version:', versionRef.current);
     const success = await saveState(syncId, state, versionRef.current);
     console.log('[Sync] Save result:', success);
-  }, [state]);
+  }, [state, syncId]);
 
-  // Auth and initial load
+  // Auth and initial load - re-run when userId changes
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       console.log('[Sync] Firebase not configured');
       return;
     }
 
-    console.log('[Sync] Starting auth flow');
+    if (!syncId) {
+      console.log('[Sync] No syncId (user not authenticated), skipping sync');
+      return;
+    }
+
+    console.log('[Sync] Starting sync for user:', syncId);
     let unsubscribeFirestore: Unsubscribe | null = null;
 
-    const unsubscribeAuth = onAuthChange(async (user) => {
-      console.log('[Sync] Auth state:', user ? user.uid : 'null');
-
-      // Cleanup previous subscription
-      unsubscribeFirestore?.();
-      unsubscribeFirestore = null;
-
-      // If no user, try anonymous sign-in
-      if (!user) {
-        console.log('[Sync] No user, signing in anonymously');
-        await signInAnonymouslyIfNeeded();
-        return; // Auth callback will fire again with the new user
-      }
-
+    const setupSync = async (user: User) => {
       userRef.current = user;
       console.log('[Sync] Using sync ID:', syncId, '(auth uid:', user.uid, ')');
 
       // Reset on new session
       userMadeChange = false;
+      versionRef.current = 0;
       console.log('[Sync] Session started, saves disabled until user action');
 
-      // Load initial state
-      console.log('[Sync] Loading state');
+      // Load initial state for this user
+      console.log('[Sync] Loading state for:', syncId);
       const result = await loadState(syncId);
       if (result) {
         versionRef.current = result.version;
         console.log('[Sync] Loaded state, version:', result.version);
         onRemoteUpdateRef.current(result.state as Partial<AppState>);
       } else {
-        console.log('[Sync] No existing state in cloud');
+        console.log('[Sync] No existing state in cloud for this user');
       }
 
       // Subscribe to remote changes
@@ -100,13 +94,33 @@ export function useFirebaseSync(
           onRemoteUpdateRef.current(remoteState as Partial<AppState>);
         }
       });
+    };
+
+    const unsubscribeAuth = onAuthChange(async (user) => {
+      console.log('[Sync] Auth state:', user ? user.uid : 'null');
+
+      // Cleanup previous subscription
+      unsubscribeFirestore?.();
+      unsubscribeFirestore = null;
+
+      // If no Firebase auth user, try anonymous sign-in for Firestore access
+      if (!user) {
+        console.log('[Sync] No Firebase user, signing in anonymously for Firestore access');
+        const anonUser = await signInAnonymouslyIfNeeded();
+        if (anonUser) {
+          await setupSync(anonUser);
+        }
+        return;
+      }
+
+      await setupSync(user);
     });
 
     return () => {
       unsubscribeAuth?.();
       unsubscribeFirestore?.();
     };
-  }, []);
+  }, [syncId]);
 
   // Save on state change (debounced)
   useEffect(() => {

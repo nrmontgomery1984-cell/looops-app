@@ -677,7 +677,10 @@ export type AppAction =
   | { type: "CLOSE_MODAL"; payload: keyof AppState["ui"]["modals"] }
 
   // Hydration
-  | { type: "HYDRATE"; payload: Partial<AppState> };
+  | { type: "HYDRATE"; payload: Partial<AppState> }
+
+  // Reset state (for user switching)
+  | { type: "RESET_STATE" };
 
 // Reducer
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -2209,6 +2212,16 @@ function appReducer(state: AppState, action: AppAction): AppState {
         habits: habitsMerged ?? state.habits,
         goals: goalsMerged ?? state.goals,
         specialDates: specialDatesMerged ?? state.specialDates,
+      };
+    }
+
+    // Reset state to defaults (for user switching)
+    case "RESET_STATE": {
+      console.log('[AppContext] Resetting state to defaults');
+      return {
+        ...defaultState,
+        // Preserve UI state
+        ui: state.ui,
       };
     }
 

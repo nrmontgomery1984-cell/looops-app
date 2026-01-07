@@ -2362,9 +2362,16 @@ function MainApp() {
     return <SphereDemoPage />;
   }
 
+  // Get auth state at top level to pass user ID to sync provider
+  const { user: firebaseUser, authMode } = useFirebaseAuth();
+
+  // Use Firebase user's UID for per-user data isolation
+  // Demo mode doesn't sync to cloud, so null is fine
+  const syncUserId = authMode === 'authenticated' && firebaseUser ? firebaseUser.uid : null;
+
   return (
     <AppProvider>
-      <FirebaseSyncProvider>
+      <FirebaseSyncProvider userId={syncUserId}>
         <AppContent />
         <SyncStatusIndicator />
       </FirebaseSyncProvider>
