@@ -51642,6 +51642,11 @@ body.modal-open {
   width: 100%;
   margin: 0 auto;
   padding: 24px;
+  overflow-y: auto;
+}
+
+.decision-coach-portal .coach-input-area {
+  padding-bottom: 40px;
 }
 
 .portal-footer {
