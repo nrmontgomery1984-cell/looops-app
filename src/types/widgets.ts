@@ -40,7 +40,8 @@ export type WidgetType =
   | "workout"
   | "finance_manager"
   | "meal_prep"
-  | "zero_waste";
+  | "zero_waste"
+  | "food_waste";
 
 export type WidgetSize = "small" | "medium" | "large" | "full";
 
@@ -456,6 +457,15 @@ export const WIDGET_DEFINITIONS: Record<WidgetType, WidgetDefinition> = {
     name: "Zero Waste",
     description: "Track waste reduction goals and sustainable habits",
     icon: "♻️",
+    defaultSize: "large",
+    availableSizes: ["medium", "large", "full"],
+    defaultSettings: {},
+  },
+  food_waste: {
+    type: "food_waste",
+    name: "Food Waste Tracker",
+    description: "Log wasted food with automatic cost estimation",
+    icon: "🗑️",
     defaultSize: "large",
     availableSizes: ["medium", "large", "full"],
     defaultSettings: {},

@@ -6,38 +6,68 @@ import { createPortal } from "react-dom";
 import {
   Caregiver,
   BabysitterSession,
+  BabysitterAccess,
+  BabysitterPayment,
+  HouseholdInfo,
+  ScheduleEntry,
   createBabysitterSession,
   createCaregiver,
+  createBabysitterAccess,
+  createScheduleEntry,
+  createBabysitterPayment,
   calculateBabysitterSummary,
   getSessionsByWeek,
+  getISOWeekNumber,
+  generatePaymentReferenceCode,
   formatCurrency,
   formatHours,
 } from "../../types";
+import { HouseholdInfoEditor } from "../babysitter";
 
 interface BabysitterWidgetProps {
   caregivers: Caregiver[];
   sessions: BabysitterSession[];
+  pins?: BabysitterAccess[];
+  householdInfo?: HouseholdInfo;
+  schedule?: ScheduleEntry[];
   onAddSession: (session: BabysitterSession) => void;
   onUpdateSession: (session: BabysitterSession) => void;
   onDeleteSession: (sessionId: string) => void;
   onAddCaregiver: (caregiver: Caregiver) => void;
   onUpdateCaregiver: (caregiver: Caregiver) => void;
   onDeactivateCaregiver: (caregiverId: string) => void;
+  onAddPin?: (pin: BabysitterAccess) => void;
+  onDeletePin?: (caregiverId: string) => void;
+  onUpdateHouseholdInfo?: (info: HouseholdInfo) => void;
+  onAddScheduleEntry?: (entry: ScheduleEntry) => void;
+  onUpdateScheduleEntry?: (entry: ScheduleEntry) => void;
+  onDeleteScheduleEntry?: (entryId: string) => void;
 }
 
 export function BabysitterWidget({
   caregivers,
   sessions,
+  pins = [],
+  householdInfo,
+  schedule = [],
   onAddSession,
   onUpdateSession,
   onDeleteSession,
   onAddCaregiver,
   onUpdateCaregiver,
   onDeactivateCaregiver,
+  onAddPin,
+  onDeletePin,
+  onUpdateHouseholdInfo,
+  onAddScheduleEntry,
+  onUpdateScheduleEntry,
+  onDeleteScheduleEntry,
 }: BabysitterWidgetProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showManageCaregivers, setShowManageCaregivers] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showPinManager, setShowPinManager] = useState(false);
+  const [showScheduleManager, setShowScheduleManager] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [filterCaregiverId, setFilterCaregiverId] = useState<string>("all");
   const [editingSession, setEditingSession] = useState<BabysitterSession | null>(null);
@@ -189,6 +219,24 @@ export function BabysitterWidget({
         >
           Manage
         </button>
+        {onAddPin && (
+          <button
+            className="babysitter-btn babysitter-btn--portal"
+            onClick={() => setShowPinManager(!showPinManager)}
+            title="Manage babysitter portal access"
+          >
+            Portal
+          </button>
+        )}
+        {onAddScheduleEntry && (
+          <button
+            className="babysitter-btn babysitter-btn--schedule"
+            onClick={() => setShowScheduleManager(!showScheduleManager)}
+            title="Schedule upcoming babysitting"
+          >
+            Schedule
+          </button>
+        )}
       </div>
 
       {/* History Section */}
@@ -235,6 +283,9 @@ export function BabysitterWidget({
                       <span className="babysitter-history-caregiver">{session.caregiverName}</span>
                       <span className="babysitter-history-hours">{formatHours(session.hours)}</span>
                       <span className="babysitter-history-amount">{formatCurrency(session.amount)}</span>
+                      <span className={`babysitter-payment-badge babysitter-payment-badge--${session.paymentStatus || "unpaid"}`}>
+                        {session.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                      </span>
                       <button
                         className="babysitter-history-edit"
                         onClick={() => setEditingSession(session)}
@@ -257,6 +308,54 @@ export function BabysitterWidget({
         </div>
       )}
 
+      {/* Unpaid Summary with Reference Codes */}
+      {(() => {
+        // Group unpaid sessions by caregiver and week
+        const unpaidSessions = sessions.filter(s => s.paymentStatus !== "paid");
+        if (unpaidSessions.length === 0) return null;
+
+        const unpaidByCaregiver = new Map<string, { name: string; sessions: BabysitterSession[]; total: number }>();
+        for (const session of unpaidSessions) {
+          if (!unpaidByCaregiver.has(session.caregiverId)) {
+            unpaidByCaregiver.set(session.caregiverId, { name: session.caregiverName, sessions: [], total: 0 });
+          }
+          const entry = unpaidByCaregiver.get(session.caregiverId)!;
+          entry.sessions.push(session);
+          entry.total += session.amount;
+        }
+
+        const now = new Date();
+        const currentWeek = getISOWeekNumber(now);
+
+        return (
+          <div className="babysitter-payments-summary">
+            <h4>Unpaid Sessions</h4>
+            <div className="babysitter-payments-list">
+              {Array.from(unpaidByCaregiver.entries()).map(([caregiverId, data]) => {
+                const refCode = generatePaymentReferenceCode(data.name, currentWeek);
+                return (
+                  <div key={caregiverId} className="babysitter-payment-item">
+                    <div className="babysitter-payment-info">
+                      <span className="babysitter-payment-name">{data.name}</span>
+                      <span className="babysitter-payment-sessions">{data.sessions.length} session{data.sessions.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="babysitter-payment-details">
+                      <span className="babysitter-payment-total">{formatCurrency(data.total)}</span>
+                      <span className="babysitter-payment-ref" title="Use this code in e-transfer memo">
+                        Ref: <strong>{refCode}</strong>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="babysitter-payments-hint">
+              Include the reference code in your e-transfer memo for automatic matching.
+            </p>
+          </div>
+        );
+      })()}
+
       {/* Caregiver Management */}
       {showManageCaregivers && (
         <CaregiverManager
@@ -265,6 +364,37 @@ export function BabysitterWidget({
           onUpdate={onUpdateCaregiver}
           onDeactivate={onDeactivateCaregiver}
           onClose={() => setShowManageCaregivers(false)}
+        />
+      )}
+
+      {/* Credential Manager for Babysitter Portal */}
+      {showPinManager && onAddPin && onDeletePin && (
+        <CredentialManager
+          caregivers={activeCaregivers}
+          pins={pins}
+          onAddPin={onAddPin}
+          onDeletePin={onDeletePin}
+          onClose={() => setShowPinManager(false)}
+        />
+      )}
+
+      {/* Schedule Manager for parents */}
+      {showScheduleManager && onAddScheduleEntry && onUpdateScheduleEntry && onDeleteScheduleEntry && (
+        <ScheduleManager
+          caregivers={activeCaregivers}
+          schedule={schedule}
+          onAdd={onAddScheduleEntry}
+          onUpdate={onUpdateScheduleEntry}
+          onDelete={onDeleteScheduleEntry}
+          onClose={() => setShowScheduleManager(false)}
+        />
+      )}
+
+      {/* Household Info Editor for parents */}
+      {householdInfo && onUpdateHouseholdInfo && (
+        <HouseholdInfoEditor
+          householdInfo={householdInfo}
+          onUpdate={onUpdateHouseholdInfo}
         />
       )}
 
@@ -636,6 +766,491 @@ function CaregiverManager({
         >
           + Add Caregiver
         </button>
+      )}
+    </div>
+  );
+}
+
+// Credential Manager for Babysitter Portal
+function CredentialManager({
+  caregivers,
+  pins,
+  onAddPin,
+  onDeletePin,
+  onClose,
+}: {
+  caregivers: Caregiver[];
+  pins: BabysitterAccess[];
+  onAddPin: (pin: BabysitterAccess) => void;
+  onDeletePin: (caregiverId: string) => void;
+  onClose: () => void;
+}) {
+  const [editingCaregiver, setEditingCaregiver] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleCreateCredentials = (caregiver: Caregiver) => {
+    setError("");
+
+    // Validate username uniqueness
+    const existingUsername = pins.find(
+      (p) => p.username.toLowerCase() === username.toLowerCase() && p.caregiverId !== caregiver.id
+    );
+    if (existingUsername) {
+      setError("Username already exists. Please choose a different one.");
+      return;
+    }
+
+    if (!username.trim() || !password.trim()) {
+      setError("Username and password are required.");
+      return;
+    }
+
+    const newAccess = createBabysitterAccess(caregiver.id, username.trim(), password);
+    onAddPin(newAccess);
+    setEditingCaregiver(null);
+    setUsername("");
+    setPassword("");
+  };
+
+  const startEditing = (caregiver: Caregiver) => {
+    // Pre-fill username with caregiver's first name in lowercase
+    setUsername(caregiver.name.split(" ")[0].toLowerCase());
+    setPassword("");
+    setError("");
+    setEditingCaregiver(caregiver.id);
+  };
+
+  const cancelEditing = () => {
+    setEditingCaregiver(null);
+    setUsername("");
+    setPassword("");
+    setError("");
+  };
+
+  const getCredentialsForCaregiver = (caregiverId: string) => {
+    return pins.find((p) => p.caregiverId === caregiverId);
+  };
+
+  const portalUrl = `${window.location.origin}/babysitter`;
+
+  return (
+    <div className="babysitter-pin-manager">
+      <div className="babysitter-pin-manager-header">
+        <h4>Babysitter Portal Access</h4>
+        <button className="babysitter-btn-icon" onClick={onClose}>×</button>
+      </div>
+
+      <div className="babysitter-pin-manager-info">
+        <p>Create login credentials for babysitters to access their portal where they can:</p>
+        <ul>
+          <li>View household info & emergency contacts</li>
+          <li>Log their own hours</li>
+          <li>View and confirm their schedule</li>
+        </ul>
+        <div className="babysitter-portal-url">
+          <span className="portal-url-label">Portal URL:</span>
+          <a href={portalUrl} target="_blank" rel="noopener noreferrer">
+            {portalUrl}
+          </a>
+        </div>
+      </div>
+
+      <div className="babysitter-pin-list">
+        {caregivers.map((caregiver) => {
+          const access = getCredentialsForCaregiver(caregiver.id);
+          const isEditing = editingCaregiver === caregiver.id;
+
+          return (
+            <div key={caregiver.id} className="babysitter-pin-item">
+              <span className="babysitter-pin-name">{caregiver.name}</span>
+              {access ? (
+                <div className="babysitter-pin-controls">
+                  <span className="babysitter-credential-info">
+                    <strong>{access.username}</strong>
+                  </span>
+                  <button
+                    className="babysitter-btn-small babysitter-btn-small--danger"
+                    onClick={() => onDeletePin(caregiver.id)}
+                    title="Revoke access"
+                  >
+                    Revoke
+                  </button>
+                </div>
+              ) : isEditing ? (
+                <div className="babysitter-credential-form">
+                  <input
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="babysitter-credential-input"
+                    autoFocus
+                  />
+                  <input
+                    type="text"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="babysitter-credential-input"
+                  />
+                  {error && <span className="babysitter-credential-error">{error}</span>}
+                  <div className="babysitter-credential-actions">
+                    <button
+                      className="babysitter-btn-small babysitter-btn-small--primary"
+                      onClick={() => handleCreateCredentials(caregiver)}
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="babysitter-btn-small"
+                      onClick={cancelEditing}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="babysitter-btn-small"
+                  onClick={() => startEditing(caregiver)}
+                >
+                  Create Login
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {caregivers.length === 0 && (
+        <p className="babysitter-pin-empty">
+          Add caregivers first to create portal logins.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Schedule Manager for parents to create/manage babysitting schedule with calendar view
+function ScheduleManager({
+  caregivers,
+  schedule,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onClose,
+}: {
+  caregivers: Caregiver[];
+  schedule: ScheduleEntry[];
+  onAdd: (entry: ScheduleEntry) => void;
+  onUpdate: (entry: ScheduleEntry) => void;
+  onDelete: (entryId: string) => void;
+  onClose: () => void;
+}) {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({
+    caregiverId: caregivers[0]?.id || "",
+    startTime: "18:00",
+    endTime: "22:00",
+    notes: "",
+  });
+
+  // Get calendar days for the current month
+  const calendarDays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+
+    // First day of the month
+    const firstDay = new Date(year, month, 1);
+    // Last day of the month
+    const lastDay = new Date(year, month + 1, 0);
+
+    // Start from Sunday of the week containing the first day
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - startDate.getDay());
+
+    // End on Saturday of the week containing the last day
+    const endDate = new Date(lastDay);
+    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+
+    const days: { date: Date; dateStr: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
+    const current = new Date(startDate);
+    const today = new Date().toISOString().split("T")[0];
+
+    while (current <= endDate) {
+      const dateStr = current.toISOString().split("T")[0];
+      days.push({
+        date: new Date(current),
+        dateStr,
+        isCurrentMonth: current.getMonth() === month,
+        isToday: dateStr === today,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+
+    return days;
+  }, [currentMonth]);
+
+  // Group schedule entries by date
+  const scheduleByDate = useMemo(() => {
+    const map: Record<string, ScheduleEntry[]> = {};
+    schedule.forEach((entry) => {
+      if (!map[entry.date]) map[entry.date] = [];
+      map[entry.date].push(entry);
+    });
+    return map;
+  }, [schedule]);
+
+  // Get entries for selected date
+  const selectedDateEntries = useMemo(() => {
+    if (!selectedDate) return [];
+    return scheduleByDate[selectedDate] || [];
+  }, [selectedDate, scheduleByDate]);
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const handleDayClick = (dateStr: string) => {
+    setSelectedDate(dateStr);
+    setShowAddForm(false);
+  };
+
+  const handleAdd = () => {
+    if (!selectedDate) return;
+    const caregiver = caregivers.find((c) => c.id === formData.caregiverId);
+    if (!caregiver) return;
+
+    const entry = createScheduleEntry(
+      formData.caregiverId,
+      caregiver.name,
+      selectedDate,
+      formData.startTime,
+      formData.endTime,
+      formData.notes || undefined
+    );
+    onAdd(entry);
+    setFormData({
+      caregiverId: caregivers[0]?.id || "",
+      startTime: "18:00",
+      endTime: "22:00",
+      notes: "",
+    });
+    setShowAddForm(false);
+  };
+
+  const formatDateLong = (dateStr: string) => {
+    const date = new Date(dateStr + "T12:00:00");
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const getStatusColor = (status: ScheduleEntry["status"]) => {
+    switch (status) {
+      case "confirmed":
+        return "var(--looops-sage)";
+      case "cancelled":
+        return "var(--looops-coral)";
+      default:
+        return "var(--color-accent)";
+    }
+  };
+
+  const monthName = currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  return (
+    <div className="babysitter-schedule-manager babysitter-schedule-manager--calendar">
+      <div className="babysitter-schedule-header">
+        <h4>Babysitting Schedule</h4>
+        <button className="babysitter-btn-icon" onClick={onClose}>×</button>
+      </div>
+
+      {/* Calendar Navigation */}
+      <div className="schedule-calendar-nav">
+        <button className="schedule-nav-btn" onClick={handlePrevMonth}>‹</button>
+        <span className="schedule-month-name">{monthName}</span>
+        <button className="schedule-nav-btn" onClick={handleNextMonth}>›</button>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="schedule-calendar">
+        <div className="schedule-calendar-header">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <div key={day} className="schedule-calendar-day-name">{day}</div>
+          ))}
+        </div>
+        <div className="schedule-calendar-grid">
+          {calendarDays.map(({ dateStr, date, isCurrentMonth, isToday }) => {
+            const entries = scheduleByDate[dateStr] || [];
+            const hasSchedule = entries.length > 0;
+            const isSelected = selectedDate === dateStr;
+            const isPast = dateStr < new Date().toISOString().split("T")[0];
+
+            return (
+              <div
+                key={dateStr}
+                className={`schedule-calendar-day ${!isCurrentMonth ? "schedule-calendar-day--other" : ""} ${isToday ? "schedule-calendar-day--today" : ""} ${isSelected ? "schedule-calendar-day--selected" : ""} ${isPast ? "schedule-calendar-day--past" : ""}`}
+                onClick={() => handleDayClick(dateStr)}
+              >
+                <span className="schedule-calendar-day-number">{date.getDate()}</span>
+                {hasSchedule && (
+                  <div className="schedule-calendar-day-indicators">
+                    {entries.slice(0, 3).map((entry, i) => (
+                      <span
+                        key={i}
+                        className="schedule-calendar-dot"
+                        style={{ backgroundColor: getStatusColor(entry.status) }}
+                        title={`${entry.caregiverName}: ${entry.startTime}-${entry.endTime}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Selected Date Details */}
+      {selectedDate && (
+        <div className="schedule-day-details">
+          <div className="schedule-day-details-header">
+            <h5>{formatDateLong(selectedDate)}</h5>
+            {caregivers.length > 0 && !showAddForm && (
+              <button
+                className="babysitter-btn-small"
+                onClick={() => setShowAddForm(true)}
+              >
+                + Add
+              </button>
+            )}
+          </div>
+
+          {/* Add Form */}
+          {showAddForm && (
+            <div className="schedule-add-form">
+              <select
+                value={formData.caregiverId}
+                onChange={(e) => setFormData({ ...formData, caregiverId: e.target.value })}
+              >
+                {caregivers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <div className="schedule-preset-shifts">
+                <button
+                  type="button"
+                  className="schedule-preset-btn"
+                  onClick={() => setFormData({ ...formData, startTime: "07:45", endTime: "17:30" })}
+                >
+                  Full Day
+                </button>
+                <button
+                  type="button"
+                  className="schedule-preset-btn"
+                  onClick={() => setFormData({ ...formData, startTime: "07:45", endTime: "12:00" })}
+                >
+                  AM Half
+                </button>
+                <button
+                  type="button"
+                  className="schedule-preset-btn"
+                  onClick={() => setFormData({ ...formData, startTime: "12:00", endTime: "17:30" })}
+                >
+                  PM Half
+                </button>
+              </div>
+              <div className="schedule-time-row">
+                <input
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                />
+                <span>to</span>
+                <input
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Notes (optional)"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              />
+              <div className="schedule-form-buttons">
+                <button className="babysitter-btn-small babysitter-btn--primary" onClick={handleAdd}>Add</button>
+                <button className="babysitter-btn-small" onClick={() => setShowAddForm(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Entries for selected date */}
+          {selectedDateEntries.length === 0 && !showAddForm ? (
+            <p className="schedule-no-entries">No babysitting scheduled for this day.</p>
+          ) : (
+            <div className="schedule-entries-list">
+              {selectedDateEntries.map((entry) => (
+                <div key={entry.id} className="schedule-entry-card">
+                  <div className="schedule-entry-main">
+                    <span className="schedule-entry-caregiver">{entry.caregiverName}</span>
+                    <span className="schedule-entry-time">{entry.startTime} - {entry.endTime}</span>
+                    <span
+                      className="schedule-entry-status"
+                      style={{ color: getStatusColor(entry.status) }}
+                    >
+                      {entry.status}
+                    </span>
+                  </div>
+                  {entry.notes && (
+                    <span className="schedule-entry-notes">{entry.notes}</span>
+                  )}
+                  <div className="schedule-entry-actions">
+                    {entry.status === "pending" && (
+                      <button
+                        className="babysitter-btn-small"
+                        onClick={() => onUpdate({ ...entry, status: "cancelled" })}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      className="babysitter-btn-small babysitter-btn-small--danger"
+                      onClick={() => onDelete(entry.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!selectedDate && (
+        <p className="schedule-hint">Click on a day to view or add babysitting</p>
+      )}
+
+      {caregivers.length === 0 && (
+        <p className="babysitter-schedule-empty">
+          Add caregivers first to schedule babysitting.
+        </p>
       )}
     </div>
   );

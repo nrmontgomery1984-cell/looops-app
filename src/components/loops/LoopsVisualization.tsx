@@ -340,7 +340,7 @@ export function LoopsVisualization({
   );
 }
 
-// Detail panel component
+// Detail panel component with swipe-down to close
 function LoopDetailPanel({
   loopId,
   loopStates,
@@ -354,6 +354,10 @@ function LoopDetailPanel({
   onClose: () => void;
   onSelectTask?: (taskId: string) => void;
 }) {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchDelta, setTouchDelta] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
   const loop = LOOP_DEFINITIONS[loopId];
   const state = loopStates[loopId]?.currentState || "MAINTAIN";
   const stateColor = getStateColor(state); // Use state-based color
@@ -362,8 +366,46 @@ function LoopDetailPanel({
   // Count only parent tasks for the count display
   const parentTaskCount = loopTasks.filter(t => !t.parentId).length;
 
+  // Swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientY);
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    const delta = e.touches[0].clientY - touchStart;
+    // Only allow dragging down
+    if (delta > 0) {
+      setTouchDelta(delta);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchDelta > 80) {
+      // Swipe threshold reached, close the panel
+      onClose();
+    }
+    setTouchStart(null);
+    setTouchDelta(0);
+    setIsDragging(false);
+  };
+
   return (
-    <div className="loop-detail">
+    <div
+      className="loop-detail"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{
+        transform: touchDelta > 0 ? `translateY(${touchDelta}px)` : undefined,
+        transition: isDragging ? "none" : "transform 0.2s ease-out",
+        opacity: touchDelta > 0 ? Math.max(0.5, 1 - touchDelta / 200) : 1,
+      }}
+    >
+      {/* Swipe handle indicator */}
+      <div className="loop-detail-swipe-handle" />
+
       <div className="loop-detail-header" style={{ borderLeftColor: stateColor }}>
         <div className="loop-detail-info">
           <span className="loop-detail-icon">{loop.icon}</span>

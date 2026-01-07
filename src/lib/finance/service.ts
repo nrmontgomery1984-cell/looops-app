@@ -419,3 +419,74 @@ export async function performFullSync(
     return { success: false, error: errorMessage };
   }
 }
+
+// ============================================
+// Babysitter Payment Matching
+// ============================================
+
+import { BabysitterPayment } from "../../types";
+
+// Match e-transfer transactions to babysitter payments by reference code
+// Returns array of matched pairs
+export function matchBabysitterPayments(
+  transactions: FinanceTransaction[],
+  pendingPayments: BabysitterPayment[]
+): Array<{ transaction: FinanceTransaction; payment: BabysitterPayment }> {
+  const matches: Array<{ transaction: FinanceTransaction; payment: BabysitterPayment }> = [];
+
+  // Only look at outgoing transfers (negative amounts) that look like e-transfers
+  const eTransfers = transactions.filter((tx) => {
+    const desc = tx.description.toUpperCase();
+    const cleanDesc = tx.cleanDescription.toUpperCase();
+    return (
+      tx.amount < 0 && // Outgoing
+      (desc.includes("E-TRANSFER") ||
+        desc.includes("ETRANSFER") ||
+        desc.includes("INTERAC") ||
+        desc.includes("E TRANSFER") ||
+        cleanDesc.includes("E-TRANSFER") ||
+        cleanDesc.includes("ETRANSFER") ||
+        cleanDesc.includes("INTERAC"))
+    );
+  });
+
+  for (const payment of pendingPayments) {
+    if (payment.status !== "pending") continue;
+
+    for (const tx of eTransfers) {
+      const desc = tx.description.toUpperCase();
+      const cleanDesc = tx.cleanDescription.toUpperCase();
+
+      // Check if reference code appears in transaction description or notes
+      if (
+        desc.includes(payment.referenceCode) ||
+        cleanDesc.includes(payment.referenceCode) ||
+        (tx.notes && tx.notes.toUpperCase().includes(payment.referenceCode))
+      ) {
+        // Also verify amount is close (within $1 to handle rounding)
+        const txAmountCents = Math.abs(tx.amount);
+        const paymentAmountCents = payment.amount;
+        if (Math.abs(txAmountCents - paymentAmountCents) <= 100) {
+          matches.push({ transaction: tx, payment });
+          break; // Found match for this payment, move to next
+        }
+      }
+    }
+  }
+
+  return matches;
+}
+
+// Get suggested reference code for current week
+export function getCurrentWeekReferenceCode(caregiverName: string): string {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+
+  const initial = caregiverName.charAt(0).toUpperCase();
+  const weekStr = weekNumber.toString().padStart(2, "0");
+  return `W${weekStr}-${initial}`;
+}

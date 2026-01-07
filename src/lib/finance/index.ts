@@ -7,6 +7,9 @@ export {
   deduplicateTransactions,
   mergeAccounts,
   performFullSync,
+  // Babysitter payment matching
+  matchBabysitterPayments,
+  getCurrentWeekReferenceCode,
 } from "./service";
 
 // Export SimpleFIN helpers if needed elsewhere

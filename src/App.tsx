@@ -56,7 +56,10 @@ import { DirectionalDocument } from "./types/directional";
 import { exportDirectionalDocumentPDF, downloadPDF } from "./services/pdfExport";
 import { MealPrepScreen } from "./components/mealprep";
 import { FinanceScreen } from "./components/finance";
+import { DecisionsScreen } from "./components/decisions";
 import { SphereDemoPage } from "./pages/sphere-demo";
+import { Routes, Route } from "react-router-dom";
+import { BabysitterPortal } from "./components/babysitter";
 
 // Mock data for previewing completed directional document
 const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
@@ -1065,6 +1068,15 @@ function AppContent() {
               onAddCaregiver={(caregiver) => dispatch({ type: "ADD_CAREGIVER", payload: caregiver })}
               onUpdateCaregiver={(caregiver) => dispatch({ type: "UPDATE_CAREGIVER", payload: caregiver })}
               onDeactivateCaregiver={(caregiverId) => dispatch({ type: "DEACTIVATE_CAREGIVER", payload: caregiverId })}
+              babysitterPins={state.babysitterPins}
+              onAddBabysitterPin={(pin) => dispatch({ type: "ADD_BABYSITTER_PIN", payload: pin })}
+              onDeleteBabysitterPin={(caregiverId) => dispatch({ type: "DELETE_BABYSITTER_PIN", payload: caregiverId })}
+              householdInfo={state.householdInfo}
+              onUpdateHouseholdInfo={(info) => dispatch({ type: "UPDATE_HOUSEHOLD_INFO", payload: info })}
+              babysitterSchedule={state.babysitterSchedule}
+              onAddScheduleEntry={(entry) => dispatch({ type: "ADD_SCHEDULE_ENTRY", payload: entry })}
+              onUpdateScheduleEntry={(entry) => dispatch({ type: "UPDATE_SCHEDULE_ENTRY", payload: entry })}
+              onDeleteScheduleEntry={(entryId) => dispatch({ type: "DELETE_SCHEDULE_ENTRY", payload: entryId })}
               onAddPerson={(person) => dispatch({ type: "ADD_PERSON", payload: person })}
               onUpdatePerson={(person) => dispatch({ type: "UPDATE_PERSON", payload: person })}
               onDeletePerson={(personId) => dispatch({ type: "DELETE_PERSON", payload: personId })}
@@ -1128,7 +1140,11 @@ function AppContent() {
                   tasks={tasks.items}
                   selectedLoop={ui.selectedLoop}
                   onSelectLoop={handleSelectLoop}
-                  onSelectTask={(id) => dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: id } })}
+                  onSelectTask={(id) => {
+                    // Close the loop detail panel when opening task detail
+                    handleSelectLoop(null);
+                    dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: id } });
+                  }}
                 />
 
                 {/* Loop Cards Grid */}
@@ -1821,6 +1837,9 @@ function AppContent() {
           </div>
         );
 
+      case "decisions":
+        return <DecisionsScreen />;
+
       case "me":
         return (
           <div className="screen profile-screen">
@@ -2334,8 +2353,8 @@ function SyncStatusIndicator() {
   return null;
 }
 
-// Root App Component (wraps with providers)
-function App() {
+// Main app wrapped with providers
+function MainApp() {
   // Dev: Access sphere demo via ?sphere-demo=1
   const showSphereDemo = new URLSearchParams(window.location.search).get('sphere-demo') === '1';
   if (showSphereDemo) {
@@ -2349,6 +2368,16 @@ function App() {
         <SyncStatusIndicator />
       </FirebaseSyncProvider>
     </AppProvider>
+  );
+}
+
+// Root App Component with routing
+function App() {
+  return (
+    <Routes>
+      <Route path="/babysitter" element={<BabysitterPortal />} />
+      <Route path="/*" element={<MainApp />} />
+    </Routes>
   );
 }
 

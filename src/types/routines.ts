@@ -132,182 +132,401 @@ export type RoutineTemplate = {
 
 // Preset routine templates - multi-step, multi-loop routines
 export const ROUTINE_TEMPLATES: RoutineTemplate[] = [
-  // Morning Routine
+  // =============================================================================
+  // DAILY ROUTINES - SOLO DAY
+  // =============================================================================
+
+  // Morning Routine - Solo Day (6:00 AM, 95 min)
   {
-    id: "morning_routine",
-    title: "Morning Routine",
-    description: "Start your day right with this comprehensive morning sequence",
-    schedule: { frequency: "daily", timeOfDay: "morning" },
+    id: "morning_me",
+    title: "Morning - Me",
+    description: "Solo day morning routine starting at 6:00 AM",
+    schedule: { frequency: "daily", timeOfDay: "morning", specificTime: "06:00" },
     icon: "🌅",
-    tags: ["morning", "daily", "energy"],
+    tags: ["morning", "daily", "solo"],
     steps: [
-      { title: "Make bed", loop: "Maintenance", estimateMinutes: 2, order: 0 },
-      { title: "Hydrate - drink water", loop: "Health", subLoop: "Nutrition", estimateMinutes: 1, order: 1 },
-      { title: "Stretch or light exercise", loop: "Health", subLoop: "Exercise", estimateMinutes: 10, order: 2 },
-      { title: "Shower & hygiene", loop: "Maintenance", estimateMinutes: 15, order: 3 },
-      { title: "Healthy breakfast", loop: "Health", subLoop: "Nutrition", estimateMinutes: 15, order: 4 },
-      { title: "Review today's schedule", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 5 },
-      { title: "Set daily intention", loop: "Meaning", subLoop: "Reflection", estimateMinutes: 2, order: 6, optional: true },
+      { title: "Hydrate (16oz minimum)", loop: "Health", subLoop: "Nutrition", estimateMinutes: 5, order: 0 },
+      { title: "Bathroom", loop: "Maintenance", estimateMinutes: 3, order: 1 },
+      { title: "Brush/floss", loop: "Health", estimateMinutes: 5, order: 2 },
+      { title: "Make bed, open blinds", loop: "Maintenance", estimateMinutes: 2, order: 3 },
+      { title: "Feed cats", loop: "Maintenance", estimateMinutes: 5, order: 4 },
+      { title: "Workout (strength or cardio)", loop: "Health", subLoop: "Exercise", estimateMinutes: 45, order: 5 },
+      { title: "Post-workout hydration", loop: "Health", subLoop: "Nutrition", estimateMinutes: 3, order: 6 },
+      { title: "Meditate", loop: "Health", subLoop: "Mental", estimateMinutes: 10, order: 7, optional: true },
+      { title: "Shower and dress", loop: "Maintenance", estimateMinutes: 10, order: 8 },
+      { title: "Make cappuccino", loop: "Fun", estimateMinutes: 5, order: 9 },
+      { title: "Review daily plan", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 10, optional: true },
     ],
   },
 
-  // Bedtime Routine
+  // After Work Routine - Solo Day (45 min)
   {
-    id: "bedtime_routine",
-    title: "Bedtime Routine",
-    description: "Wind down properly for quality sleep",
-    schedule: { frequency: "daily", timeOfDay: "night" },
-    icon: "🌙",
-    tags: ["evening", "sleep", "daily"],
+    id: "afterwork_me",
+    title: "After Work - Me",
+    description: "Solo day wind-down after work on workdays",
+    schedule: { frequency: "weekdays", timeOfDay: "afternoon" },
+    icon: "🏠",
+    tags: ["afternoon", "daily", "solo", "workday"],
     steps: [
-      { title: "Tidy living space", loop: "Maintenance", estimateMinutes: 10, order: 0 },
-      { title: "Prepare tomorrow's clothes", loop: "Maintenance", estimateMinutes: 5, order: 1 },
-      { title: "Review tomorrow's calendar", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 2 },
-      { title: "Brush & floss teeth", loop: "Maintenance", estimateMinutes: 5, order: 3 },
-      { title: "Skincare routine", loop: "Health", estimateMinutes: 5, order: 4, optional: true },
-      { title: "Journal or gratitude", loop: "Meaning", subLoop: "Reflection", estimateMinutes: 10, order: 5, optional: true },
-      { title: "No screens - read or relax", loop: "Health", subLoop: "Sleep", estimateMinutes: 15, order: 6 },
+      { title: "Gear management", loop: "Maintenance", estimateMinutes: 3, order: 0 },
+      { title: "Clean containers", loop: "Maintenance", estimateMinutes: 5, order: 1 },
+      { title: "Remove boots", loop: "Maintenance", estimateMinutes: 2, order: 2 },
+      { title: "Laundry", loop: "Maintenance", estimateMinutes: 3, order: 3 },
+      { title: "Wash up", loop: "Health", estimateMinutes: 5, order: 4 },
+      { title: "Change clothes", loop: "Maintenance", estimateMinutes: 3, order: 5 },
+      { title: "Stretch", loop: "Health", subLoop: "Exercise", estimateMinutes: 5, order: 6 },
+      { title: "Hydrate", loop: "Health", subLoop: "Nutrition", estimateMinutes: 2, order: 7 },
+      { title: "Message check", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 8 },
+      { title: "Work notes", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 9 },
+      { title: "Evening planning", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 10 },
     ],
   },
 
-  // Weekly Review
+  // Bedtime Routine - Solo Day (9:30 PM, 45 min, lights out 10:00-10:30)
+  {
+    id: "bedtime_me",
+    title: "Bedtime - Me",
+    description: "Solo day wind-down routine starting at 9:30 PM, lights out by 10:30",
+    schedule: { frequency: "daily", timeOfDay: "night", specificTime: "21:30" },
+    icon: "🌙",
+    tags: ["evening", "daily", "solo", "sleep"],
+    steps: [
+      { title: "Phone charging", loop: "Maintenance", estimateMinutes: 2, order: 0 },
+      { title: "Tidy space", loop: "Maintenance", estimateMinutes: 10, order: 1 },
+      { title: "Prep tomorrow's clothes", loop: "Maintenance", estimateMinutes: 5, order: 2 },
+      { title: "Make tea", loop: "Health", estimateMinutes: 5, order: 3 },
+      { title: "Hygiene routine", loop: "Health", estimateMinutes: 10, order: 4 },
+      { title: "Journaling", loop: "Health", subLoop: "Mental", estimateMinutes: 10, order: 5, optional: true },
+      { title: "Reading (no screens)", loop: "Fun", estimateMinutes: 15, order: 6 },
+    ],
+  },
+
+  // =============================================================================
+  // DAILY ROUTINES - GIRLS DAY
+  // =============================================================================
+
+  // Morning Routine - Girls Day (6:00 AM, 120 min)
+  {
+    id: "morning_girls",
+    title: "Morning - Girls",
+    description: "Daughter's day morning routine - prep before wake-up, girls up at 7:30 AM",
+    schedule: { frequency: "daily", timeOfDay: "morning", specificTime: "06:00" },
+    icon: "👧",
+    tags: ["morning", "daily", "family", "girls"],
+    steps: [
+      { title: "Hydrate (16oz minimum)", loop: "Health", subLoop: "Nutrition", estimateMinutes: 5, order: 0 },
+      { title: "Bathroom", loop: "Maintenance", estimateMinutes: 3, order: 1 },
+      { title: "Brush/floss", loop: "Health", estimateMinutes: 5, order: 2 },
+      { title: "Make bed, open blinds", loop: "Maintenance", estimateMinutes: 2, order: 3 },
+      { title: "Feed cats", loop: "Maintenance", estimateMinutes: 5, order: 4 },
+      { title: "Workout (strength or cardio)", loop: "Health", subLoop: "Exercise", estimateMinutes: 45, order: 5 },
+      { title: "Post-workout hydration", loop: "Health", subLoop: "Nutrition", estimateMinutes: 3, order: 6 },
+      { title: "Shower and dress", loop: "Maintenance", estimateMinutes: 10, order: 7 },
+      { title: "Prep breakfast (have ready before wake-up)", loop: "Family", estimateMinutes: 10, order: 8 },
+      { title: "Wake girls at 7:30 AM", loop: "Family", estimateMinutes: 5, order: 9 },
+      { title: "Breakfast together + vitamins", loop: "Family", estimateMinutes: 15, order: 10 },
+      { title: "Help girls get ready (clothes, hair, teeth)", loop: "Family", estimateMinutes: 15, order: 11 },
+    ],
+  },
+
+  // After Work Routine - Girls Day (75 min)
+  {
+    id: "afterwork_girls",
+    title: "After Work - Girls",
+    description: "Daughter's day after-work routine - connection before tasks",
+    schedule: { frequency: "weekdays", timeOfDay: "afternoon" },
+    icon: "👨‍👧‍👧",
+    tags: ["afternoon", "daily", "family", "girls", "workday"],
+    steps: [
+      { title: "Gear management", loop: "Maintenance", estimateMinutes: 3, order: 0 },
+      { title: "Clean containers", loop: "Maintenance", estimateMinutes: 5, order: 1 },
+      { title: "Remove boots", loop: "Maintenance", estimateMinutes: 2, order: 2 },
+      { title: "Laundry", loop: "Maintenance", estimateMinutes: 3, order: 3 },
+      { title: "Wash up", loop: "Health", estimateMinutes: 5, order: 4 },
+      { title: "Change clothes", loop: "Maintenance", estimateMinutes: 3, order: 5 },
+      { title: "Stretch", loop: "Health", subLoop: "Exercise", estimateMinutes: 5, order: 6 },
+      { title: "Hydrate", loop: "Health", subLoop: "Nutrition", estimateMinutes: 2, order: 7 },
+      { title: "Check-in conversation (connection before tasks)", loop: "Family", estimateMinutes: 10, order: 8 },
+      { title: "Dinner prep", loop: "Maintenance", estimateMinutes: 15, order: 9 },
+      { title: "Message check", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 10 },
+      { title: "Work notes", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 11 },
+      { title: "Evening planning", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 12 },
+    ],
+  },
+
+  // Bedtime Routine - Girls Day (7:30 PM start, 60 min)
+  {
+    id: "bedtime_girls",
+    title: "Bedtime - Girls",
+    description: "Daughter's day bedtime routine starting at 7:30 PM",
+    schedule: { frequency: "daily", timeOfDay: "evening", specificTime: "19:30" },
+    icon: "🛏️",
+    tags: ["evening", "daily", "family", "girls"],
+    steps: [
+      { title: "Announce routine", loop: "Family", estimateMinutes: 2, order: 0 },
+      { title: "Pajamas", loop: "Family", estimateMinutes: 5, order: 1 },
+      { title: "Teeth brushing", loop: "Family", estimateMinutes: 5, order: 2 },
+      { title: "Pick tomorrow's clothes", loop: "Family", estimateMinutes: 5, order: 3 },
+      { title: "Story time", loop: "Family", estimateMinutes: 15, order: 4 },
+      { title: "Tuck in", loop: "Family", estimateMinutes: 5, order: 5 },
+      { title: "Settling time", loop: "Family", estimateMinutes: 5, order: 6 },
+      { title: "Transition to personal time", loop: "Family", estimateMinutes: 5, order: 7 },
+    ],
+  },
+
+  // =============================================================================
+  // WEEKLY ROUTINES
+  // =============================================================================
+
+  // Weekly Review - All Loops (Sunday morning, 60 min)
   {
     id: "weekly_review",
-    title: "Weekly Review",
-    description: "Reflect on the week and plan ahead",
-    schedule: { frequency: "weekly", daysOfWeek: [0], timeOfDay: "afternoon" },
+    title: "Weekly Review - All Loops",
+    description: "Sunday morning review of all life loops",
+    schedule: { frequency: "weekly", daysOfWeek: [0], timeOfDay: "morning" },
     icon: "📊",
-    tags: ["weekly", "planning", "review"],
+    tags: ["weekly", "planning", "review", "sunday"],
     steps: [
-      { title: "Clear all inboxes", loop: "Work", subLoop: "Admin", estimateMinutes: 15, order: 0 },
-      { title: "Review completed tasks", loop: "Work", subLoop: "Admin", estimateMinutes: 10, order: 1 },
-      { title: "Review goals progress", loop: "Meaning", subLoop: "Goals", estimateMinutes: 10, order: 2 },
-      { title: "Plan next week's priorities", loop: "Work", subLoop: "Admin", estimateMinutes: 15, order: 3 },
-      { title: "Schedule family time", loop: "Family", estimateMinutes: 5, order: 4 },
-      { title: "Review finances/budget", loop: "Wealth", subLoop: "Budgeting", estimateMinutes: 10, order: 5 },
-      { title: "Schedule fun activities", loop: "Fun", estimateMinutes: 5, order: 6, optional: true },
+      { title: "Review Health loop - progress & adjustments", loop: "Health", estimateMinutes: 8, order: 0 },
+      { title: "Review Wealth loop - finances & budget", loop: "Wealth", estimateMinutes: 8, order: 1 },
+      { title: "Review Family loop - upcoming events & quality time", loop: "Family", estimateMinutes: 8, order: 2 },
+      { title: "Review Work loop - projects & priorities", loop: "Work", estimateMinutes: 8, order: 3 },
+      { title: "Review Fun loop - activities & balance", loop: "Fun", estimateMinutes: 8, order: 4 },
+      { title: "Review Maintenance loop - home & admin", loop: "Maintenance", estimateMinutes: 8, order: 5 },
+      { title: "Plan next week's priorities", loop: "Work", subLoop: "Admin", estimateMinutes: 10, order: 6 },
+      { title: "Calendar review & scheduling", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 7 },
     ],
   },
 
-  // Exercise Routine
+  // House Clean - Basic (Weekend, 90 min)
   {
-    id: "exercise_routine",
-    title: "Workout Session",
-    description: "Complete exercise with proper warm-up and cool-down",
-    schedule: { frequency: "weekdays", timeOfDay: "morning" },
-    icon: "💪",
-    tags: ["exercise", "health", "fitness"],
+    id: "house_clean_basic",
+    title: "House Clean - Basic",
+    description: "Weekly basic house cleaning routine",
+    schedule: { frequency: "weekly", daysOfWeek: [6], timeOfDay: "anytime" },
+    icon: "🧹",
+    tags: ["weekly", "cleaning", "maintenance", "weekend"],
     steps: [
-      { title: "Warm-up stretches", loop: "Health", subLoop: "Exercise", estimateMinutes: 5, order: 0 },
-      { title: "Main workout", loop: "Health", subLoop: "Exercise", estimateMinutes: 30, order: 1 },
-      { title: "Cool-down stretches", loop: "Health", subLoop: "Exercise", estimateMinutes: 5, order: 2 },
-      { title: "Log workout", loop: "Health", subLoop: "Exercise", estimateMinutes: 2, order: 3, optional: true },
-      { title: "Protein shake or snack", loop: "Health", subLoop: "Nutrition", estimateMinutes: 5, order: 4, optional: true },
+      { title: "Declutter surfaces", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 0 },
+      { title: "Vacuum all floors", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 20, order: 1 },
+      { title: "Mop hard floors", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 2 },
+      { title: "Clean bathrooms (quick)", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 3 },
+      { title: "Kitchen wipe-down", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 4 },
+      { title: "Take out trash/recycling", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 5 },
+      { title: "Laundry (wash, dry, fold)", loop: "Maintenance", estimateMinutes: 15, order: 6 },
     ],
   },
 
-  // Work Day Startup
+  // Detailed Loop Review - Rotating (Midweek evening, 30 min)
   {
-    id: "workday_startup",
-    title: "Work Day Startup",
-    description: "Get into work mode efficiently",
-    schedule: { frequency: "weekdays", timeOfDay: "morning" },
-    icon: "💼",
-    tags: ["work", "productivity", "morning"],
+    id: "detailed_loop_review",
+    title: "Detailed Loop Review (Rotating)",
+    description: "Deep dive into one loop each week, rotating through all six",
+    schedule: { frequency: "weekly", daysOfWeek: [3], timeOfDay: "evening" },
+    icon: "🔍",
+    tags: ["weekly", "review", "planning", "midweek"],
     steps: [
-      { title: "Review calendar & meetings", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 0 },
-      { title: "Check priority messages", loop: "Work", subLoop: "Admin", estimateMinutes: 10, order: 1 },
-      { title: "Identify top 3 tasks", loop: "Work", estimateMinutes: 5, order: 2 },
-      { title: "Clear quick wins (<5 min)", loop: "Work", estimateMinutes: 15, order: 3, optional: true },
-      { title: "Start deep work block", loop: "Work", estimateMinutes: 5, order: 4 },
+      { title: "Select this week's focus loop", loop: "Work", subLoop: "Admin", estimateMinutes: 2, order: 0 },
+      { title: "Review loop goals & systems", loop: "Work", subLoop: "Admin", estimateMinutes: 8, order: 1 },
+      { title: "Analyze what's working", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 2 },
+      { title: "Identify improvements needed", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 3 },
+      { title: "Create action items", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 4 },
+      { title: "Schedule implementation", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 5 },
     ],
   },
 
-  // Work Day Shutdown
+  // =============================================================================
+  // MONTHLY ROUTINES
+  // =============================================================================
+
+  // Deep Clean - Bathrooms (Monthly, 60 min)
   {
-    id: "workday_shutdown",
-    title: "Work Day Shutdown",
-    description: "Close out work properly to separate work from life",
-    schedule: { frequency: "weekdays", timeOfDay: "evening" },
-    icon: "🔚",
-    tags: ["work", "evening", "boundaries"],
+    id: "deep_clean_bathrooms",
+    title: "Deep Clean - Bathrooms",
+    description: "Monthly deep cleaning of all bathrooms",
+    schedule: { frequency: "monthly", dayOfMonth: 1, timeOfDay: "anytime" },
+    icon: "🚿",
+    tags: ["monthly", "cleaning", "maintenance"],
     steps: [
-      { title: "Document progress & blockers", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 0 },
-      { title: "Update task statuses", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 1 },
-      { title: "Write tomorrow's priority list", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 2 },
-      { title: "Clear inbox to zero", loop: "Work", subLoop: "Admin", estimateMinutes: 10, order: 3, optional: true },
-      { title: "Close work apps", loop: "Work", estimateMinutes: 1, order: 4 },
-      { title: "Transition activity (walk, snack)", loop: "Health", estimateMinutes: 10, order: 5, optional: true },
+      { title: "Scrub toilets thoroughly", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 0 },
+      { title: "Deep clean shower/tub", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 1 },
+      { title: "Clean mirrors & glass", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 2 },
+      { title: "Wipe all surfaces & fixtures", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 3 },
+      { title: "Scrub floors", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 4 },
+      { title: "Clean exhaust fan", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 5 },
+      { title: "Restock supplies", loop: "Maintenance", estimateMinutes: 5, order: 6 },
     ],
   },
 
-  // Family Evening
+  // Deep Clean - Kitchen (Monthly, 90 min)
   {
-    id: "family_evening",
-    title: "Family Evening",
-    description: "Quality time with family after work",
-    schedule: { frequency: "weekdays", timeOfDay: "evening" },
-    icon: "👨‍👩‍👧‍👦",
-    tags: ["family", "evening", "connection"],
+    id: "deep_clean_kitchen",
+    title: "Deep Clean - Kitchen",
+    description: "Monthly deep cleaning of kitchen",
+    schedule: { frequency: "monthly", dayOfMonth: 8, timeOfDay: "anytime" },
+    icon: "🍳",
+    tags: ["monthly", "cleaning", "maintenance"],
     steps: [
-      { title: "Greet family - be present", loop: "Family", subLoop: "Quality Time", estimateMinutes: 10, order: 0 },
-      { title: "Help with dinner prep", loop: "Maintenance", estimateMinutes: 20, order: 1, optional: true },
-      { title: "Family dinner together", loop: "Family", subLoop: "Quality Time", estimateMinutes: 30, order: 2 },
-      { title: "Cleanup together", loop: "Maintenance", estimateMinutes: 15, order: 3 },
-      { title: "Family activity or conversation", loop: "Family", subLoop: "Quality Time", estimateMinutes: 30, order: 4 },
+      { title: "Clean inside refrigerator", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 20, order: 0 },
+      { title: "Clean oven/stovetop", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 1 },
+      { title: "Clean microwave", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 2 },
+      { title: "Wipe cabinet fronts", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 3 },
+      { title: "Deep clean sink & disposal", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 4 },
+      { title: "Clean backsplash", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 5 },
+      { title: "Scrub floors", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 6 },
+      { title: "Clean trash cans", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 7 },
     ],
   },
 
-  // Sunday Reset
+  // Deep Clean - Public Spaces (Monthly, 75 min)
   {
-    id: "sunday_reset",
-    title: "Sunday Reset",
-    description: "Prepare for the week ahead",
-    schedule: { frequency: "weekly", daysOfWeek: [0], timeOfDay: "afternoon" },
-    icon: "🔄",
-    tags: ["weekly", "planning", "maintenance"],
+    id: "deep_clean_public",
+    title: "Deep Clean - Public Spaces",
+    description: "Monthly deep cleaning of living room, dining room, entry",
+    schedule: { frequency: "monthly", dayOfMonth: 15, timeOfDay: "anytime" },
+    icon: "🛋️",
+    tags: ["monthly", "cleaning", "maintenance"],
     steps: [
-      { title: "Laundry - wash, dry, fold", loop: "Maintenance", estimateMinutes: 30, order: 0 },
-      { title: "Meal plan for the week", loop: "Health", subLoop: "Nutrition", estimateMinutes: 15, order: 1 },
-      { title: "Grocery list & shopping", loop: "Maintenance", subLoop: "Shopping", estimateMinutes: 60, order: 2 },
-      { title: "Meal prep", loop: "Maintenance", estimateMinutes: 60, order: 3, optional: true },
-      { title: "Home tidy/clean", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 30, order: 4 },
-      { title: "Review upcoming week", loop: "Work", subLoop: "Admin", estimateMinutes: 15, order: 5 },
-      { title: "Self-care activity", loop: "Fun", estimateMinutes: 30, order: 6, optional: true },
+      { title: "Dust all surfaces & shelves", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 0 },
+      { title: "Clean windows (interior)", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 1 },
+      { title: "Vacuum upholstery", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 2 },
+      { title: "Clean light fixtures", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 3 },
+      { title: "Wipe baseboards", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 4 },
+      { title: "Deep vacuum/mop floors", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 5 },
     ],
   },
 
-  // Meditation & Mindfulness
+  // Deep Clean - Private Spaces (Monthly, 60 min)
   {
-    id: "meditation_practice",
-    title: "Meditation Practice",
-    description: "Daily mindfulness for mental clarity",
-    schedule: { frequency: "daily", timeOfDay: "morning" },
-    icon: "🧘",
-    tags: ["meditation", "mindfulness", "daily"],
+    id: "deep_clean_private",
+    title: "Deep Clean - Private Spaces",
+    description: "Monthly deep cleaning of bedrooms and office",
+    schedule: { frequency: "monthly", dayOfMonth: 22, timeOfDay: "anytime" },
+    icon: "🛏️",
+    tags: ["monthly", "cleaning", "maintenance"],
     steps: [
-      { title: "Find quiet space", loop: "Health", subLoop: "Mental", estimateMinutes: 1, order: 0 },
-      { title: "Breathing exercises", loop: "Health", subLoop: "Mental", estimateMinutes: 3, order: 1 },
-      { title: "Meditation session", loop: "Health", subLoop: "Mental", estimateMinutes: 10, order: 2 },
-      { title: "Set intention for day", loop: "Meaning", subLoop: "Reflection", estimateMinutes: 2, order: 3, optional: true },
-      { title: "Gratitude reflection", loop: "Meaning", subLoop: "Gratitude", estimateMinutes: 3, order: 4, optional: true },
+      { title: "Dust all surfaces", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 0 },
+      { title: "Wash bedding", loop: "Maintenance", estimateMinutes: 10, order: 1 },
+      { title: "Vacuum mattress", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 2 },
+      { title: "Clean under beds", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 3 },
+      { title: "Organize closets (quick)", loop: "Maintenance", estimateMinutes: 10, order: 4 },
+      { title: "Vacuum/mop floors", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 5 },
+      { title: "Wipe light switches & door handles", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 6 },
     ],
   },
 
-  // Financial Check-in
+  // Clean Vehicle (Monthly, 45 min)
   {
-    id: "financial_checkin",
-    title: "Financial Check-in",
-    description: "Regular review of finances and budget",
-    schedule: { frequency: "weekly", daysOfWeek: [0], timeOfDay: "afternoon" },
-    icon: "💰",
-    tags: ["finance", "weekly", "wealth"],
+    id: "clean_vehicle",
+    title: "Clean - Vehicle",
+    description: "Monthly vehicle cleaning inside and out",
+    schedule: { frequency: "monthly", dayOfMonth: 28, timeOfDay: "anytime" },
+    icon: "🚗",
+    tags: ["monthly", "cleaning", "maintenance"],
     steps: [
-      { title: "Review bank accounts", loop: "Wealth", subLoop: "Budgeting", estimateMinutes: 5, order: 0 },
-      { title: "Categorize recent transactions", loop: "Wealth", subLoop: "Budgeting", estimateMinutes: 10, order: 1 },
-      { title: "Check budget vs actual", loop: "Wealth", subLoop: "Budgeting", estimateMinutes: 5, order: 2 },
-      { title: "Review upcoming bills", loop: "Wealth", subLoop: "Bills", estimateMinutes: 5, order: 3 },
-      { title: "Update financial goals", loop: "Wealth", subLoop: "Investments", estimateMinutes: 5, order: 4, optional: true },
+      { title: "Remove trash & items", loop: "Maintenance", estimateMinutes: 5, order: 0 },
+      { title: "Vacuum interior", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 1 },
+      { title: "Wipe dashboard & surfaces", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 2 },
+      { title: "Clean windows (inside)", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 5, order: 3 },
+      { title: "Wash exterior (or car wash)", loop: "Maintenance", estimateMinutes: 15, order: 4 },
+    ],
+  },
+
+  // =============================================================================
+  // SEASONAL ROUTINES (Quarterly)
+  // =============================================================================
+
+  // Stock Pantry (Seasonal, 120 min)
+  {
+    id: "stock_pantry",
+    title: "Stock Pantry",
+    description: "Quarterly pantry inventory and restocking",
+    schedule: { frequency: "monthly", dayOfMonth: 1, timeOfDay: "anytime" },
+    icon: "🥫",
+    tags: ["seasonal", "quarterly", "maintenance", "shopping"],
+    steps: [
+      { title: "Take inventory of current stock", loop: "Maintenance", estimateMinutes: 20, order: 0 },
+      { title: "Check expiration dates", loop: "Maintenance", estimateMinutes: 15, order: 1 },
+      { title: "Remove expired items", loop: "Maintenance", estimateMinutes: 5, order: 2 },
+      { title: "Create shopping list", loop: "Maintenance", subLoop: "Shopping", estimateMinutes: 15, order: 3 },
+      { title: "Shop for staples", loop: "Maintenance", subLoop: "Shopping", estimateMinutes: 45, order: 4 },
+      { title: "Organize & stock pantry", loop: "Maintenance", estimateMinutes: 20, order: 5 },
+    ],
+  },
+
+  // Stock Freezer (Seasonal, 180 min)
+  {
+    id: "stock_freezer",
+    title: "Stock Freezer",
+    description: "Quarterly freezer organization and bulk meal prep",
+    schedule: { frequency: "monthly", dayOfMonth: 1, timeOfDay: "anytime" },
+    icon: "🧊",
+    tags: ["seasonal", "quarterly", "maintenance", "meal-prep"],
+    steps: [
+      { title: "Empty & defrost freezer", loop: "Maintenance", estimateMinutes: 30, order: 0 },
+      { title: "Take inventory", loop: "Maintenance", estimateMinutes: 15, order: 1 },
+      { title: "Discard old/freezer-burned items", loop: "Maintenance", estimateMinutes: 10, order: 2 },
+      { title: "Plan bulk meals to prep", loop: "Health", subLoop: "Nutrition", estimateMinutes: 15, order: 3 },
+      { title: "Shop for ingredients", loop: "Maintenance", subLoop: "Shopping", estimateMinutes: 45, order: 4 },
+      { title: "Batch cook & portion meals", loop: "Maintenance", estimateMinutes: 45, order: 5 },
+      { title: "Label & organize freezer", loop: "Maintenance", estimateMinutes: 20, order: 6 },
+    ],
+  },
+
+  // Organize/Purge Closets (Seasonal, 120 min)
+  {
+    id: "organize_closets",
+    title: "Organize/Purge - Closets",
+    description: "Quarterly closet declutter and seasonal rotation",
+    schedule: { frequency: "monthly", dayOfMonth: 1, timeOfDay: "anytime" },
+    icon: "👕",
+    tags: ["seasonal", "quarterly", "organizing", "maintenance"],
+    steps: [
+      { title: "Pull everything out", loop: "Maintenance", estimateMinutes: 15, order: 0 },
+      { title: "Sort: keep, donate, trash", loop: "Maintenance", estimateMinutes: 30, order: 1 },
+      { title: "Clean closet space", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 2 },
+      { title: "Rotate seasonal items", loop: "Maintenance", estimateMinutes: 15, order: 3 },
+      { title: "Organize by category", loop: "Maintenance", estimateMinutes: 20, order: 4 },
+      { title: "Bag donations", loop: "Maintenance", estimateMinutes: 10, order: 5 },
+      { title: "Schedule donation drop-off", loop: "Maintenance", estimateMinutes: 5, order: 6 },
+      { title: "Update wardrobe needs list", loop: "Maintenance", estimateMinutes: 15, order: 7 },
+    ],
+  },
+
+  // Organize/Purge Kitchen (Seasonal, 90 min)
+  {
+    id: "organize_kitchen",
+    title: "Organize/Purge - Kitchen",
+    description: "Quarterly kitchen organization and declutter",
+    schedule: { frequency: "monthly", dayOfMonth: 1, timeOfDay: "anytime" },
+    icon: "🍴",
+    tags: ["seasonal", "quarterly", "organizing", "maintenance"],
+    steps: [
+      { title: "Empty cabinets one-by-one", loop: "Maintenance", estimateMinutes: 15, order: 0 },
+      { title: "Purge unused items", loop: "Maintenance", estimateMinutes: 20, order: 1 },
+      { title: "Clean cabinet interiors", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 15, order: 2 },
+      { title: "Reorganize by frequency of use", loop: "Maintenance", estimateMinutes: 20, order: 3 },
+      { title: "Check small appliances", loop: "Maintenance", estimateMinutes: 10, order: 4 },
+      { title: "Update kitchen needs list", loop: "Maintenance", estimateMinutes: 10, order: 5 },
+    ],
+  },
+
+  // Organize/Purge Office (Seasonal, 90 min)
+  {
+    id: "organize_office",
+    title: "Organize/Purge - Office",
+    description: "Quarterly office declutter and paper purge",
+    schedule: { frequency: "monthly", dayOfMonth: 1, timeOfDay: "anytime" },
+    icon: "📁",
+    tags: ["seasonal", "quarterly", "organizing", "maintenance"],
+    steps: [
+      { title: "Clear desk completely", loop: "Maintenance", estimateMinutes: 10, order: 0 },
+      { title: "Sort papers: file, scan, shred", loop: "Maintenance", estimateMinutes: 25, order: 1 },
+      { title: "Purge old files", loop: "Maintenance", estimateMinutes: 15, order: 2 },
+      { title: "Organize supplies", loop: "Maintenance", estimateMinutes: 10, order: 3 },
+      { title: "Clean electronics & screens", loop: "Maintenance", subLoop: "Cleaning", estimateMinutes: 10, order: 4 },
+      { title: "Update digital file organization", loop: "Work", subLoop: "Admin", estimateMinutes: 15, order: 5 },
+      { title: "Backup important files", loop: "Work", subLoop: "Admin", estimateMinutes: 5, order: 6 },
     ],
   },
 ];

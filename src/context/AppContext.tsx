@@ -49,7 +49,13 @@ import {
   BabysitterState,
   Caregiver,
   BabysitterSession,
+  BabysitterPayment,
   INITIAL_BABYSITTER_STATE,
+  // Babysitter Portal
+  BabysitterAccess,
+  HouseholdInfo,
+  ScheduleEntry,
+  INITIAL_HOUSEHOLD_INFO,
   // Health
   HealthState,
   HealthSummary,
@@ -124,6 +130,12 @@ import {
   Person,
   INITIAL_SPECIAL_DATES_STATE,
 } from "../types/specialDates";
+import {
+  DecisionsState,
+  Decision,
+  QuickDecision,
+  INITIAL_DECISIONS_STATE,
+} from "../types/decisions";
 import { SEED_RECIPES, SEED_TECHNIQUES } from "../data/mealPrepSeedData";
 
 // User profile type
@@ -210,6 +222,12 @@ export type AppState = {
   // Babysitter (Family loop)
   babysitter: BabysitterState;
 
+  // Babysitter Portal (for babysitter access)
+  householdInfo: HouseholdInfo;
+  babysitterPins: BabysitterAccess[];
+  babysitterSchedule: ScheduleEntry[];
+  babysitterPayments: BabysitterPayment[];
+
   // Health (Health loop)
   health: HealthState;
 
@@ -239,6 +257,9 @@ export type AppState = {
 
   // Special Dates (Family loop)
   specialDates: SpecialDatesState;
+
+  // Decisions (cross-loop decision tracking)
+  decisions: DecisionsState;
 
   // Active task timer (only one can run at a time)
   activeTimer: ActiveTimer | null;
@@ -324,6 +345,14 @@ const defaultState: AppState = {
   },
   // Babysitter
   babysitter: INITIAL_BABYSITTER_STATE,
+  // Babysitter Portal
+  householdInfo: INITIAL_HOUSEHOLD_INFO,
+  babysitterPins: [
+    // Sample credentials for testing - Username: kylie, Password: 1234
+    { username: "kylie", password: "1234", caregiverId: "caregiver_kylie", createdAt: new Date().toISOString() },
+  ],
+  babysitterSchedule: [],
+  babysitterPayments: [],
   // Health
   health: INITIAL_HEALTH_STATE,
   // Calendar
@@ -348,6 +377,8 @@ const defaultState: AppState = {
   finance: getDefaultFinanceState(),
   // Special Dates
   specialDates: INITIAL_SPECIAL_DATES_STATE,
+  // Decisions
+  decisions: INITIAL_DECISIONS_STATE,
   // Active Timer
   activeTimer: null,
   ui: {
@@ -492,6 +523,20 @@ export type AppAction =
   | { type: "UPDATE_BABYSITTER_SESSION"; payload: BabysitterSession }
   | { type: "DELETE_BABYSITTER_SESSION"; payload: string }
 
+  // Babysitter Portal actions
+  | { type: "SET_HOUSEHOLD_INFO"; payload: HouseholdInfo }
+  | { type: "UPDATE_HOUSEHOLD_INFO"; payload: Partial<HouseholdInfo> }
+  | { type: "ADD_BABYSITTER_PIN"; payload: BabysitterAccess }
+  | { type: "UPDATE_BABYSITTER_PIN"; payload: BabysitterAccess }
+  | { type: "DELETE_BABYSITTER_PIN"; payload: string } // caregiverId
+  | { type: "ADD_SCHEDULE_ENTRY"; payload: ScheduleEntry }
+  | { type: "UPDATE_SCHEDULE_ENTRY"; payload: ScheduleEntry }
+  | { type: "DELETE_SCHEDULE_ENTRY"; payload: string }
+  | { type: "ADD_BABYSITTER_PAYMENT"; payload: BabysitterPayment }
+  | { type: "UPDATE_BABYSITTER_PAYMENT"; payload: BabysitterPayment }
+  | { type: "DELETE_BABYSITTER_PAYMENT"; payload: string }
+  | { type: "MARK_SESSIONS_PAID"; payload: { sessionIds: string[]; paymentId: string } }
+
   // Health actions
   | { type: "SET_HEALTH_SUMMARY"; payload: HealthSummary }
   | { type: "SET_HEALTH_LOADING"; payload: boolean }
@@ -615,6 +660,14 @@ export type AppAction =
   | { type: "ADD_SPECIAL_DATE"; payload: SpecialDate }
   | { type: "UPDATE_SPECIAL_DATE"; payload: SpecialDate }
   | { type: "DELETE_SPECIAL_DATE"; payload: string }
+
+  // Decision actions
+  | { type: "ADD_DECISION"; payload: Decision }
+  | { type: "UPDATE_DECISION"; payload: Decision }
+  | { type: "DELETE_DECISION"; payload: string }
+  | { type: "ADD_QUICK_DECISION"; payload: QuickDecision }
+  | { type: "UPDATE_QUICK_DECISION"; payload: QuickDecision }
+  | { type: "DELETE_QUICK_DECISION"; payload: string }
 
   // UI actions
   | { type: "SET_ACTIVE_TAB"; payload: TabId }
@@ -1793,6 +1846,98 @@ function appReducer(state: AppState, action: AppAction): AppState {
         babysitter: {
           ...state.babysitter,
           sessions: state.babysitter.sessions.filter((s) => s.id !== action.payload),
+        },
+      };
+
+    // Babysitter Portal
+    case "SET_HOUSEHOLD_INFO":
+      return {
+        ...state,
+        householdInfo: action.payload,
+      };
+
+    case "UPDATE_HOUSEHOLD_INFO":
+      return {
+        ...state,
+        householdInfo: {
+          ...state.householdInfo,
+          ...action.payload,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+
+    case "ADD_BABYSITTER_PIN":
+      return {
+        ...state,
+        babysitterPins: [...state.babysitterPins, action.payload],
+      };
+
+    case "UPDATE_BABYSITTER_PIN":
+      return {
+        ...state,
+        babysitterPins: state.babysitterPins.map((p) =>
+          p.caregiverId === action.payload.caregiverId ? action.payload : p
+        ),
+      };
+
+    case "DELETE_BABYSITTER_PIN":
+      return {
+        ...state,
+        babysitterPins: state.babysitterPins.filter((p) => p.caregiverId !== action.payload),
+      };
+
+    case "ADD_SCHEDULE_ENTRY":
+      return {
+        ...state,
+        babysitterSchedule: [...state.babysitterSchedule, action.payload],
+      };
+
+    case "UPDATE_SCHEDULE_ENTRY":
+      return {
+        ...state,
+        babysitterSchedule: state.babysitterSchedule.map((e) =>
+          e.id === action.payload.id ? action.payload : e
+        ),
+      };
+
+    case "DELETE_SCHEDULE_ENTRY":
+      return {
+        ...state,
+        babysitterSchedule: state.babysitterSchedule.filter((e) => e.id !== action.payload),
+      };
+
+    // Babysitter Payments
+    case "ADD_BABYSITTER_PAYMENT":
+      return {
+        ...state,
+        babysitterPayments: [...state.babysitterPayments, action.payload],
+      };
+
+    case "UPDATE_BABYSITTER_PAYMENT":
+      return {
+        ...state,
+        babysitterPayments: state.babysitterPayments.map((p) =>
+          p.id === action.payload.id ? action.payload : p
+        ),
+      };
+
+    case "DELETE_BABYSITTER_PAYMENT":
+      return {
+        ...state,
+        babysitterPayments: state.babysitterPayments.filter((p) => p.id !== action.payload),
+      };
+
+    case "MARK_SESSIONS_PAID":
+      // Mark multiple sessions as paid when a payment is matched
+      return {
+        ...state,
+        babysitter: {
+          ...state.babysitter,
+          sessions: state.babysitter.sessions.map((s) =>
+            action.payload.sessionIds.includes(s.id)
+              ? { ...s, paymentStatus: "paid" as const, paymentId: action.payload.paymentId }
+              : s
+          ),
         },
       };
 
@@ -2989,6 +3134,65 @@ function appReducer(state: AppState, action: AppAction): AppState {
         },
       };
 
+    // Decision actions
+    case "ADD_DECISION":
+      return {
+        ...state,
+        decisions: {
+          ...state.decisions,
+          decisions: [...state.decisions.decisions, action.payload],
+        },
+      };
+
+    case "UPDATE_DECISION":
+      return {
+        ...state,
+        decisions: {
+          ...state.decisions,
+          decisions: state.decisions.decisions.map((d) =>
+            d.id === action.payload.id ? action.payload : d
+          ),
+        },
+      };
+
+    case "DELETE_DECISION":
+      return {
+        ...state,
+        decisions: {
+          ...state.decisions,
+          decisions: state.decisions.decisions.filter((d) => d.id !== action.payload),
+        },
+      };
+
+    case "ADD_QUICK_DECISION":
+      return {
+        ...state,
+        decisions: {
+          ...state.decisions,
+          quickDecisions: [...state.decisions.quickDecisions, action.payload],
+        },
+      };
+
+    case "UPDATE_QUICK_DECISION":
+      return {
+        ...state,
+        decisions: {
+          ...state.decisions,
+          quickDecisions: state.decisions.quickDecisions.map((d) =>
+            d.id === action.payload.id ? action.payload : d
+          ),
+        },
+      };
+
+    case "DELETE_QUICK_DECISION":
+      return {
+        ...state,
+        decisions: {
+          ...state.decisions,
+          quickDecisions: state.decisions.quickDecisions.filter((d) => d.id !== action.payload),
+        },
+      };
+
     default:
       return state;
   }
@@ -3076,6 +3280,13 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
         ? savedState.babysitter!.caregivers
         : defaultState.babysitter.caregivers,
     },
+    // Babysitter Portal - persists
+    householdInfo: savedState.householdInfo
+      ? { ...defaultState.householdInfo, ...savedState.householdInfo }
+      : defaultState.householdInfo,
+    babysitterPins: savedState.babysitterPins ?? defaultState.babysitterPins,
+    babysitterSchedule: savedState.babysitterSchedule ?? defaultState.babysitterSchedule,
+    babysitterPayments: savedState.babysitterPayments ?? defaultState.babysitterPayments,
     // Health - don't persist, always fetch fresh
     health: defaultState.health,
     // Calendar - don't persist, always fetch fresh
@@ -3158,6 +3369,15 @@ function deepMergeState(defaultState: AppState, savedState: Partial<AppState>): 
           dates: savedState.specialDates.dates ?? defaultState.specialDates.dates,
         }
       : defaultState.specialDates,
+    // Decisions - persists
+    decisions: savedState.decisions
+      ? {
+          ...defaultState.decisions,
+          ...savedState.decisions,
+          decisions: savedState.decisions.decisions ?? defaultState.decisions.decisions,
+          quickDecisions: savedState.decisions.quickDecisions ?? defaultState.decisions.quickDecisions,
+        }
+      : defaultState.decisions,
     // Active Timer - persists (allows resuming timer across sessions)
     activeTimer: savedState.activeTimer ?? defaultState.activeTimer,
     ui: defaultState.ui, // Always use fresh UI state
@@ -3335,6 +3555,18 @@ export function useBabysitter() {
   return state.babysitter;
 }
 
+export function useBabysitterPortal() {
+  const { state } = useApp();
+  return {
+    householdInfo: state.householdInfo,
+    pins: state.babysitterPins,
+    schedule: state.babysitterSchedule,
+    payments: state.babysitterPayments,
+    caregivers: state.babysitter.caregivers,
+    sessions: state.babysitter.sessions,
+  };
+}
+
 export function useHealth() {
   const { state } = useApp();
   return state.health;
@@ -3434,4 +3666,20 @@ export function useLoopBudgets() {
 export function useMonthlyIncome() {
   const { state } = useApp();
   return state.finance.monthlyIncome ?? 0;
+}
+
+// Decision hooks
+export function useDecisions() {
+  const { state } = useApp();
+  return state.decisions;
+}
+
+export function useDecisionsList() {
+  const { state } = useApp();
+  return state.decisions.decisions;
+}
+
+export function useQuickDecisions() {
+  const { state } = useApp();
+  return state.decisions.quickDecisions;
 }

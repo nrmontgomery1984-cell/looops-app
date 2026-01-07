@@ -924,6 +924,14 @@ function EditRoutineModal({
     );
   };
 
+  const handleUpdateStep = (stepId: string, updates: Partial<RoutineStep>) => {
+    setSteps(
+      steps.map((s) =>
+        s.id === stepId ? { ...s, ...updates } : s
+      )
+    );
+  };
+
   const handleToggleDayType = (dayType: DayType) => {
     setDayTypes((prev) =>
       prev.includes(dayType)
@@ -1101,7 +1109,6 @@ function EditRoutineModal({
               <div className="routine-edit-steps-list">
                 {steps.map((step, index) => {
                   const color = LOOP_COLORS[step.loop];
-                  const loop = LOOP_DEFINITIONS[step.loop];
                   return (
                     <div
                       key={step.id}
@@ -1126,11 +1133,35 @@ function EditRoutineModal({
                       </div>
                       <span className="routine-edit-step-num">{index + 1}</span>
                       <div className="routine-edit-step-content">
-                        <span className="routine-edit-step-title">{step.title}</span>
-                        <span className="routine-edit-step-meta" style={{ color: color.text }}>
-                          {loop.icon} {step.loop}
-                          {step.estimateMinutes && ` • ${step.estimateMinutes}m`}
-                        </span>
+                        <input
+                          type="text"
+                          className="routine-edit-step-title-input"
+                          value={step.title}
+                          onChange={(e) => handleUpdateStep(step.id, { title: e.target.value })}
+                          placeholder="Step title..."
+                        />
+                        <div className="routine-edit-step-meta-row">
+                          <select
+                            className="routine-edit-step-loop-select"
+                            value={step.loop}
+                            onChange={(e) => handleUpdateStep(step.id, { loop: e.target.value as LoopId })}
+                          >
+                            {ALL_LOOPS.map((loop) => (
+                              <option key={loop} value={loop}>
+                                {LOOP_DEFINITIONS[loop].icon} {loop}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            className="routine-edit-step-minutes-input"
+                            value={step.estimateMinutes || 5}
+                            onChange={(e) => handleUpdateStep(step.id, { estimateMinutes: parseInt(e.target.value) || 5 })}
+                            min={1}
+                            max={180}
+                          />
+                          <span className="routine-edit-step-minutes-label">min</span>
+                        </div>
                       </div>
                       <button
                         className={`routine-step-optional-btn ${step.optional ? "is-optional" : ""}`}

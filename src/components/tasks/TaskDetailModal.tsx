@@ -171,7 +171,10 @@ export function TaskDetailModal({
             {onToggleComplete && (
               <button
                 className={`task-detail-complete-btn ${task.status === "done" ? "completed" : ""}`}
-                onClick={() => onToggleComplete(task.id)}
+                onClick={() => {
+                  onToggleComplete(task.id);
+                  onClose();
+                }}
                 title={task.status === "done" ? "Mark incomplete" : "Mark complete"}
               >
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">

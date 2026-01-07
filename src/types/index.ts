@@ -19,3 +19,4 @@ export * from "./directional";
 export * from "./mealPrep";
 export * from "./finance";
 export * from "./specialDates";
+export * from "./decisions";

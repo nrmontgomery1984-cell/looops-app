@@ -47,9 +47,9 @@ export const DEMO_CAREGIVERS: Caregiver[] = [
 ];
 
 export const DEMO_BABYSITTER_SESSIONS: BabysitterSession[] = [
-  { id: "demo_bs1", caregiverId: "demo_cg1", caregiverName: "Sarah", date: yesterday, hours: 4, rateAtTime: 18, amount: 72, createdAt: yesterday },
-  { id: "demo_bs2", caregiverId: "demo_cg2", caregiverName: "Mike", date: twoDaysAgo, hours: 3, rateAtTime: 15, amount: 45, createdAt: twoDaysAgo },
-  { id: "demo_bs3", caregiverId: "demo_cg1", caregiverName: "Sarah", date: new Date(Date.now() - 86400000 * 5).toISOString().split("T")[0], hours: 5, rateAtTime: 18, amount: 90, createdAt: new Date(Date.now() - 86400000 * 5).toISOString() },
+  { id: "demo_bs1", caregiverId: "demo_cg1", caregiverName: "Sarah", date: yesterday, hours: 4, rateAtTime: 18, amount: 72, paymentStatus: "unpaid", createdAt: yesterday },
+  { id: "demo_bs2", caregiverId: "demo_cg2", caregiverName: "Mike", date: twoDaysAgo, hours: 3, rateAtTime: 15, amount: 45, paymentStatus: "paid", createdAt: twoDaysAgo },
+  { id: "demo_bs3", caregiverId: "demo_cg1", caregiverName: "Sarah", date: new Date(Date.now() - 86400000 * 5).toISOString().split("T")[0], hours: 5, rateAtTime: 18, amount: 90, paymentStatus: "unpaid", createdAt: new Date(Date.now() - 86400000 * 5).toISOString() },
 ];
 
 const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString();

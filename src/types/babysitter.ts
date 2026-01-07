@@ -5,6 +5,7 @@ export type Caregiver = {
   id: string;
   name: string;
   hourlyRate: number;
+  email?: string; // For e-transfer matching
   active: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -20,8 +21,30 @@ export type BabysitterSession = {
   rateAtTime: number; // Rate when session was logged
   amount: number; // Calculated: hours * rateAtTime
   notes?: string;
+  // Payment tracking
+  paymentStatus: "unpaid" | "paid";
+  paymentId?: string; // Links to BabysitterPayment
   createdAt: string;
   updatedAt?: string;
+};
+
+// Payment record for tracking e-transfer payments
+export type BabysitterPayment = {
+  id: string;
+  caregiverId: string;
+  caregiverName: string;
+  referenceCode: string; // e.g., "W01-K" (Week 01, Kylie)
+  amount: number; // Total amount in cents
+  sessionIds: string[]; // Sessions covered by this payment
+  status: "pending" | "matched" | "confirmed";
+  // Transaction matching
+  matchedTransactionId?: string; // Links to FinanceTransaction.id
+  matchedAt?: string;
+  // Metadata
+  weekNumber: number; // ISO week number
+  year: number;
+  createdAt: string;
+  paidAt?: string;
 };
 
 // Summary statistics
@@ -109,6 +132,7 @@ export function createBabysitterSession(
     rateAtTime,
     amount: hours * rateAtTime,
     notes,
+    paymentStatus: "unpaid",
     createdAt: new Date().toISOString(),
   };
 }
@@ -251,3 +275,240 @@ export const INITIAL_BABYSITTER_STATE: BabysitterState = {
   caregivers: DEFAULT_CAREGIVERS,
   sessions: [],
 };
+
+// ============================================
+// Babysitter Portal Types
+// ============================================
+
+// Username/password-based access for babysitters
+export type BabysitterAccess = {
+  username: string; // Caregiver's login username
+  password: string; // Simple password (not hashed - this is low-security family use)
+  caregiverId: string; // Links to which caregiver this PIN is for
+  createdAt: string;
+  lastAccessedAt?: string;
+};
+
+// Emergency contact for household info
+export type EmergencyContact = {
+  id: string;
+  name: string;
+  relationship: string; // "Mom", "Dad", "Neighbor", "Doctor", etc.
+  phone: string;
+  isPrimary: boolean;
+};
+
+// Child/kid info
+export type KidInfo = {
+  id: string;
+  name: string;
+  age?: number;
+  birthDate?: string;
+  allergies?: string[];
+  medications?: string[];
+  bedtime?: string;
+  notes?: string;
+};
+
+// Daily routine entry
+export type DailyRoutine = {
+  id: string;
+  time: string; // "6:00 PM", "After dinner", etc.
+  activity: string;
+  notes?: string;
+};
+
+// Complete household info for babysitters
+export type HouseholdInfo = {
+  emergencyContacts: EmergencyContact[];
+  kids: KidInfo[];
+  houseRules: string[];
+  wifiName?: string;
+  wifiPassword?: string;
+  routines: DailyRoutine[];
+  notes?: string;
+  updatedAt?: string;
+};
+
+// Schedule entry for babysitter scheduling
+export type ScheduleEntry = {
+  id: string;
+  caregiverId: string;
+  caregiverName: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // "6:00 PM"
+  endTime: string; // "10:00 PM"
+  status: "pending" | "confirmed" | "cancelled";
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+// Factory functions
+export function createEmergencyContact(
+  name: string,
+  relationship: string,
+  phone: string,
+  isPrimary: boolean = false
+): EmergencyContact {
+  return {
+    id: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name,
+    relationship,
+    phone,
+    isPrimary,
+  };
+}
+
+export function createKidInfo(name: string, options?: Partial<Omit<KidInfo, "id" | "name">>): KidInfo {
+  return {
+    id: `kid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name,
+    ...options,
+  };
+}
+
+export function createDailyRoutine(time: string, activity: string, notes?: string): DailyRoutine {
+  return {
+    id: `routine_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    time,
+    activity,
+    notes,
+  };
+}
+
+export function createScheduleEntry(
+  caregiverId: string,
+  caregiverName: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  notes?: string
+): ScheduleEntry {
+  return {
+    id: `schedule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    caregiverId,
+    caregiverName,
+    date,
+    startTime,
+    endTime,
+    status: "pending",
+    notes,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function createBabysitterAccess(
+  caregiverId: string,
+  username: string,
+  password: string
+): BabysitterAccess {
+  return {
+    username,
+    password,
+    caregiverId,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+// Default/initial household info
+export const INITIAL_HOUSEHOLD_INFO: HouseholdInfo = {
+  emergencyContacts: [],
+  kids: [],
+  houseRules: [],
+  routines: [],
+};
+
+// ============================================
+// Payment Reference Code Helpers
+// ============================================
+
+// Get ISO week number for a date
+export function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+// Generate payment reference code: W##-X (Week number + first initial)
+// e.g., W01-K for Week 1, Kylie
+export function generatePaymentReferenceCode(
+  caregiverName: string,
+  weekNumber: number
+): string {
+  const initial = caregiverName.charAt(0).toUpperCase();
+  const weekStr = weekNumber.toString().padStart(2, "0");
+  return `W${weekStr}-${initial}`;
+}
+
+// Create a payment record for unpaid sessions
+export function createBabysitterPayment(
+  caregiver: Caregiver,
+  sessions: BabysitterSession[],
+  weekNumber: number,
+  year: number
+): BabysitterPayment {
+  const totalAmount = sessions.reduce((sum, s) => sum + s.amount, 0);
+  const referenceCode = generatePaymentReferenceCode(caregiver.name, weekNumber);
+
+  return {
+    id: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    caregiverId: caregiver.id,
+    caregiverName: caregiver.name,
+    referenceCode,
+    amount: Math.round(totalAmount * 100), // Convert to cents
+    sessionIds: sessions.map((s) => s.id),
+    status: "pending",
+    weekNumber,
+    year,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+// Match a transaction description against payment reference codes
+// Returns the matching reference code if found
+export function matchTransactionToPayment(
+  description: string,
+  payments: BabysitterPayment[]
+): BabysitterPayment | null {
+  const upperDesc = description.toUpperCase();
+
+  for (const payment of payments) {
+    // Check if the reference code appears in the transaction description
+    if (upperDesc.includes(payment.referenceCode)) {
+      return payment;
+    }
+  }
+
+  return null;
+}
+
+// Get unpaid sessions grouped by caregiver and week
+export function getUnpaidSessionsByWeek(
+  sessions: BabysitterSession[]
+): Map<string, { caregiver: string; weekNumber: number; year: number; sessions: BabysitterSession[] }> {
+  const groups = new Map<string, { caregiver: string; weekNumber: number; year: number; sessions: BabysitterSession[] }>();
+
+  for (const session of sessions) {
+    if (session.paymentStatus === "unpaid") {
+      const sessionDate = new Date(session.date);
+      const weekNumber = getISOWeekNumber(sessionDate);
+      const year = sessionDate.getFullYear();
+      const key = `${session.caregiverId}-${year}-W${weekNumber}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          caregiver: session.caregiverName,
+          weekNumber,
+          year,
+          sessions: [],
+        });
+      }
+      groups.get(key)!.sessions.push(session);
+    }
+  }
+
+  return groups;
+}

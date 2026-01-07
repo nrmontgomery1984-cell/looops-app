@@ -21,6 +21,9 @@ import {
   getWidgetGridClass,
   Caregiver,
   BabysitterSession,
+  BabysitterAccess,
+  HouseholdInfo,
+  ScheduleEntry,
   Person,
   SpecialDate,
 } from "../../types";
@@ -50,6 +53,7 @@ import { WorkoutWidget } from "./WorkoutWidget";
 import { FinanceScreen } from "../finance/FinanceScreen";
 import { MealPrepScreen } from "../mealprep/MealPrepScreen";
 import { ZeroWasteWidget } from "./ZeroWasteWidget";
+import { FoodWasteTrackerWidget } from "./FoodWasteTrackerWidget";
 
 interface LoopDashboardProps {
   loop: LoopId;
@@ -89,6 +93,18 @@ interface LoopDashboardProps {
   onAddCaregiver: (caregiver: Caregiver) => void;
   onUpdateCaregiver: (caregiver: Caregiver) => void;
   onDeactivateCaregiver: (caregiverId: string) => void;
+  // Babysitter Portal PIN actions
+  babysitterPins?: BabysitterAccess[];
+  onAddBabysitterPin?: (pin: BabysitterAccess) => void;
+  onDeleteBabysitterPin?: (caregiverId: string) => void;
+  // Household Info (for babysitter portal)
+  householdInfo?: HouseholdInfo;
+  onUpdateHouseholdInfo?: (info: HouseholdInfo) => void;
+  // Schedule (for babysitter portal)
+  babysitterSchedule?: ScheduleEntry[];
+  onAddScheduleEntry?: (entry: ScheduleEntry) => void;
+  onUpdateScheduleEntry?: (entry: ScheduleEntry) => void;
+  onDeleteScheduleEntry?: (entryId: string) => void;
   // Special Dates actions
   onAddPerson: (person: Person) => void;
   onUpdatePerson: (person: Person) => void;
@@ -157,6 +173,15 @@ export function LoopDashboard({
   onAddCaregiver,
   onUpdateCaregiver,
   onDeactivateCaregiver,
+  babysitterPins,
+  onAddBabysitterPin,
+  onDeleteBabysitterPin,
+  householdInfo,
+  onUpdateHouseholdInfo,
+  babysitterSchedule,
+  onAddScheduleEntry,
+  onUpdateScheduleEntry,
+  onDeleteScheduleEntry,
   onAddPerson,
   onUpdatePerson,
   onDeletePerson,
@@ -171,6 +196,15 @@ export function LoopDashboard({
   const [resizingWidget, setResizingWidget] = useState<string | null>(null);
   const [resizeDirection, setResizeDirection] = useState<"e" | "s" | "se" | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const widgetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Scroll to a specific widget
+  const scrollToWidget = useCallback((widgetId: string) => {
+    const widgetEl = widgetRefs.current.get(widgetId);
+    if (widgetEl) {
+      widgetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
 
   const loopColor = LOOP_COLORS[loop];
   const loopDef = LOOP_DEFINITIONS[loop];
@@ -403,12 +437,21 @@ export function LoopDashboard({
           <BabysitterWidget
             caregivers={caregivers}
             sessions={babysitterSessions}
+            pins={babysitterPins}
+            householdInfo={householdInfo}
+            schedule={babysitterSchedule}
             onAddSession={onAddBabysitterSession}
             onUpdateSession={onUpdateBabysitterSession}
             onDeleteSession={onDeleteBabysitterSession}
             onAddCaregiver={onAddCaregiver}
             onUpdateCaregiver={onUpdateCaregiver}
             onDeactivateCaregiver={onDeactivateCaregiver}
+            onAddPin={onAddBabysitterPin}
+            onDeletePin={onDeleteBabysitterPin}
+            onUpdateHouseholdInfo={onUpdateHouseholdInfo}
+            onAddScheduleEntry={onAddScheduleEntry}
+            onUpdateScheduleEntry={onUpdateScheduleEntry}
+            onDeleteScheduleEntry={onDeleteScheduleEntry}
           />
         );
 
@@ -506,6 +549,9 @@ export function LoopDashboard({
       case "zero_waste":
         return <ZeroWasteWidget />;
 
+      case "food_waste":
+        return <FoodWasteTrackerWidget />;
+
       default:
         return (
           <div className="widget-placeholder">
@@ -575,6 +621,26 @@ export function LoopDashboard({
         )}
       </div>
 
+      {/* Widget Navigation Bar */}
+      {(dashboard.widgets || []).length > 0 && (
+        <div className="widget-nav-bar">
+          {(dashboard.widgets || []).map(widget => {
+            const def = WIDGET_DEFINITIONS[widget.type];
+            return (
+              <button
+                key={widget.id}
+                className="widget-nav-item"
+                onClick={() => scrollToWidget(widget.id)}
+                title={widget.title || def.name}
+              >
+                <span className="widget-nav-icon">{def.icon}</span>
+                <span className="widget-nav-name">{widget.title || def.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div
         ref={gridRef}
         className={`loop-dashboard-widgets ${editMode ? "edit-mode" : ""}`}
@@ -615,6 +681,10 @@ export function LoopDashboard({
           return (
             <div
               key={widget.id}
+              ref={(el) => {
+                if (el) widgetRefs.current.set(widget.id, el);
+                else widgetRefs.current.delete(widget.id);
+              }}
               className={`widget-container ${getWidgetGridClass(widget.size)} ${editMode ? "editable" : ""} ${isDragging ? "dragging" : ""} ${isResizing ? "resizing" : ""} ${isPinned ? "pinned" : ""}`}
               style={editMode ? {
                 gridColumn: `span ${gridSize.colSpan}`,

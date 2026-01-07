@@ -20,6 +20,7 @@ export {
   useChecklists,
   useJournal,
   useBabysitter,
+  useBabysitterPortal,
   useHealth,
   useCalendar,
   useSmartSchedule,
@@ -39,6 +40,10 @@ export {
   useFinanceExpenses,
   useLoopBudgets,
   useMonthlyIncome,
+  // Decisions
+  useDecisions,
+  useDecisionsList,
+  useQuickDecisions,
 } from "./AppContext";
 
 export type { UserProfile, AppState, AppAction } from "./AppContext";

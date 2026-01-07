@@ -103,6 +103,14 @@ const MealPrepIcon = () => (
   </svg>
 );
 
+const DecisionsIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3v18" />
+    <path d="M5 10l7-7 7 7" />
+    <path d="M5 14l7 7 7-7" />
+  </svg>
+);
+
 const FinanceIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
@@ -157,6 +165,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "routines", icon: <RoutinesIcon />, label: "Routines" },
   { id: "systems", icon: <SystemsIcon />, label: "Systems" },
   { id: "planning", icon: <PlanningIcon />, label: "Planning" },
+  { id: "decisions", icon: <DecisionsIcon />, label: "Decisions" },
   { id: "me", icon: <ProfileIcon />, label: "Me" },
 ];
 
