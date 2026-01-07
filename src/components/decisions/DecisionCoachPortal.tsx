@@ -451,7 +451,7 @@ export function DecisionCoachPortal() {
               <span className="coach-char-count">{title.length}/280</span>
             </div>
 
-            {title.length > 10 && (
+            {title.length > 3 && (
               <>
                 <div className="coach-prompt">
                   <h3>Which area of life is this about?</h3>
@@ -620,7 +620,7 @@ export function DecisionCoachPortal() {
               />
             </div>
 
-            {oneReason.length > 20 && (
+            {oneReason.length > 2 && (
               <div className="coach-actions">
                 <button
                   className="coach-btn coach-btn--primary"
@@ -660,7 +660,7 @@ export function DecisionCoachPortal() {
               />
             </div>
 
-            {reasonAgainst.length > 20 && (
+            {reasonAgainst.length > 2 && (
               <div className="coach-actions">
                 <button
                   className="coach-btn coach-btn--primary"
@@ -940,7 +940,7 @@ export function DecisionCoachPortal() {
               />
             </div>
 
-            {trigger.length > 10 && (
+            {trigger.length > 2 && (
               <div className="coach-actions">
                 <button
                   className="coach-btn coach-btn--primary"
@@ -1103,7 +1103,7 @@ export function DecisionCoachPortal() {
               />
             </div>
 
-            {upsideIfRight.length > 10 && (
+            {upsideIfRight.length > 2 && (
               <div className="coach-actions">
                 <button
                   className="coach-btn coach-btn--primary"
@@ -1141,7 +1141,7 @@ export function DecisionCoachPortal() {
               />
             </div>
 
-            {downsideIfWrong.length > 10 && (
+            {downsideIfWrong.length > 2 && (
               <div className="coach-actions">
                 <button
                   className="coach-btn coach-btn--primary"
