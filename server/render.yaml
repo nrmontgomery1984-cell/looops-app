@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: looops-server
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Google Sheets (for Tiller/Health data)
+      - key: GOOGLE_SERVICE_ACCOUNT_EMAIL
+        sync: false
+      - key: GOOGLE_PRIVATE_KEY
+        sync: false
+      - key: SHEETS_HEALTH_ID
+        sync: false
+      - key: SHEETS_TILLER_ID
+        sync: false
+      # Fitbit OAuth
+      - key: FITBIT_CLIENT_ID
+        sync: false
+      - key: FITBIT_CLIENT_SECRET
+        sync: false
+      # Spotify OAuth
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      # Google Calendar OAuth
+      - key: GOOGLE_CALENDAR_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CALENDAR_CLIENT_SECRET
+        sync: false
+      # Todoist (API token or OAuth)
+      - key: TODOIST_API_TOKEN
+        sync: false
+      - key: TODOIST_CLIENT_ID
+        sync: false
+      - key: TODOIST_CLIENT_SECRET
+        sync: false
+      # Auth
+      - key: APP_PASSWORD_HASH
+        sync: false
