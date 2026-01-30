@@ -86,9 +86,9 @@ async function handleSummary(req: VercelRequest, res: VercelResponse) {
     ]);
 
     // Calculate stats
-    const uniqueArtists = new Set(recentlyPlayed.map(t => t.artist)).size;
-    const uniqueAlbums = new Set(recentlyPlayed.filter(t => t.album).map(t => t.album)).size;
-    const totalMinutes = recentlyPlayed.reduce((sum, t) => sum + (t.duration / 60000), 0);
+    const uniqueArtists = new Set(recentlyPlayed.map((t: { artist: string }) => t.artist)).size;
+    const uniqueAlbums = new Set(recentlyPlayed.filter((t: { album: string | null }) => t.album).map((t: { album: string | null }) => t.album)).size;
+    const totalMinutes = recentlyPlayed.reduce((sum: number, t: { duration: number }) => sum + (t.duration / 60000), 0);
 
     return res.json({
       source: 'spotify',

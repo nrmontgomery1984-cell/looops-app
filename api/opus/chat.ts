@@ -480,7 +480,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .limit(10)
           .get();
 
-        messagesSnap.forEach((doc) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messagesSnap.forEach((doc: any) => {
           const data = doc.data();
           conversationHistory.push({
             role: data.role,
