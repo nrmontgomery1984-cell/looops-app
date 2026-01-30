@@ -527,3 +527,169 @@
 [data-theme="light"] .sn-task__domain { color: rgba(26,26,46,0.6); }
 [data-theme="light"] .sn-hint { color: rgba(26,26,46,0.3); }
 [data-theme="light"] .sn-indicator__label { color: rgba(26,26,46,0.5); }
+
+/* ════════════════════════════════════════
+   Corner Trigger (Hidden Menu)
+   ════════════════════════════════════════ */
+
+.sn-corner-trigger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60px;
+  height: 60px;
+  z-index: 20;
+  background: transparent;
+  /* Uncomment for debug: background: rgba(255,0,0,0.1); */
+}
+
+/* ════════════════════════════════════════
+   Task Dots (Inside Domain Sphere)
+   ════════════════════════════════════════ */
+
+.sn-domain__task-dots {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 80%;
+}
+
+.sn-domain__task-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sn-domain:hover .sn-domain__task-dot,
+.sn-domain:active .sn-domain__task-dot {
+  opacity: 1;
+}
+
+.sn-domain__task-overflow {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+.sn-domain__tasks--empty {
+  font-style: italic;
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+/* ════════════════════════════════════════
+   Hidden Menu
+   ════════════════════════════════════════ */
+
+.sn-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 200;
+  animation: sn-fadeIn 0.2s ease;
+}
+
+.sn-menu {
+  position: absolute;
+  top: 60px;
+  left: 16px;
+  background: var(--color-surface, #1a1a2e);
+  border-radius: 12px;
+  padding: 8px 0;
+  min-width: 180px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: sn-scaleIn 0.2s ease;
+  transform-origin: top left;
+}
+
+.sn-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--color-text, #fff);
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.sn-menu__item:hover,
+.sn-menu__item:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sn-menu__item span {
+  font-size: 18px;
+}
+
+/* ════════════════════════════════════════
+   Quick Add Overlay
+   ════════════════════════════════════════ */
+
+.sn-quickadd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sn-fadeIn 0.2s ease;
+}
+
+.sn-quickadd-panel {
+  animation: sn-scaleIn 0.2s ease;
+  width: 90%;
+  max-width: 400px;
+}
+
+/* ════════════════════════════════════════
+   Opus Gesture Overlay (App.tsx styles)
+   ════════════════════════════════════════ */
+
+.opus-gesture-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sn-fadeIn 0.2s ease;
+}
+
+.opus-gesture-panel {
+  width: 95%;
+  max-width: 420px;
+  height: 80vh;
+  max-height: 650px;
+  animation: sn-scaleIn 0.25s ease;
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .sn-menu {
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .sn-menu__item {
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .sn-menu__item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .sn-domain__task-overflow {
+  color: rgba(0, 0, 0, 0.4);
+}

@@ -7,11 +7,12 @@ type QuickAddModalProps = {
   date: string;
   onSubmit: (title: string, loopId: LoopId) => void;
   onClose: () => void;
+  defaultLoop?: LoopId; // Optional: pre-select a loop (contextual from gesture)
 };
 
-export function QuickAddModal({ date, onSubmit, onClose }: QuickAddModalProps) {
+export function QuickAddModal({ date, onSubmit, onClose, defaultLoop }: QuickAddModalProps) {
   const [title, setTitle] = useState("");
-  const [selectedLoop, setSelectedLoop] = useState<LoopId>("Work");
+  const [selectedLoop, setSelectedLoop] = useState<LoopId>(defaultLoop || "Work");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

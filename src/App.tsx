@@ -62,7 +62,8 @@ import { SphereDemoPage } from "./pages/sphere-demo";
 import { Routes, Route } from "react-router-dom";
 import { BabysitterPortal } from "./components/babysitter";
 import { DecisionCoachPortal } from "./components/decisions/DecisionCoachPortal";
-import { OpusFloatingWidget } from "./components/opus";
+import { OpusFloatingWidget, OpusChatPanel } from "./components/opus";
+import { useIsMobile } from "./hooks";
 
 // Mock data for previewing completed directional document
 const MOCK_DIRECTIONAL_DOCUMENT: DirectionalDocument = {
@@ -287,6 +288,15 @@ function AppContent() {
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showTodayWidgetPicker, setShowTodayWidgetPicker] = useState(false);
+
+  // Mobile detection for gesture-driven UI
+  const isMobile = useIsMobile();
+
+  // Opus state for gesture-triggered opening (mobile)
+  const [gestureOpusState, setGestureOpusState] = useState<{ open: boolean; domain: LoopId | "Life" }>({
+    open: false,
+    domain: "Life",
+  });
   const [suggestedSystems, setSuggestedSystems] = useState<SystemTemplate[]>([]);
   const [showSystemSuggestions, setShowSystemSuggestions] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState<string>("");
@@ -321,6 +331,12 @@ function AppContent() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
+  // On mobile, default to sphere (loops) view
+  useEffect(() => {
+    if (isMobile && ui.activeTab === "today") {
+      dispatch({ type: "SET_ACTIVE_TAB", payload: "loops" });
+    }
+  }, [isMobile]); // Only run when mobile detection changes
 
   // Load demo data when in demo mode
   useEffect(() => {
@@ -1100,6 +1116,20 @@ function AppContent() {
                 dispatch({ type: "OPEN_MODAL", payload: { modal: "taskDetail", value: taskId } })
               }
               onOpenLoopDashboard={(loopId) => setSelectedLoopDashboard(loopId)}
+              onOpenOpus={(domain) => setGestureOpusState({ open: true, domain })}
+              onQuickAdd={(title, loopId) => {
+                const newTask: Task = {
+                  id: `task_${Date.now()}`,
+                  title: title.trim(),
+                  loop: loopId,
+                  status: "todo",
+                  priority: 3, // Default to P3 (should, date-based)
+                  dueDate: new Date().toISOString().split("T")[0],
+                  createdAt: new Date().toISOString(),
+                };
+                dispatch({ type: "ADD_TASK", payload: newTask });
+              }}
+              onOpenMenu={() => setIsMobileMenuOpen(true)}
             />
           </div>
         );
@@ -1905,18 +1935,32 @@ function AppContent() {
 
       <main className="app-main">{renderScreen()}</main>
 
-      {/* Floating action button for quick actions */}
-      <QuickActionsFAB
-        onStartRoutine={(routineId) => {
-          const routine = routines.items.find(r => r.id === routineId);
-          if (routine) {
-            setActiveRoutineForModal(routine);
-          }
-        }}
-      />
+      {/* Floating action button and Opus widget - desktop only */}
+      {!isMobile && (
+        <>
+          <QuickActionsFAB
+            onStartRoutine={(routineId) => {
+              const routine = routines.items.find(r => r.id === routineId);
+              if (routine) {
+                setActiveRoutineForModal(routine);
+              }
+            }}
+          />
+          <OpusFloatingWidget />
+        </>
+      )}
 
-      {/* Opus AI Assistant floating widget */}
-      <OpusFloatingWidget />
+      {/* Gesture-triggered Opus panel for mobile */}
+      {isMobile && gestureOpusState.open && (
+        <div className="opus-gesture-overlay" onClick={() => setGestureOpusState({ open: false, domain: "Life" })}>
+          <div className="opus-gesture-panel" onClick={(e) => e.stopPropagation()}>
+            <OpusChatPanel
+              initialDomain={gestureOpusState.domain}
+              onClose={() => setGestureOpusState({ open: false, domain: "Life" })}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Goals Wizard Modal - renders globally so it works from any tab */}
       {showGoalsWizard && (

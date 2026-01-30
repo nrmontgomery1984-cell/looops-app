@@ -15,6 +15,7 @@ import {
 } from "../../types";
 import { OpusChatPanel } from "../opus/OpusChatPanel";
 import { OpusDomainId } from "../../opus/types/opus-types";
+import { QuickAddModal } from "../today/QuickAddModal";
 import "./SphereNavigation.css";
 
 type NavigationLevel = 1 | 2 | 3;
@@ -24,7 +25,19 @@ interface SphereNavigationProps {
   loopStates: Record<LoopId, LoopState>;
   onSelectTask?: (taskId: string) => void;
   onOpenLoopDashboard?: (loopId: LoopId) => void;
+  // New gesture-driven callbacks
+  onOpenOpus?: (domain: LoopId | "Life") => void;
+  onQuickAdd?: (title: string, loopId: LoopId) => void;
+  onOpenMenu?: () => void;
 }
+
+// Task status colors
+const STATUS_COLORS: Record<string, string> = {
+  inbox: "#737390",
+  todo: "#F27059",
+  doing: "#F4B942",
+  waiting: "#F4B942",
+};
 
 const loopToOpusDomain = (loopId: LoopId | null): OpusDomainId => {
   if (!loopId) return "Life";
@@ -43,6 +56,9 @@ export function SphereNavigation({
   loopStates,
   onSelectTask,
   onOpenLoopDashboard,
+  onOpenOpus,
+  onQuickAdd,
+  onOpenMenu,
 }: SphereNavigationProps) {
   const [level, setLevel] = useState<NavigationLevel>(1);
   const [domainIndex, setDomainIndex] = useState(0);
@@ -50,13 +66,27 @@ export function SphereNavigation({
   const [transitioning, setTransitioning] = useState(false);
   const [transDir, setTransDir] = useState<string | null>(null);
 
-  // Opus chat
+  // Opus chat (internal fallback if no onOpenOpus callback)
   const [showOpus, setShowOpus] = useState(false);
   const [opusDomain, setOpusDomain] = useState<OpusDomainId>("Life");
 
-  // Long press
+  // Quick Add modal state
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddLoop, setQuickAddLoop] = useState<LoopId | null>(null);
+
+  // Hidden menu state
+  const [showHiddenMenu, setShowHiddenMenu] = useState(false);
+
+  // Long press for sphere
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didLongPress = useRef(false);
+
+  // Long press for corner menu
+  const cornerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Double tap detection
+  const lastTapTime = useRef<number>(0);
+  const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedDomain = ALL_LOOPS[domainIndex];
   const domainTasks = tasks.filter(
@@ -147,17 +177,22 @@ export function SphereNavigation({
     delta: 50,
   });
 
-  // Long press (500ms)
+  // Long press (500ms) - opens Opus
   const startPress = useCallback(
     (domain: LoopId | null) => {
       didLongPress.current = false;
       lpTimer.current = setTimeout(() => {
         didLongPress.current = true;
-        setOpusDomain(loopToOpusDomain(domain));
-        setShowOpus(true);
+        // Use callback if provided, otherwise use internal state
+        if (onOpenOpus) {
+          onOpenOpus(domain || "Life");
+        } else {
+          setOpusDomain(loopToOpusDomain(domain));
+          setShowOpus(true);
+        }
       }, 500);
     },
-    []
+    [onOpenOpus]
   );
 
   const endPress = useCallback(() => {
@@ -167,6 +202,59 @@ export function SphereNavigation({
     }
   }, []);
 
+  // Corner long press (500ms) - opens hidden menu
+  const startCornerPress = useCallback(() => {
+    cornerTimer.current = setTimeout(() => {
+      if (onOpenMenu) {
+        onOpenMenu();
+      } else {
+        setShowHiddenMenu(true);
+      }
+    }, 500);
+  }, [onOpenMenu]);
+
+  const endCornerPress = useCallback(() => {
+    if (cornerTimer.current) {
+      clearTimeout(cornerTimer.current);
+      cornerTimer.current = null;
+    }
+  }, []);
+
+  // Double tap detection - opens Quick Add
+  const handleTapWithDoubleTap = useCallback(
+    (singleTapAction: () => void, domain: LoopId | null) => {
+      if (didLongPress.current) {
+        didLongPress.current = false;
+        return;
+      }
+
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapTime.current;
+
+      if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+        // Double tap detected - open Quick Add
+        if (tapTimeout.current) {
+          clearTimeout(tapTimeout.current);
+          tapTimeout.current = null;
+        }
+        // Use current domain or default to Work
+        setQuickAddLoop(domain || selectedDomain || "Work");
+        setShowQuickAdd(true);
+        lastTapTime.current = 0;
+      } else {
+        // Wait to see if it's a double tap
+        lastTapTime.current = now;
+        tapTimeout.current = setTimeout(() => {
+          singleTapAction();
+          lastTapTime.current = 0;
+          tapTimeout.current = null;
+        }, 300);
+      }
+    },
+    [selectedDomain]
+  );
+
+  // Simple tap handler (no double-tap) for non-sphere elements
   const handleTap = useCallback((action: () => void) => {
     if (!didLongPress.current) {
       action();
@@ -177,6 +265,8 @@ export function SphereNavigation({
   useEffect(() => {
     return () => {
       if (lpTimer.current) clearTimeout(lpTimer.current);
+      if (cornerTimer.current) clearTimeout(cornerTimer.current);
+      if (tapTimeout.current) clearTimeout(tapTimeout.current);
     };
   }, []);
 
@@ -206,7 +296,7 @@ export function SphereNavigation({
           onPointerDown={() => startPress(null)}
           onPointerUp={endPress}
           onPointerLeave={endPress}
-          onClick={() => handleTap(goDeeper)}
+          onClick={() => handleTapWithDoubleTap(goDeeper, null)}
         >
           <div className="sn-life__inner">
             <div className="sn-life__score">{score}</div>
@@ -264,14 +354,29 @@ export function SphereNavigation({
           onPointerDown={() => startPress(selectedDomain)}
           onPointerUp={endPress}
           onPointerLeave={endPress}
-          onClick={() => handleTap(() => onOpenLoopDashboard?.(selectedDomain))}
+          onClick={() => handleTapWithDoubleTap(() => onOpenLoopDashboard?.(selectedDomain), selectedDomain)}
         >
           <span className="sn-domain__icon">{def.icon}</span>
           <span className="sn-domain__name">{def.name}</span>
           <span className={`sn-domain__state sn-domain__state--${state.toLowerCase()}`}>
             {state}
           </span>
-          <span className="sn-domain__tasks">{count} task{count !== 1 ? "s" : ""}</span>
+          {/* Task dots instead of count */}
+          {count > 0 ? (
+            <div className="sn-domain__task-dots">
+              {domainTasks.slice(0, 6).map((task) => (
+                <div
+                  key={task.id}
+                  className="sn-domain__task-dot"
+                  style={{ backgroundColor: STATUS_COLORS[task.status] || "#737390" }}
+                  title={task.title}
+                />
+              ))}
+              {count > 6 && <span className="sn-domain__task-overflow">+{count - 6}</span>}
+            </div>
+          ) : (
+            <span className="sn-domain__tasks sn-domain__tasks--empty">No tasks</span>
+          )}
         </div>
 
         {/* Next peek */}
@@ -346,12 +451,10 @@ export function SphereNavigation({
         <div
           className="sn-task"
           style={{ "--task-color": color.border } as React.CSSProperties}
-          onPointerDown={() =>
-            startPress(selectedDomain)
-          }
+          onPointerDown={() => startPress(selectedDomain)}
           onPointerUp={endPress}
           onPointerLeave={endPress}
-          onClick={() => handleTap(() => onSelectTask?.(currentTask?.id || ""))}
+          onClick={() => handleTapWithDoubleTap(() => onSelectTask?.(currentTask?.id || ""), selectedDomain)}
         >
           <div className="sn-task__domain">
             <span>{def.icon}</span> <span>{def.name}</span>
@@ -392,6 +495,14 @@ export function SphereNavigation({
 
   return (
     <div className="sn" {...swipeHandlers}>
+      {/* Hidden menu touch target (top-left corner) */}
+      <div
+        className="sn-corner-trigger"
+        onPointerDown={startCornerPress}
+        onPointerUp={endCornerPress}
+        onPointerLeave={endCornerPress}
+      />
+
       {/* Level indicator */}
       <div className="sn-indicator">
         {([1, 2, 3] as NavigationLevel[]).map((l) => (
@@ -412,8 +523,44 @@ export function SphereNavigation({
         {level === 3 && renderLevel3()}
       </div>
 
-      {/* Opus modal */}
-      {showOpus && (
+      {/* Hidden Menu (internal fallback) */}
+      {showHiddenMenu && !onOpenMenu && (
+        <div className="sn-menu-overlay" onClick={() => setShowHiddenMenu(false)}>
+          <div className="sn-menu" onClick={(e) => e.stopPropagation()}>
+            <button className="sn-menu__item" onClick={() => { setShowHiddenMenu(false); }}>
+              <span>📋</span> Routines
+            </button>
+            <button className="sn-menu__item" onClick={() => { setShowHiddenMenu(false); }}>
+              <span>🎯</span> Decisions
+            </button>
+            <button className="sn-menu__item" onClick={() => { setShowHiddenMenu(false); }}>
+              <span>⚙️</span> Settings
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add Modal */}
+      {showQuickAdd && quickAddLoop && (
+        <div className="sn-quickadd-overlay" onClick={() => setShowQuickAdd(false)}>
+          <div className="sn-quickadd-panel" onClick={(e) => e.stopPropagation()}>
+            <QuickAddModal
+              date={new Date().toISOString().split("T")[0]}
+              defaultLoop={quickAddLoop}
+              onSubmit={(title, loopId) => {
+                if (onQuickAdd) {
+                  onQuickAdd(title, loopId);
+                }
+                setShowQuickAdd(false);
+              }}
+              onClose={() => setShowQuickAdd(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Opus modal (internal fallback) */}
+      {showOpus && !onOpenOpus && (
         <div className="sn-opus-overlay" onClick={() => setShowOpus(false)}>
           <div className="sn-opus-panel" onClick={(e) => e.stopPropagation()}>
             <OpusChatPanel

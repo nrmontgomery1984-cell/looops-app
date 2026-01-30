@@ -2,3 +2,4 @@
 
 export { useLocalStorage } from "./useLocalStorage";
 export { useFirebaseAuth, type AuthMode, type UseFirebaseAuth } from "./useFirebaseAuth";
+export { useIsMobile } from "./useIsMobile";
