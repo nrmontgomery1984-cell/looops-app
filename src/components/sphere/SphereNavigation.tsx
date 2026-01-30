@@ -29,6 +29,8 @@ interface SphereNavigationProps {
   onOpenOpus?: (domain: LoopId | "Life") => void;
   onQuickAdd?: (title: string, loopId: LoopId) => void;
   onOpenMenu?: () => void;
+  onOpenRoutines?: () => void;
+  onSetDayType?: () => void;
 }
 
 // Task status colors
@@ -59,6 +61,8 @@ export function SphereNavigation({
   onOpenOpus,
   onQuickAdd,
   onOpenMenu,
+  onOpenRoutines,
+  onSetDayType,
 }: SphereNavigationProps) {
   const [level, setLevel] = useState<NavigationLevel>(1);
   const [domainIndex, setDomainIndex] = useState(0);
@@ -74,15 +78,30 @@ export function SphereNavigation({
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddLoop, setQuickAddLoop] = useState<LoopId | null>(null);
 
+  // Quick actions menu (double-tap) - shows task/routine/day type options
+  const [showQuickActions, setShowQuickActions] = useState(false);
+
   // Hidden menu state
   const [showHiddenMenu, setShowHiddenMenu] = useState(false);
+
+  // Bottom actions menu state
+  const [showBottomMenu, setShowBottomMenu] = useState(false);
 
   // Long press for sphere
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didLongPress = useRef(false);
 
-  // Long press for corner menu
+  // Long press for top-edge menu (full width)
+  const topEdgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Long press for top-right corner (return to Life)
+  const topRightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Long press for corner menu (legacy, now using top edge)
   const cornerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Long press for bottom-edge actions
+  const bottomTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Double tap detection
   const lastTapTime = useRef<number>(0);
@@ -220,6 +239,54 @@ export function SphereNavigation({
     }
   }, []);
 
+  // Top edge long press (500ms) - opens menu (full width trigger zone)
+  const startTopEdgePress = useCallback(() => {
+    topEdgeTimer.current = setTimeout(() => {
+      if (onOpenMenu) {
+        onOpenMenu();
+      } else {
+        setShowHiddenMenu(true);
+      }
+    }, 500);
+  }, [onOpenMenu]);
+
+  const endTopEdgePress = useCallback(() => {
+    if (topEdgeTimer.current) {
+      clearTimeout(topEdgeTimer.current);
+      topEdgeTimer.current = null;
+    }
+  }, []);
+
+  // Top-right corner long press (500ms) - return to Life (level 1)
+  const startTopRightPress = useCallback(() => {
+    topRightTimer.current = setTimeout(() => {
+      setLevel(1);
+      setDomainIndex(0);
+      setTaskIndex(0);
+    }, 500);
+  }, []);
+
+  const endTopRightPress = useCallback(() => {
+    if (topRightTimer.current) {
+      clearTimeout(topRightTimer.current);
+      topRightTimer.current = null;
+    }
+  }, []);
+
+  // Bottom edge long press (500ms) - opens bottom actions (routines/day type)
+  const startBottomPress = useCallback(() => {
+    bottomTimer.current = setTimeout(() => {
+      setShowBottomMenu(true);
+    }, 500);
+  }, []);
+
+  const endBottomPress = useCallback(() => {
+    if (bottomTimer.current) {
+      clearTimeout(bottomTimer.current);
+      bottomTimer.current = null;
+    }
+  }, []);
+
   // Double tap detection - opens Quick Add
   const handleTapWithDoubleTap = useCallback(
     (singleTapAction: () => void, domain: LoopId | null) => {
@@ -232,14 +299,14 @@ export function SphereNavigation({
       const timeSinceLastTap = now - lastTapTime.current;
 
       if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-        // Double tap detected - open Quick Add
+        // Double tap detected - open Quick Actions menu
         if (tapTimeout.current) {
           clearTimeout(tapTimeout.current);
           tapTimeout.current = null;
         }
-        // Use current domain or default to Work
+        // Store current domain for context
         setQuickAddLoop(domain || selectedDomain || "Work");
-        setShowQuickAdd(true);
+        setShowQuickActions(true);
         lastTapTime.current = 0;
       } else {
         // Wait to see if it's a double tap
@@ -266,6 +333,9 @@ export function SphereNavigation({
     return () => {
       if (lpTimer.current) clearTimeout(lpTimer.current);
       if (cornerTimer.current) clearTimeout(cornerTimer.current);
+      if (topEdgeTimer.current) clearTimeout(topEdgeTimer.current);
+      if (topRightTimer.current) clearTimeout(topRightTimer.current);
+      if (bottomTimer.current) clearTimeout(bottomTimer.current);
       if (tapTimeout.current) clearTimeout(tapTimeout.current);
     };
   }, []);
@@ -495,12 +565,28 @@ export function SphereNavigation({
 
   return (
     <div className="sn" {...swipeHandlers}>
-      {/* Hidden menu touch target (top-left corner) */}
+      {/* Top-left edge trigger zone - long press opens menu */}
       <div
-        className="sn-corner-trigger"
-        onPointerDown={startCornerPress}
-        onPointerUp={endCornerPress}
-        onPointerLeave={endCornerPress}
+        className="sn-top-left-trigger"
+        onPointerDown={startTopEdgePress}
+        onPointerUp={endTopEdgePress}
+        onPointerLeave={endTopEdgePress}
+      />
+
+      {/* Top-right corner trigger - long press returns to Life */}
+      <div
+        className="sn-top-right-trigger"
+        onPointerDown={startTopRightPress}
+        onPointerUp={endTopRightPress}
+        onPointerLeave={endTopRightPress}
+      />
+
+      {/* Bottom edge trigger zone (full width) - long press opens routines/day type */}
+      <div
+        className="sn-bottom-edge-trigger"
+        onPointerDown={startBottomPress}
+        onPointerUp={endBottomPress}
+        onPointerLeave={endBottomPress}
       />
 
       {/* Level indicator */}
@@ -535,6 +621,72 @@ export function SphereNavigation({
             </button>
             <button className="sn-menu__item" onClick={() => { setShowHiddenMenu(false); }}>
               <span>⚙️</span> Settings
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Actions Menu (routines/day type) - triggered by bottom edge hold */}
+      {showBottomMenu && (
+        <div className="sn-bottom-menu-overlay" onClick={() => setShowBottomMenu(false)}>
+          <div className="sn-bottom-menu" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="sn-bottom-menu__item"
+              onClick={() => {
+                setShowBottomMenu(false);
+                if (onOpenRoutines) onOpenRoutines();
+              }}
+            >
+              <span className="sn-bottom-menu__icon">☀️</span>
+              <span className="sn-bottom-menu__label">Start Routine</span>
+            </button>
+            <button
+              className="sn-bottom-menu__item"
+              onClick={() => {
+                setShowBottomMenu(false);
+                if (onSetDayType) onSetDayType();
+              }}
+            >
+              <span className="sn-bottom-menu__icon">📅</span>
+              <span className="sn-bottom-menu__label">Set Day Type</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions Menu (double-tap) - add task, routine, day type */}
+      {showQuickActions && (
+        <div className="sn-quick-actions-overlay" onClick={() => setShowQuickActions(false)}>
+          <div className="sn-quick-actions" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="sn-quick-actions__item"
+              onClick={() => {
+                setShowQuickActions(false);
+                setShowQuickAdd(true);
+              }}
+            >
+              <span className="sn-quick-actions__icon">✏️</span>
+              <span className="sn-quick-actions__label">Add Task</span>
+            </button>
+            <button
+              className="sn-quick-actions__item"
+              onClick={() => {
+                setShowQuickActions(false);
+                if (onOpenRoutines) onOpenRoutines();
+              }}
+            >
+              <span className="sn-quick-actions__icon">☀️</span>
+              <span className="sn-quick-actions__label">Routine</span>
+            </button>
+            <button
+              className="sn-quick-actions__item"
+              onClick={() => {
+                setShowQuickActions(false);
+                if (onSetDayType) onSetDayType();
+              }}
+            >
+              <span className="sn-quick-actions__icon">📅</span>
+              <span className="sn-quick-actions__label">Day Type</span>
             </button>
           </div>
         </div>

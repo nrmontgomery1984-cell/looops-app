@@ -11,6 +11,7 @@ type SidebarProps = {
   onToggleTheme?: () => void;
   isMobileMenuOpen?: boolean;
   onToggleMobileMenu?: () => void;
+  hideMobileHeader?: boolean; // Hide the mobile header bar (for immersive views)
 };
 
 // SVG Icon components for cleaner look
@@ -176,6 +177,7 @@ export function Sidebar({
   onToggleTheme,
   isMobileMenuOpen = false,
   onToggleMobileMenu,
+  hideMobileHeader = false,
 }: SidebarProps) {
   const handleNavClick = (tab: TabId) => {
     onTabChange(tab);
@@ -187,21 +189,23 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile Header Bar */}
-      <header className="mobile-header">
-        <button
-          className="mobile-menu-btn"
-          onClick={onToggleMobileMenu}
-          aria-label="Toggle menu"
-        >
-          {isMobileMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
-        </button>
-        <div className="mobile-logo">
-          <LogoMark size="sm" />
-          <span className="mobile-logo-text">Looops</span>
-        </div>
-        <div className="mobile-header-spacer" />
-      </header>
+      {/* Mobile Header Bar - hidden in immersive sphere view */}
+      {!hideMobileHeader && (
+        <header className="mobile-header">
+          <button
+            className="mobile-menu-btn"
+            onClick={onToggleMobileMenu}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+          </button>
+          <div className="mobile-logo">
+            <LogoMark size="sm" />
+            <span className="mobile-logo-text">Looops</span>
+          </div>
+          <div className="mobile-header-spacer" />
+        </header>
+      )}
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (

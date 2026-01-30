@@ -1130,6 +1130,14 @@ function AppContent() {
                 dispatch({ type: "ADD_TASK", payload: newTask });
               }}
               onOpenMenu={() => setIsMobileMenuOpen(true)}
+              onOpenRoutines={() => {
+                // Navigate to routines tab
+                dispatch({ type: "SET_ACTIVE_TAB", payload: "routines" });
+              }}
+              onSetDayType={() => {
+                // Navigate to planning tab for day type selection
+                dispatch({ type: "SET_ACTIVE_TAB", payload: "planning" });
+              }}
             />
           </div>
         );
@@ -1931,6 +1939,7 @@ function AppContent() {
         onToggleTheme={toggleTheme}
         isMobileMenuOpen={isMobileMenuOpen}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        hideMobileHeader={isMobile && ui.activeTab === "loops"}
       />
 
       <main className="app-main">{renderScreen()}</main>

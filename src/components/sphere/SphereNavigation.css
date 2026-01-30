@@ -3,7 +3,7 @@
 .sn {
   position: relative;
   width: 100%;
-  height: 100%;
+  height: 100vh; /* Full viewport height */
   min-height: 500px;
   display: flex;
   flex-direction: column;
@@ -20,11 +20,16 @@
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
+  display: none; /* Hidden on mobile for clean look */
   flex-direction: column;
   align-items: center;
   gap: 6px;
   z-index: 10;
+}
+
+/* Show indicator only on larger screens */
+@media (min-width: 768px) {
+  .sn-indicator { display: flex; }
 }
 
 .sn-indicator__dot {
@@ -67,7 +72,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px 40px;
+  padding: 0 20px;
 }
 
 /* ── Transitions (300ms ease-out) ── */
@@ -100,13 +105,28 @@
    ════════════════════════════════════════ */
 
 .sn-level--life {
-  gap: 24px;
+  gap: 16px;
+  padding: 0;
+}
+
+/* True center positioning for Life sphere on mobile */
+@media (max-width: 767px) {
+  .sn-level--life .sn-life {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .sn-level--life .sn-life:active {
+    transform: translate(-50%, -50%) scale(0.97);
+  }
 }
 
 .sn-life {
   position: relative;
-  width: 200px;
-  height: 200px;
+  /* Maximize sphere: use 70% of viewport width, capped */
+  width: min(70vw, 280px);
+  height: min(70vw, 280px);
   cursor: pointer;
   transition: transform 0.3s ease;
 }
@@ -178,12 +198,26 @@
 .sn-level--domain {
   flex-direction: row;
   gap: 20px;
-  padding: 60px 0 80px;
+  padding: 0;
+}
+
+/* True center positioning for domain spheres on mobile */
+@media (max-width: 767px) {
+  .sn-level--domain .sn-domain {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .sn-level--domain .sn-domain:active {
+    transform: translate(-50%, -50%) scale(0.97);
+  }
 }
 
 .sn-domain {
-  width: 180px;
-  height: 180px;
+  /* Maximize sphere: use 65% of viewport width, capped */
+  width: min(65vw, 260px);
+  height: min(65vw, 260px);
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%);
   border: 3px solid var(--domain-color);
@@ -398,7 +432,7 @@
    ════════════════════════════════════════ */
 
 .sn-hint {
-  display: flex;
+  display: none; /* Hidden by default on mobile */
   align-items: center;
   gap: 6px;
   font-size: 12px;
@@ -406,6 +440,11 @@
 }
 .sn-hint--sub { font-size: 11px; opacity: 0.6; }
 .sn-hint__arrow { font-size: 14px; }
+
+/* Show hints only on larger screens */
+@media (min-width: 768px) {
+  .sn-hint { display: flex; }
+}
 
 .sn-hint--top {
   position: absolute;
@@ -464,22 +503,34 @@
 
 /* Small phones (320px) */
 @media (max-width: 374px) {
-  .sn-life { width: 160px; height: 160px; }
-  .sn-life__score { font-size: 40px; }
-  .sn-domain { width: 140px; height: 140px; }
+  .sn-life { width: min(70vw, 200px); height: min(70vw, 200px); }
+  .sn-life__score { font-size: 36px; }
+  .sn-domain { width: min(65vw, 180px); height: min(65vw, 180px); }
   .sn-domain__icon { font-size: 28px; }
   .sn-domain__name { font-size: 14px; }
+  .sn-peek__sphere { width: 44px; height: 44px; }
+  .sn-peek__icon { font-size: 18px; }
+  .sn-task { width: 240px; padding: 18px; }
+}
+
+/* Standard mobile (375px - 767px) */
+@media (min-width: 375px) and (max-width: 767px) {
+  .sn-life { width: min(75vw, 300px); height: min(75vw, 300px); }
+  .sn-life__score { font-size: 52px; }
+  .sn-life__inner { inset: 16px; }
+  .sn-domain { width: min(70vw, 280px); height: min(70vw, 280px); }
+  .sn-domain__icon { font-size: 40px; }
+  .sn-domain__name { font-size: 17px; }
   .sn-peek__sphere { width: 50px; height: 50px; }
   .sn-peek__icon { font-size: 20px; }
-  .sn-task { width: 240px; padding: 18px; }
 }
 
 /* Tablet */
 @media (min-width: 768px) {
-  .sn-life { width: 250px; height: 250px; }
-  .sn-life__score { font-size: 56px; }
-  .sn-domain { width: 220px; height: 220px; }
-  .sn-domain__icon { font-size: 44px; }
+  .sn-life { width: 300px; height: 300px; }
+  .sn-life__score { font-size: 60px; }
+  .sn-domain { width: 280px; height: 280px; }
+  .sn-domain__icon { font-size: 48px; }
   .sn-domain__name { font-size: 18px; }
   .sn-peek__sphere { width: 90px; height: 90px; }
   .sn-peek__icon { font-size: 32px; }
@@ -491,9 +542,9 @@
 
 /* Desktop */
 @media (min-width: 1024px) {
-  .sn-life { width: 280px; height: 280px; }
+  .sn-life { width: 320px; height: 320px; }
   .sn-life__score { font-size: 64px; }
-  .sn-domain { width: 260px; height: 260px; }
+  .sn-domain { width: 300px; height: 300px; }
   .sn-peek--left { left: 100px; }
   .sn-peek--right { right: 100px; }
   .sn-peek__sphere { width: 110px; height: 110px; }
@@ -529,18 +580,46 @@
 [data-theme="light"] .sn-indicator__label { color: rgba(26,26,46,0.5); }
 
 /* ════════════════════════════════════════
-   Corner Trigger (Hidden Menu)
+   Edge Trigger Zones
    ════════════════════════════════════════ */
 
-.sn-corner-trigger {
-  position: absolute;
+/* Top-left trigger - opens menu */
+.sn-top-left-trigger {
+  position: fixed;
   top: 0;
   left: 0;
-  width: 60px;
+  width: 50%;
   height: 60px;
-  z-index: 20;
+  z-index: 100;
   background: transparent;
-  /* Uncomment for debug: background: rgba(255,0,0,0.1); */
+  pointer-events: auto;
+  /* Uncomment for debug: background: rgba(255,0,0,0.2); */
+}
+
+/* Top-right trigger - returns to Life */
+.sn-top-right-trigger {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: 60px;
+  z-index: 100;
+  background: transparent;
+  pointer-events: auto;
+  /* Uncomment for debug: background: rgba(0,255,0,0.2); */
+}
+
+/* Bottom edge trigger - full width, opens routines/day type */
+.sn-bottom-edge-trigger {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 100;
+  background: transparent;
+  pointer-events: auto;
+  /* Uncomment for debug: background: rgba(0,0,255,0.2); */
 }
 
 /* ════════════════════════════════════════
@@ -659,7 +738,10 @@
 
 .opus-gesture-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.9);
   z-index: 300;
   display: flex;
@@ -669,6 +751,10 @@
 }
 
 .opus-gesture-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 95%;
   max-width: 420px;
   height: 80vh;
@@ -692,4 +778,133 @@
 
 [data-theme="light"] .sn-domain__task-overflow {
   color: rgba(0, 0, 0, 0.4);
+}
+
+/* ════════════════════════════════════════
+   Bottom Actions Menu
+   ════════════════════════════════════════ */
+
+.sn-bottom-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 60px;
+  animation: sn-fadeIn 0.2s ease;
+}
+
+.sn-bottom-menu {
+  display: flex;
+  gap: 16px;
+  animation: sn-slideUp 0.25s ease;
+}
+
+.sn-bottom-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 24px;
+  background: var(--color-surface, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: var(--color-text, #fff);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  min-width: 120px;
+}
+
+.sn-bottom-menu__item:hover,
+.sn-bottom-menu__item:active {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.sn-bottom-menu__icon {
+  font-size: 32px;
+}
+
+.sn-bottom-menu__label {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+[data-theme="light"] .sn-bottom-menu__item {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .sn-bottom-menu__item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ════════════════════════════════════════
+   Quick Actions Menu (Double-Tap)
+   ════════════════════════════════════════ */
+
+.sn-quick-actions-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sn-fadeIn 0.2s ease;
+}
+
+.sn-quick-actions {
+  display: flex;
+  gap: 20px;
+  animation: sn-scaleIn 0.25s ease;
+}
+
+.sn-quick-actions__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 20px;
+  background: var(--color-surface, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  color: var(--color-text, #fff);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  min-width: 90px;
+}
+
+.sn-quick-actions__item:hover,
+.sn-quick-actions__item:active {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sn-quick-actions__icon {
+  font-size: 36px;
+}
+
+.sn-quick-actions__label {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.9;
+  text-align: center;
+}
+
+[data-theme="light"] .sn-quick-actions__item {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .sn-quick-actions__item:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
