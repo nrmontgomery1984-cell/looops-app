@@ -423,8 +423,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const userDoc = await db.collection("users").doc(body.userId).get();
         if (userDoc.exists) {
           const userData = userDoc.data();
-          userPrototype = userData?.prototype || null;
-          loopStates = userData?.loopStates || {};
+          // App stores at user.prototype, not root prototype
+          userPrototype = userData?.user?.prototype || userData?.prototype || null;
+          // App stores at loops.states, not loopStates
+          loopStates = userData?.loops?.states || userData?.loopStates || {};
         }
       } catch (error) {
         console.error("Error loading user data:", error);
