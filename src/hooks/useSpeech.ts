@@ -131,35 +131,52 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       console.log("[Speech] onresult fired, resultIndex:", event.resultIndex, "results.length:", event.results.length);
-      let finalTranscript = "";
+
+      // Build complete transcript from ALL results (not just new ones)
+      // This prevents duplicates when the same text is re-marked as final
+      let allFinal = "";
       let interim = "";
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
-          finalTranscript += result[0].transcript;
-          console.log("[Speech] final:", result[0].transcript);
+          allFinal += result[0].transcript;
         } else {
           interim += result[0].transcript;
-          console.log("[Speech] interim:", result[0].transcript);
         }
       }
 
-      if (finalTranscript) {
-        setTranscript((prev) => prev + finalTranscript);
-      }
+      console.log("[Speech] allFinal:", allFinal, "interim:", interim);
+
+      // Replace (not append) the transcript with all final results
+      setTranscript(allFinal);
       setInterimTranscript(interim);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.log("[Speech] onerror:", event.error, event.message);
-      if (event.error === "no-speech" || event.error === "aborted") {
+
+      // Handle aborted errors silently (user stopped listening intentionally)
+      if (event.error === "aborted") {
         return;
       }
+
+      // Show user-friendly error messages
+      if (event.error === "no-speech") {
+        setRecognitionError("No speech detected. Tap the mic and try speaking again.");
+        wantListening.current = false;
+        setIsListening(false);
+        return;
+      }
+
       if (event.error === "not-allowed") {
         setRecognitionError("Microphone access denied. Please allow microphone permission.");
+      } else if (event.error === "network") {
+        setRecognitionError("Network error. Check your internet connection.");
+      } else if (event.error === "audio-capture") {
+        setRecognitionError("No microphone found. Check your audio settings.");
       } else {
-        setRecognitionError(event.error);
+        setRecognitionError(`Voice input error: ${event.error}`);
       }
       wantListening.current = false;
       setIsListening(false);

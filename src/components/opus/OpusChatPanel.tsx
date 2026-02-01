@@ -261,27 +261,30 @@ export function OpusChatPanel({
 
           for (const line of lines) {
             if (line.startsWith("data: ")) {
+              let data;
               try {
-                const data = JSON.parse(line.slice(6));
-
-                if (data.type === "token") {
-                  fullContent += data.content;
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantMessageId
-                        ? { ...msg, content: fullContent }
-                        : msg
-                    )
-                  );
-                } else if (data.type === "done") {
-                  if (data.conversationId) {
-                    setConversationId(data.conversationId);
-                  }
-                } else if (data.type === "error") {
-                  throw new Error(data.content);
-                }
+                data = JSON.parse(line.slice(6));
               } catch (parseErr) {
                 // Skip invalid JSON
+                continue;
+              }
+
+              if (data.type === "token") {
+                fullContent += data.content;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: fullContent }
+                      : msg
+                  )
+                );
+              } else if (data.type === "done") {
+                if (data.conversationId) {
+                  setConversationId(data.conversationId);
+                }
+              } else if (data.type === "error") {
+                // Throw error outside of try-catch so it's not swallowed
+                throw new Error(data.content || "API error");
               }
             }
           }
