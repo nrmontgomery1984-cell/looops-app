@@ -81,14 +81,24 @@ export function useFirebaseSync(
         onRemoteUpdateRef.current(result.state as Partial<AppState>);
       } else {
         console.log('[Sync] No existing state in cloud for this user');
-        // Check if local state has valid data that should be synced
-        // This handles the case where user completed onboarding before sync was set up
-        const localPrototype = (state as { user?: { prototype?: unknown } })?.user?.prototype;
-        if (localPrototype) {
-          console.log('[Sync] Local state has prototype, uploading to cloud');
-          versionRef.current = 1;
-          const success = await saveState(syncId, state, versionRef.current);
-          console.log('[Sync] Initial upload result:', success);
+        // Check localStorage directly for prototype (React state might not be populated yet)
+        try {
+          const localStorageData = localStorage.getItem('looops-state');
+          if (localStorageData) {
+            const parsed = JSON.parse(localStorageData);
+            const localPrototype = parsed?.user?.prototype;
+            console.log('[Sync] LocalStorage has prototype:', !!localPrototype);
+            if (localPrototype) {
+              console.log('[Sync] Uploading localStorage data to cloud');
+              versionRef.current = 1;
+              // Remove UI state before saving
+              const { ui, ...persistable } = parsed;
+              const success = await saveState(syncId, persistable, versionRef.current);
+              console.log('[Sync] Initial upload result:', success);
+            }
+          }
+        } catch (e) {
+          console.error('[Sync] Error reading localStorage:', e);
         }
       }
 
