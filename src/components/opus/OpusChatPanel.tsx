@@ -3,6 +3,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import { OpusDomainId } from "../../opus/types/opus-types";
 import { useSpeech } from "../../hooks/useSpeech";
+import { auth } from "../../services/firebase";
 import "./OpusChatPanel.css";
 
 // Domain configuration
@@ -223,11 +224,14 @@ export function OpusChatPanel({
         // Use streaming endpoint
         abortControllerRef.current = new AbortController();
 
+        // Use Firebase auth UID - this matches where data is stored
+        const userId = auth?.currentUser?.uid || state.user.profile?.id || "anonymous";
+
         const response = await fetch("/api/opus/chat-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: state.user.profile?.id || "anonymous",
+            userId,
             domain: activeDomain,
             message: messageText,
             conversationId,
