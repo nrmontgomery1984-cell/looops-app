@@ -489,9 +489,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!userPrototype) {
       console.log("[Opus API] No prototype found for user:", body.userId);
+      // Include debug info in error for troubleshooting
       sendSSE(res, {
         type: "error",
-        content: "Please complete onboarding to use Opus.",
+        content: `No user data found. User: ${body.userId?.substring(0, 8)}... DB: ${db ? 'connected' : 'not connected'}`,
         code: "ONBOARDING_REQUIRED",
       });
       return res.end();
