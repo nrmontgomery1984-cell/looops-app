@@ -467,9 +467,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (db) {
       try {
+        console.log("[Opus API] Looking up user:", body.userId);
         const userDoc = await db.collection("users").doc(body.userId).get();
+        console.log("[Opus API] Document exists:", userDoc.exists);
         if (userDoc.exists) {
           const userData = userDoc.data();
+          console.log("[Opus API] Document keys:", Object.keys(userData || {}));
+          console.log("[Opus API] Has user.prototype:", !!userData?.user?.prototype);
+          console.log("[Opus API] Has root prototype:", !!userData?.prototype);
           // App stores at user.prototype, not root prototype
           userPrototype = userData?.user?.prototype || userData?.prototype || null;
           // App stores at loops.states, not loopStates
@@ -478,9 +483,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (error) {
         console.error("Error loading user data:", error);
       }
+    } else {
+      console.log("[Opus API] No database connection");
     }
 
     if (!userPrototype) {
+      console.log("[Opus API] No prototype found for user:", body.userId);
       sendSSE(res, {
         type: "error",
         content: "Please complete onboarding to use Opus.",
