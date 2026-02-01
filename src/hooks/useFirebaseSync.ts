@@ -81,6 +81,15 @@ export function useFirebaseSync(
         onRemoteUpdateRef.current(result.state as Partial<AppState>);
       } else {
         console.log('[Sync] No existing state in cloud for this user');
+        // Check if local state has valid data that should be synced
+        // This handles the case where user completed onboarding before sync was set up
+        const localPrototype = (state as { user?: { prototype?: unknown } })?.user?.prototype;
+        if (localPrototype) {
+          console.log('[Sync] Local state has prototype, uploading to cloud');
+          versionRef.current = 1;
+          const success = await saveState(syncId, state, versionRef.current);
+          console.log('[Sync] Initial upload result:', success);
+        }
       }
 
       // Subscribe to remote changes
