@@ -107,7 +107,9 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognitionAPI();
 
-    recognition.continuous = true;
+    // Disable continuous mode - recognition stops after user finishes speaking
+    // This prevents duplicate text issues on mobile
+    recognition.continuous = false;
     recognition.interimResults = interimResults;
     recognition.lang = lang;
 
@@ -130,27 +132,20 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     });
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      console.log("[Speech] onresult fired, resultIndex:", event.resultIndex, "results.length:", event.results.length);
+      console.log("[Speech] onresult fired, results.length:", event.results.length);
 
-      // Build complete transcript from ALL results (not just new ones)
-      // This prevents duplicates when the same text is re-marked as final
-      let allFinal = "";
-      let interim = "";
+      // Get the latest result (non-continuous mode typically has just one)
+      const lastResult = event.results[event.results.length - 1];
+      const text = lastResult[0].transcript;
 
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          allFinal += result[0].transcript;
-        } else {
-          interim += result[0].transcript;
-        }
+      if (lastResult.isFinal) {
+        console.log("[Speech] final:", text);
+        setTranscript(text);
+        setInterimTranscript("");
+      } else {
+        console.log("[Speech] interim:", text);
+        setInterimTranscript(text);
       }
-
-      console.log("[Speech] allFinal:", allFinal, "interim:", interim);
-
-      // Replace (not append) the transcript with all final results
-      setTranscript(allFinal);
-      setInterimTranscript(interim);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -183,17 +178,9 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     };
 
     recognition.onend = () => {
-      console.log("[Speech] onend fired, wantListening:", wantListening.current);
-      if (wantListening.current) {
-        try {
-          recognition.start();
-        } catch {
-          wantListening.current = false;
-          setIsListening(false);
-          setInterimTranscript("");
-        }
-        return;
-      }
+      console.log("[Speech] onend fired");
+      // Don't auto-restart - user taps mic again if they want to continue
+      wantListening.current = false;
       setIsListening(false);
       setInterimTranscript("");
     };
