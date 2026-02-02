@@ -52,6 +52,10 @@ interface OpusContextSnapshot {
   healthData?: {
     steps?: number;
     sleepHours?: number;
+    sleepScore?: number;
+    activeMinutes?: number;
+    restingHeartRate?: number;
+    caloriesBurned?: number;
   };
   archetypeBlend?: {
     primary: string;
@@ -59,11 +63,42 @@ interface OpusContextSnapshot {
   };
 }
 
+// Routine cue types for briefings
+type RoutineCueType = "morning" | "end_of_workday" | "end_of_day";
+
+interface RoutineContext {
+  cueType: RoutineCueType;
+  p1Tasks: Array<{
+    title: string;
+    loop: string;
+    dueDate?: string;
+    isOverdue: boolean;
+  }>;
+  todayTasks: Array<{
+    title: string;
+    loop: string;
+    priority: number;
+  }>;
+  calendarEvents?: Array<{
+    title: string;
+    time: string;
+  }>;
+}
+
 interface StreamRequest {
   userId: string;
   domain: OpusDomainId;
   message: string;
   conversationId?: string;
+  healthData?: {
+    steps?: number;
+    sleepHours?: number;
+    sleepScore?: number;
+    activeMinutes?: number;
+    restingHeartRate?: number;
+    caloriesBurned?: number;
+  };
+  routineContext?: RoutineContext;
 }
 
 // SSE Event types
@@ -170,13 +205,85 @@ const DOMAIN_CONFIGS: Record<OpusDomainId, {
 };
 
 // ============================================================================
+// ROUTINE BRIEFING PROMPT GENERATION
+// ============================================================================
+
+function generateRoutineBriefingPrompt(routineContext: RoutineContext): string {
+  const parts: string[] = [];
+  const { cueType, p1Tasks, todayTasks, calendarEvents } = routineContext;
+
+  if (cueType === "morning") {
+    parts.push("## ROUTINE BRIEFING: Good Morning");
+    parts.push("The user is starting their day. Provide a concise morning briefing that includes:");
+    parts.push("1. A brief personalized greeting");
+    parts.push("2. Sleep/readiness summary (if health data available)");
+    parts.push("3. P1 (urgent) tasks that need attention");
+    parts.push("4. Tasks due today");
+    parts.push("5. Any calendar events (if available)");
+    parts.push("");
+    parts.push("Keep it energizing and action-oriented. Format as a quick briefing, not a long essay.");
+  } else if (cueType === "end_of_workday") {
+    parts.push("## ROUTINE BRIEFING: End of Workday");
+    parts.push("The user is wrapping up their workday. Provide a transition briefing:");
+    parts.push("1. Acknowledge the work done");
+    parts.push("2. Highlight any remaining P1 tasks that can wait until tomorrow");
+    parts.push("3. Suggest transition to personal time");
+    parts.push("");
+    parts.push("Help them mentally transition from work mode. Keep it brief and supportive.");
+  } else if (cueType === "end_of_day") {
+    parts.push("## ROUTINE BRIEFING: End of Day");
+    parts.push("The user is winding down for the night. Provide a calming end-of-day briefing:");
+    parts.push("1. Brief acknowledgment of the day");
+    parts.push("2. Preview of tomorrow's P1 tasks (so they can rest knowing what's ahead)");
+    parts.push("3. A calming sign-off");
+    parts.push("");
+    parts.push("Keep it peaceful and reassuring. Don't overwhelm with tasks.");
+  }
+
+  // Add task context
+  parts.push("");
+  parts.push("## Tasks Context");
+
+  if (p1Tasks.length > 0) {
+    parts.push(`P1 (Urgent) Tasks (${p1Tasks.length}):`);
+    p1Tasks.forEach((task, i) => {
+      const overdue = task.isOverdue ? " [OVERDUE]" : "";
+      const due = task.dueDate ? ` (due: ${task.dueDate})` : "";
+      parts.push(`  ${i + 1}. ${task.title} [${task.loop}]${due}${overdue}`);
+    });
+  } else {
+    parts.push("P1 Tasks: None - great job staying on top of urgent items!");
+  }
+
+  if (todayTasks.length > 0) {
+    parts.push(`Tasks Due Today (${todayTasks.length}):`);
+    todayTasks.forEach((task, i) => {
+      const priority = task.priority === 1 ? "P1" : task.priority === 2 ? "P2" : task.priority === 3 ? "P3" : "P4";
+      parts.push(`  ${i + 1}. ${task.title} [${task.loop}] - ${priority}`);
+    });
+  } else {
+    parts.push("Tasks Due Today: None scheduled");
+  }
+
+  if (calendarEvents && calendarEvents.length > 0) {
+    parts.push(`Calendar Events:`);
+    calendarEvents.forEach((event, i) => {
+      parts.push(`  ${i + 1}. ${event.time} - ${event.title}`);
+    });
+  }
+
+  return parts.join("\n");
+}
+
+// ============================================================================
 // SYSTEM PROMPT GENERATION
 // ============================================================================
 
 function generateSystemPrompt(
   domain: OpusDomainId,
   context: OpusContextSnapshot,
-  archetype?: string
+  archetype?: string,
+  routineContext?: RoutineContext
 ): string {
   const config = DOMAIN_CONFIGS[domain];
   const parts: string[] = [];
@@ -206,21 +313,38 @@ function generateSystemPrompt(
   }
 
   if (context.healthData) {
-    const h = context.healthData;
-    const healthParts: string[] = [];
-    if (h.steps) healthParts.push(`${h.steps} steps`);
-    if (h.sleepHours) healthParts.push(`${h.sleepHours}h sleep`);
-    if (healthParts.length > 0) {
-      parts.push(`- Health: ${healthParts.join(", ")}`);
-    }
+    const h = context.healthData as any;
+    parts.push("- Health data (from Fitbit):");
+    if (h.steps !== undefined) parts.push(`  - Steps today: ${h.steps}`);
+    if (h.sleepHours !== undefined) parts.push(`  - Sleep: ${h.sleepHours}h`);
+    if (h.sleepScore !== undefined) parts.push(`  - Sleep score: ${h.sleepScore}/100`);
+    if (h.activeMinutes !== undefined) parts.push(`  - Active minutes: ${h.activeMinutes}`);
+    if (h.restingHeartRate !== undefined) parts.push(`  - Resting heart rate: ${h.restingHeartRate} bpm`);
+    if (h.caloriesBurned !== undefined) parts.push(`  - Calories burned: ${h.caloriesBurned}`);
   }
   parts.push("");
 
   parts.push("## Response Guidelines");
   parts.push(`- Push level: ${config.pushLevel}`);
-  parts.push("- Be concise and actionable");
+
+  // Adjust guidelines based on routine cue
+  if (routineContext) {
+    parts.push("- This is a ROUTINE BRIEFING request - provide a structured briefing");
+    parts.push("- Be concise but include all relevant information from the task context");
+    parts.push("- Use a warm, butler-like tone (think Alfred or Jarvis)");
+  } else {
+    parts.push("- CRITICAL: Keep initial responses to ONE SENTENCE or less whenever possible");
+    parts.push("- Only elaborate with details if the user asks for more information");
+  }
+  parts.push("- Be direct and actionable - no preamble or filler");
   parts.push("- Match the user's communication style");
   parts.push("- Do not use emojis unless the user does");
+
+  // Add routine briefing context if present
+  if (routineContext) {
+    parts.push("");
+    parts.push(generateRoutineBriefingPrompt(routineContext));
+  }
 
   return parts.join("\n");
 }
@@ -489,10 +613,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!userPrototype) {
       console.log("[Opus API] No prototype found for user:", body.userId);
-      // Include debug info in error for troubleshooting
+      // Get more debug info
+      let debugInfo = `User: ${body.userId?.substring(0, 8)}... DB: ${db ? 'connected' : 'not connected'}`;
+      if (db) {
+        try {
+          const userDoc = await db.collection("users").doc(body.userId).get();
+          if (userDoc.exists) {
+            const data = userDoc.data();
+            const keys = Object.keys(data || {});
+            debugInfo += ` | Doc exists, keys: [${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '...' : ''}]`;
+            debugInfo += ` | user?: ${!!data?.user} | user.prototype?: ${!!data?.user?.prototype}`;
+          } else {
+            debugInfo += ' | Doc does NOT exist';
+          }
+        } catch (e) {
+          debugInfo += ` | Debug error: ${e}`;
+        }
+      }
       sendSSE(res, {
         type: "error",
-        content: `No user data found. User: ${body.userId?.substring(0, 8)}... DB: ${db ? 'connected' : 'not connected'}`,
+        content: `No user data found. ${debugInfo}`,
         code: "ONBOARDING_REQUIRED",
       });
       return res.end();
@@ -509,6 +649,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             secondary: userPrototype.archetypeBlend.secondary,
           }
         : undefined,
+      // Include health data from request if provided
+      healthData: body.healthData ? {
+        steps: body.healthData.steps,
+        sleepHours: body.healthData.sleepHours,
+        sleepScore: body.healthData.sleepScore,
+        activeMinutes: body.healthData.activeMinutes,
+        restingHeartRate: body.healthData.restingHeartRate,
+        caloriesBurned: body.healthData.caloriesBurned,
+      } : undefined,
     };
 
     if (loopStates && typeof loopStates === "object") {
@@ -550,11 +699,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Generate system prompt
+    // Generate system prompt (include routine context if this is a briefing request)
     const systemPrompt = generateSystemPrompt(
       body.domain,
       context,
-      userPrototype.archetypeBlend?.primary
+      userPrototype.archetypeBlend?.primary,
+      body.routineContext
     );
 
     // Detect intent early

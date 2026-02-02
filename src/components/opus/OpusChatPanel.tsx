@@ -3,8 +3,63 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import { OpusDomainId } from "../../opus/types/opus-types";
 import { useSpeech } from "../../hooks/useSpeech";
+import { useHealthData } from "../../hooks/useHealthData";
 import { auth } from "../../services/firebase";
+import { Task } from "../../types/tasks";
 import "./OpusChatPanel.css";
+
+// Routine cue detection patterns
+type RoutineCueType = "morning" | "end_of_workday" | "end_of_day" | null;
+
+interface RoutineCue {
+  type: RoutineCueType;
+  patterns: RegExp[];
+}
+
+const ROUTINE_CUES: RoutineCue[] = [
+  {
+    type: "morning",
+    patterns: [
+      /good\s*morning/i,
+      /morning\s*briefing/i,
+      /start\s*(my|the)?\s*day/i,
+      /what('s|s)?\s*(on|for)\s*(my|the|today)/i,
+    ],
+  },
+  {
+    type: "end_of_workday",
+    patterns: [
+      /end\s*(of)?\s*work\s*day/i,
+      /leaving\s*work/i,
+      /done\s*(with)?\s*work/i,
+      /work\s*day\s*(is)?\s*(over|done|ending)/i,
+      /clocking\s*out/i,
+    ],
+  },
+  {
+    type: "end_of_day",
+    patterns: [
+      /end\s*(of)?\s*(the|my)?\s*day/i,
+      /good\s*night/i,
+      /going\s*to\s*(bed|sleep)/i,
+      /winding\s*down/i,
+      /bedtime/i,
+      /night\s*briefing/i,
+    ],
+  },
+];
+
+function detectRoutineCue(message: string): RoutineCueType {
+  const lowerMessage = message.toLowerCase().trim();
+  for (const cue of ROUTINE_CUES) {
+    for (const pattern of cue.patterns) {
+      if (pattern.test(lowerMessage)) {
+        return cue.type;
+      }
+    }
+  }
+  return null;
+}
 
 // Domain configuration
 const OPUS_DOMAINS: Record<OpusDomainId, { name: string; color: string; icon: string }> = {
@@ -81,6 +136,7 @@ export function OpusChatPanel({
   embedded = false,
 }: OpusChatPanelProps) {
   const { state } = useApp();
+  const { data: healthData } = useHealthData();
   const [activeDomain, setActiveDomain] = useState<OpusDomainId>(initialDomain);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -185,10 +241,48 @@ export function OpusChatPanel({
     }
   };
 
+  // Get P1 tasks for routine briefings
+  const getP1Tasks = useCallback(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const tasks = state.tasks?.items || [];
+    return tasks
+      .filter((task: Task) =>
+        task.priority === 1 &&
+        task.status !== "done" &&
+        task.status !== "dropped"
+      )
+      .map((task: Task) => ({
+        title: task.title,
+        loop: task.loop,
+        dueDate: task.dueDate,
+        isOverdue: task.dueDate ? task.dueDate < today : false,
+      }));
+  }, [state.tasks?.items]);
+
+  // Get tasks due today for routine briefings
+  const getTodayTasks = useCallback(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const tasks = state.tasks?.items || [];
+    return tasks
+      .filter((task: Task) =>
+        task.dueDate === today &&
+        task.status !== "done" &&
+        task.status !== "dropped"
+      )
+      .map((task: Task) => ({
+        title: task.title,
+        loop: task.loop,
+        priority: task.priority,
+      }));
+  }, [state.tasks?.items]);
+
   // Send message with streaming
   const sendMessage = useCallback(
     async (messageText: string) => {
       if (!messageText.trim() || isLoading) return;
+
+      // Detect if this is a routine cue
+      const routineCue = detectRoutineCue(messageText);
 
       const userMessage: Message = {
         id: `msg_${Date.now()}_user`,
@@ -220,6 +314,15 @@ export function OpusChatPanel({
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
+      // Gather routine context if this is a routine cue
+      const routineContext = routineCue ? {
+        cueType: routineCue,
+        p1Tasks: getP1Tasks(),
+        todayTasks: getTodayTasks(),
+        // Calendar events would go here if integrated
+        calendarEvents: [] as Array<{ title: string; time: string }>,
+      } : undefined;
+
       try {
         // Use streaming endpoint
         abortControllerRef.current = new AbortController();
@@ -235,6 +338,17 @@ export function OpusChatPanel({
             domain: activeDomain,
             message: messageText,
             conversationId,
+            // Include health data from Fitbit if available
+            healthData: healthData?.today ? {
+              steps: healthData.today.steps,
+              sleepHours: healthData.today.sleepDurationHours,
+              sleepScore: healthData.today.sleepScore,
+              activeMinutes: healthData.today.activeMinutes,
+              restingHeartRate: healthData.today.restingHeartRate,
+              caloriesBurned: healthData.today.caloriesBurned,
+            } : undefined,
+            // Include routine context for briefings
+            routineContext,
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -309,7 +423,7 @@ export function OpusChatPanel({
         abortControllerRef.current = null;
       }
     },
-    [activeDomain, conversationId, state.user.profile?.id, isLoading]
+    [activeDomain, conversationId, state.user.profile?.id, isLoading, healthData, getP1Tasks, getTodayTasks]
   );
 
   // Auto-send when voice input stops and there's captured text

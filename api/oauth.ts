@@ -2,7 +2,7 @@
 // This consolidates multiple OAuth endpoints to stay within Vercel's function limit
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const PRODUCTION_URL = 'https://looops-app.vercel.app';
+const PRODUCTION_URL = 'https://looops-app-master.vercel.app';
 
 // Environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();

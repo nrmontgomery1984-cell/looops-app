@@ -72,7 +72,7 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     lang = "en-US",
     interimResults = true,
     voiceRate: initialVoiceRate = 1,
-    voicePitch = 1,
+    voicePitch = 0.9, // Slightly deeper for Alfred/Jarvis style
   } = options;
 
   // Speech Recognition State
@@ -82,19 +82,44 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  // Text-to-Speech State
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(true);
-  const [voiceRate, setVoiceRate] = useState(initialVoiceRate);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
   // Check browser support
   const recognitionSupported = typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
   const ttsSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+
+  // Text-to-Speech State
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [voiceRate, setVoiceRateState] = useState(initialVoiceRate);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const lastTextRef = useRef<string>("");
+
+  // Wrapper for setVoiceRate that restarts speech with new rate
+  const setVoiceRate = useCallback((rate: number) => {
+    setVoiceRateState(rate);
+    // If currently speaking, restart with new rate
+    if (isSpeaking && lastTextRef.current && ttsSupported) {
+      speechSynthesis.cancel();
+      // Small delay to ensure cancel completes
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(lastTextRef.current);
+        utterance.rate = rate;
+        utterance.pitch = voicePitch;
+        utterance.lang = lang;
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        utteranceRef.current = utterance;
+        speechSynthesis.speak(utterance);
+      }, 50);
+    }
+  }, [isSpeaking, ttsSupported, voicePitch, lang, selectedVoice]);
 
   // Track whether we intentionally want to keep listening
   const wantListening = useRef(false);
@@ -208,12 +233,30 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
       const voices = speechSynthesis.getVoices();
       setAvailableVoices(voices);
 
-      // Select a default English voice
+      // Select a sophisticated male voice (Alfred/Jarvis style)
+      // Priority: British male > "Daniel" > "Google UK Male" > any male > English voice
       if (!selectedVoice && voices.length > 0) {
-        const englishVoice = voices.find(
-          (v) => v.lang.startsWith("en") && v.localService
-        ) || voices.find((v) => v.lang.startsWith("en")) || voices[0];
-        setSelectedVoice(englishVoice);
+        const voicePreferences = [
+          // British male voices (Alfred/Jarvis style)
+          (v: SpeechSynthesisVoice) => v.name.includes("Daniel") && v.lang.startsWith("en-GB"),
+          (v: SpeechSynthesisVoice) => v.name.includes("Google UK English Male"),
+          (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes("male") && v.lang.startsWith("en-GB"),
+          (v: SpeechSynthesisVoice) => v.lang.startsWith("en-GB") && !v.name.toLowerCase().includes("female"),
+          // US male voices as fallback
+          (v: SpeechSynthesisVoice) => v.name.includes("Alex") && v.lang.startsWith("en-US"),
+          (v: SpeechSynthesisVoice) => v.name.includes("Google US English Male"),
+          (v: SpeechSynthesisVoice) => v.name.toLowerCase().includes("male") && v.lang.startsWith("en"),
+          // Any English voice
+          (v: SpeechSynthesisVoice) => v.lang.startsWith("en") && v.localService,
+          (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
+        ];
+
+        let bestVoice: SpeechSynthesisVoice | null = null;
+        for (const preference of voicePreferences) {
+          bestVoice = voices.find(preference) || null;
+          if (bestVoice) break;
+        }
+        setSelectedVoice(bestVoice || voices[0]);
       }
     };
 
@@ -262,6 +305,9 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     (text: string) => {
       if (!ttsSupported || !ttsEnabled || !text.trim()) return;
 
+      // Save text for potential rate change restart
+      lastTextRef.current = text;
+
       // Stop any current speech
       speechSynthesis.cancel();
 
@@ -275,8 +321,14 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
       }
 
       utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        lastTextRef.current = ""; // Clear after speech completes
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        lastTextRef.current = "";
+      };
 
       utteranceRef.current = utterance;
       speechSynthesis.speak(utterance);
